@@ -199,10 +199,14 @@ ssh -t ia@localhost powershell -NoProfile -ExecutionPolicy Bypass -File C:\Paine
 | Enviar um prompt, pedir algo que exija aprovação, aprovar | Mesma sequência do Claude: `executando`, `atencao`, `executando`, `aguardando`. |
 | Sair do Codex | `status` passa a `encerrada`. Se não passar, anote: o hook de `SessionEnd` do Codex tem limite curto. |
 
-Retome com o identificador anotado:
+Para retomar, guarde numa variável o identificador anotado, trocando o valor de exemplo pelo `session_id` do arquivo de status do Codex:
 
 ```powershell
-ssh -t ia@localhost powershell -NoProfile -ExecutionPolicy Bypass -File C:\Painel\abrir.ps1 -Agente codex -Repo $repo -Sessao <session_id-do-codex> -Modo retomar
+$sessaoCodex = '00000000-0000-0000-0000-000000000000'
+```
+
+```powershell
+ssh -t ia@localhost powershell -NoProfile -ExecutionPolicy Bypass -File C:\Painel\abrir.ps1 -Agente codex -Repo $repo -Sessao $sessaoCodex -Modo retomar
 ```
 
 O Codex deve abrir a conversa anterior, com o histórico.
@@ -243,11 +247,13 @@ Preencha depois de executar o roteiro.
 
 | Item | Resultado |
 |---|---|
-| Formato do `session_id` do Codex (tarefa 1.2) | |
-| Nome do campo de tipo em `Notification` (tarefa 1.3) | |
-| `/clear` muda o `session_id` no Claude? | |
-| Fechar a aba dispara `SessionEnd`? (Claude / Codex) | |
-| Sessão retomada mantém o mesmo arquivo de status? (Claude / Codex) | |
+| Formato do `session_id` do Codex (tarefa 1.2) | GUID de 36 caracteres. |
+| Nome do campo de tipo em `Notification` (tarefa 1.3) | Não capturado na prática; a documentação indica `notification_type`. |
+| `/clear` muda o `session_id` no Claude? | Sim: surge uma sessão nova. |
+| Fechar a aba dispara `SessionEnd`? (Claude / Codex) | Claude: sim, o status passa a `encerrada`. Codex: **não**, o status fica no último valor. |
+| Sessão retomada mantém o mesmo arquivo de status? (Claude / Codex) | Claude: sim. Codex: a retomada abre a conversa certa; o arquivo de status não foi conferido. |
+
+Consequência para a Etapa 2: como o Codex não grava `encerrada` ao fechar a aba, o painel precisa de uma regra de inatividade que cubra também o status `aguardando`, e não só `ativa` e `executando`.
 
 ## Reversão
 
