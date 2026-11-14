@@ -1,18 +1,31 @@
 namespace DataPilot.Core;
 
-/// <summary>Sessão registrada no arquivo de dados do painel. Nenhum campo vem de arquivo de status.</summary>
+/// <summary>
+/// Sessão registrada no arquivo de dados do painel. Nenhum campo vem de arquivo de status.
+/// <see cref="DemandaId"/> é a demanda em que ela está registrada (vem do arquivo de dados, já validado).
+/// </summary>
 public sealed record SessaoRegistrada(
     Agente Agente,
     string SessionId,
     string Pasta,
     string? Rotulo,
-    DateTimeOffset CriadaEm);
+    DateTimeOffset CriadaEm,
+    string DemandaId);
 
-/// <summary>Repositório cadastrado no arquivo de dados do painel, com as sessões registradas nele.</summary>
+/// <summary>Repositório vinculado a uma demanda, com as sessões registradas nele.</summary>
 public sealed record RepositorioCadastrado(string Pasta, IReadOnlyList<SessaoRegistrada> Sessoes);
 
+/// <summary>Demanda do arquivo de dados: reúne os repositórios e as sessões de um mesmo trabalho.</summary>
+public sealed record Demanda(
+    string Id,
+    string Titulo,
+    string? OpenspecChange,
+    DateTimeOffset? CriadaEm,
+    bool Arquivada,
+    IReadOnlyList<RepositorioCadastrado> Repositorios);
+
 /// <summary>Resultado da leitura do arquivo de dados. Indisponível quando o arquivo existe mas não é legível.</summary>
-public sealed record EstadoDados(bool Disponivel, IReadOnlyList<RepositorioCadastrado> Repositorios, string? Erro)
+public sealed record EstadoDados(bool Disponivel, IReadOnlyList<Demanda> Demandas, string? Erro)
 {
     public static EstadoDados Vazio { get; } = new(true, [], null);
 }
@@ -21,4 +34,17 @@ public sealed record ResultadoOperacao(bool Ok, string? Mensagem = null)
 {
     public static ResultadoOperacao Sucesso { get; } = new(true);
     public static ResultadoOperacao Falha(string mensagem) => new(false, mensagem);
+}
+
+/// <summary>Restrições da demanda fixa "Sem demanda" e das demandas arquivadas, em um só lugar.</summary>
+public static class RegrasDemanda
+{
+    public static bool EhImplicita(string id)
+        => string.Equals(id, DadosPainel.IdDemandaImplicita, StringComparison.OrdinalIgnoreCase);
+
+    public static bool PodeEditar(Demanda d) => !EhImplicita(d.Id);
+    public static bool PodeArquivar(Demanda d) => !EhImplicita(d.Id) && !d.Arquivada;
+    public static bool PodeDesarquivar(Demanda d) => d.Arquivada;
+    public static bool PodeVincularRepositorio(Demanda d) => !d.Arquivada;
+    public static bool PodeAbrirNovaSessao(Demanda d) => !d.Arquivada && d.Repositorios.Count > 0;
 }

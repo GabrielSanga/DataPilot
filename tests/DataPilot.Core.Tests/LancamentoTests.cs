@@ -29,48 +29,48 @@ public class MontadorComandoTests
     [Fact]
     public void Claude_novo()
     {
-        var c = MontadorComando.Novo(Repo, Agente.Claude, Id, null);
+        var c = MontadorComando.Novo("CHG-142", Repo, Agente.Claude, Id, null);
         Assert.Equal("wt.exe", c.Executavel);
-        Assert.Equal([.. Prefixo("Claude · Faturamento"), "-Agente", "claude", "-Repo", "Faturamento", "-Sessao", Id, "-Modo", "novo"], c.Argumentos);
+        Assert.Equal([.. Prefixo("CHG-142 · Faturamento"), "-Agente", "claude", "-Repo", "Faturamento", "-Sessao", Id, "-Modo", "novo"], c.Argumentos);
     }
 
     [Fact]
     public void Codex_novo_sem_sessao()
     {
-        var c = MontadorComando.Novo(Repo, Agente.Codex, null, null);
-        Assert.Equal([.. Prefixo("Codex · Faturamento"), "-Agente", "codex", "-Repo", "Faturamento", "-Modo", "novo"], c.Argumentos);
+        var c = MontadorComando.Novo("CHG-142", Repo, Agente.Codex, null, null);
+        Assert.Equal([.. Prefixo("CHG-142 · Faturamento"), "-Agente", "codex", "-Repo", "Faturamento", "-Modo", "novo"], c.Argumentos);
     }
 
     [Fact]
     public void Claude_retomar()
     {
-        var s = new SessaoRegistrada(Agente.Claude, Id, "Faturamento", null, Fabrica.Agora);
+        var s = new SessaoRegistrada(Agente.Claude, Id, "Faturamento", null, Fabrica.Agora, "CHG-142");
         var c = MontadorComando.Retomar(s);
-        Assert.Equal([.. Prefixo("Claude · Faturamento"), "-Agente", "claude", "-Repo", "Faturamento", "-Sessao", Id, "-Modo", "retomar"], c.Argumentos);
+        Assert.Equal([.. Prefixo("CHG-142 · Faturamento"), "-Agente", "claude", "-Repo", "Faturamento", "-Sessao", Id, "-Modo", "retomar"], c.Argumentos);
     }
 
     [Fact]
     public void Codex_retomar()
     {
-        var s = new SessaoRegistrada(Agente.Codex, Id, "Faturamento", null, Fabrica.Agora);
+        var s = new SessaoRegistrada(Agente.Codex, Id, "Faturamento", null, Fabrica.Agora, "CHG-142");
         var c = MontadorComando.Retomar(s);
-        Assert.Equal([.. Prefixo("Codex · Faturamento"), "-Agente", "codex", "-Repo", "Faturamento", "-Sessao", Id, "-Modo", "retomar"], c.Argumentos);
+        Assert.Equal([.. Prefixo("CHG-142 · Faturamento"), "-Agente", "codex", "-Repo", "Faturamento", "-Sessao", Id, "-Modo", "retomar"], c.Argumentos);
     }
 
     [Fact]
-    public void Titulo_sem_rotulo() => Assert.Equal("Claude · Faturamento", MontadorComando.Titulo(Agente.Claude, "Faturamento", null));
+    public void Titulo_sem_rotulo() => Assert.Equal("CHG-142 · Faturamento", MontadorComando.Titulo("CHG-142", Agente.Claude, "Faturamento", null));
 
     [Fact]
-    public void Titulo_com_rotulo() => Assert.Equal("Claude · Faturamento · implementação", MontadorComando.Titulo(Agente.Claude, "Faturamento", "implementação"));
+    public void Titulo_com_rotulo() => Assert.Equal("CHG-142 · Faturamento · implementação", MontadorComando.Titulo("CHG-142", Agente.Claude, "Faturamento", "implementação"));
 
     [Fact]
-    public void Titulo_do_codex() => Assert.Equal("Codex · App", MontadorComando.Titulo(Agente.Codex, "App", null));
+    public void Titulo_de_sem_demanda_usa_o_nome_do_agente() => Assert.Equal("Codex · App", MontadorComando.Titulo("sem-demanda", Agente.Codex, "App", null));
 
     [Fact]
     public void Rotulo_vai_para_o_titulo_como_um_argumento()
     {
-        var c = MontadorComando.Novo(Repo, Agente.Claude, Id, "duas palavras");
-        Assert.Equal("Claude · Faturamento · duas palavras", c.Argumentos[4]);
+        var c = MontadorComando.Novo("CHG-142", Repo, Agente.Claude, Id, "duas palavras");
+        Assert.Equal("CHG-142 · Faturamento · duas palavras", c.Argumentos[4]);
     }
 
     [Theory]
@@ -81,8 +81,8 @@ public class MontadorComandoTests
     [InlineData("")]
     public void Pasta_invalida_e_recusada(string pasta)
     {
-        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo(new RepositorioCadastrado(pasta, []), Agente.Claude, Id, null));
-        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Retomar(new SessaoRegistrada(Agente.Claude, Id, pasta, null, Fabrica.Agora)));
+        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", new RepositorioCadastrado(pasta, []), Agente.Claude, Id, null));
+        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Retomar(new SessaoRegistrada(Agente.Claude, Id, pasta, null, Fabrica.Agora, "CHG-142")));
     }
 
     [Theory]
@@ -91,8 +91,8 @@ public class MontadorComandoTests
     [InlineData("0b6f1c2e-5d1a-4c8e-9f3a-2b7d4e6a8c10; calc")]
     public void Identificador_invalido_e_recusado(string id)
     {
-        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo(Repo, Agente.Claude, id, null));
-        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Retomar(new SessaoRegistrada(Agente.Claude, id, "App", null, Fabrica.Agora)));
+        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", Repo, Agente.Claude, id, null));
+        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Retomar(new SessaoRegistrada(Agente.Claude, id, "App", null, Fabrica.Agora, "CHG-142")));
     }
 
     [Theory]
@@ -101,21 +101,21 @@ public class MontadorComandoTests
     [InlineData("12345678901234567890123456789012345678901")]
     public void Rotulo_invalido_e_recusado(string rotulo)
     {
-        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo(Repo, Agente.Claude, Id, rotulo));
-        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Retomar(new SessaoRegistrada(Agente.Claude, Id, "App", rotulo, Fabrica.Agora)));
+        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", Repo, Agente.Claude, Id, rotulo));
+        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Retomar(new SessaoRegistrada(Agente.Claude, Id, "App", rotulo, Fabrica.Agora, "CHG-142")));
     }
 
     [Fact]
     public void Agente_invalido_e_recusado()
-        => Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo(Repo, (Agente)7, Id, null));
+        => Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", Repo, (Agente)7, Id, null));
 
     [Fact]
     public void Claude_novo_sem_identificador_e_recusado()
-        => Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo(Repo, Agente.Claude, null, null));
+        => Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", Repo, Agente.Claude, null, null));
 
     [Fact]
     public void Codex_novo_com_identificador_e_recusado()
-        => Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo(Repo, Agente.Codex, Id, null));
+        => Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", Repo, Agente.Codex, Id, null));
 }
 
 public class DisparadorProcessoTests
@@ -129,49 +129,48 @@ public class DisparadorProcessoTests
     }
 }
 
+public class MontadorComandoDemandaTests
+{
+    private const string Id = "0b6f1c2e-5d1a-4c8e-9f3a-2b7d4e6a8c10";
+
+    [Fact]
+    public void Retomar_sessao_de_sem_demanda_usa_o_nome_do_agente_no_titulo()
+    {
+        var s = new SessaoRegistrada(Agente.Claude, Id, "Faturamento", null, Fabrica.Agora, "sem-demanda");
+        Assert.Equal("Claude · Faturamento", MontadorComando.Retomar(s).Argumentos[4]);
+    }
+
+    [Fact]
+    public void Retomar_sessao_de_demanda_com_rotulo_comeca_pelo_id()
+    {
+        var s = new SessaoRegistrada(Agente.Claude, Id, "Faturamento", "implementação", Fabrica.Agora, "CHG-142");
+        Assert.Equal("CHG-142 · Faturamento · implementação", MontadorComando.Retomar(s).Argumentos[4]);
+    }
+
+    [Fact]
+    public void Novo_do_codex_em_demanda_usa_o_id_no_titulo()
+    {
+        var c = MontadorComando.Novo("CHG-142", new RepositorioCadastrado("Estoque", []), Agente.Codex, null, "teste");
+        Assert.Equal("CHG-142 · Estoque · teste", c.Argumentos[4]);
+    }
+
+    [Theory]
+    [InlineData("a;b")]
+    [InlineData("com espaço")]
+    [InlineData("..")]
+    [InlineData("")]
+    [InlineData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    public void Identificador_de_demanda_invalido_e_recusado(string demandaId)
+    {
+        Assert.Throws<EntradaInvalidaException>(() =>
+            MontadorComando.Novo(demandaId, new RepositorioCadastrado("App", []), Agente.Claude, Id, null));
+        Assert.Throws<EntradaInvalidaException>(() =>
+            MontadorComando.Retomar(new SessaoRegistrada(Agente.Claude, Id, "App", null, Fabrica.Agora, demandaId)));
+    }
+}
+
 public class CorrespondenciaTests
 {
-    private const string IdRegistrado = "0b6f1c2e-5d1a-4c8e-9f3a-2b7d4e6a8c10";
-
-    private static RepositorioCadastrado[] Repos(Agente agente = Agente.Claude) =>
-        [new("Faturamento", [new SessaoRegistrada(agente, IdRegistrado, "Faturamento", "implementação", Fabrica.Agora)])];
-
-    [Fact]
-    public void Sessao_aberta_pelo_painel_tem_correspondencia()
-    {
-        var s = Fabrica.Sessao(StatusGravado.Encerrada, TimeSpan.Zero, IdRegistrado);
-        var r = Correspondencia.Registrada(s, Repos());
-        Assert.NotNull(r);
-        Assert.Equal("Faturamento", r.Pasta);
-    }
-
-    [Fact]
-    public void Sessao_do_codex_nao_tem_correspondencia()
-    {
-        var s = Fabrica.Sessao(StatusGravado.Encerrada, TimeSpan.Zero, IdRegistrado, Agente.Codex);
-        Assert.Null(Correspondencia.Registrada(s, Repos()));
-    }
-
-    [Fact]
-    public void Sessao_criada_por_clear_nao_tem_correspondencia()
-    {
-        var nova = Fabrica.Sessao(StatusGravado.Ativa, TimeSpan.Zero, "99999999-2222-3333-4444-555555555555");
-        var original = Fabrica.Sessao(StatusGravado.Ativa, TimeSpan.Zero, IdRegistrado);
-        Assert.Null(Correspondencia.Registrada(nova, Repos()));
-        Assert.NotNull(Correspondencia.Registrada(original, Repos()));
-    }
-
-    [Fact]
-    public void Sem_repositorios_nao_ha_correspondencia()
-        => Assert.Null(Correspondencia.Registrada(Fabrica.Sessao(StatusGravado.Ativa, TimeSpan.Zero, IdRegistrado), []));
-
-    [Fact]
-    public void Pasta_de_trabalho_do_status_nao_influencia_a_correspondencia()
-    {
-        var s = Fabrica.Sessao(StatusGravado.Ativa, TimeSpan.Zero, IdRegistrado, cwd: @"C:\Windows");
-        Assert.Equal("Faturamento", Correspondencia.Registrada(s, Repos())!.Pasta);
-    }
-
     [Theory]
     [InlineData(StatusExibido.PrecisaAtencao, true)]
     [InlineData(StatusExibido.Aguardando, true)]
@@ -179,6 +178,7 @@ public class CorrespondenciaTests
     [InlineData(StatusExibido.Ativa, true)]
     [InlineData(StatusExibido.Inativa, false)]
     [InlineData(StatusExibido.Encerrada, false)]
+    [InlineData(StatusExibido.SemStatus, false)]
     public void Confirmacao_conforme_o_status(StatusExibido status, bool esperado)
         => Assert.Equal(esperado, Correspondencia.ExigeConfirmacao(status));
 }
@@ -191,7 +191,8 @@ public class AberturaSessaoTests
     {
         var pasta = new PastaTemporaria();
         var dados = new DadosPainel(Path.Combine(pasta.Caminho, "demandas.json"));
-        if (cadastrar) dados.Cadastrar("Faturamento");
+        dados.CriarDemanda("CHG-142", "Ajuste NF-e", null, Fabrica.Agora);
+        if (cadastrar) dados.VincularRepositorio("CHG-142", "Faturamento");
         var disparador = new DisparadorFalso();
         var abertura = new AberturaSessao(dados, disparador, new RelogioFalso(Fabrica.Agora), () => Guid.Parse(IdFixo));
         return (abertura, dados, disparador, pasta);
@@ -202,10 +203,10 @@ public class AberturaSessaoTests
     {
         var (abertura, dados, disparador, pasta) = Novo();
         using var _ = pasta;
-        var r = abertura.Nova("Faturamento", Agente.Claude, "implementação");
+        var r = abertura.Nova("CHG-142", "Faturamento", Agente.Claude, "implementação");
         Assert.True(r.Ok);
 
-        var s = dados.Carregar().Repositorios.Single().Sessoes.Single();
+        var s = dados.Carregar().Demandas.Single().Repositorios.Single().Sessoes.Single();
         Assert.Equal(IdFixo, s.SessionId);
         Assert.Equal("implementação", s.Rotulo);
         Assert.Equal(Fabrica.Agora, s.CriadaEm);
@@ -220,7 +221,7 @@ public class AberturaSessaoTests
         var (abertura, dados, disparador, pasta) = Novo();
         using var _ = pasta;
         var antes = File.ReadAllBytes(dados.Caminho);
-        Assert.True(abertura.Nova("Faturamento", Agente.Codex, null).Ok);
+        Assert.True(abertura.Nova("CHG-142", "Faturamento", Agente.Codex, null).Ok);
         Assert.Equal(antes, File.ReadAllBytes(dados.Caminho));
         Assert.DoesNotContain("-Sessao", Assert.Single(disparador.Comandos).Argumentos);
     }
@@ -231,10 +232,10 @@ public class AberturaSessaoTests
         var (abertura, dados, disparador, pasta) = Novo();
         using var _ = pasta;
         disparador.Falhar = true;
-        var r = abertura.Nova("Faturamento", Agente.Claude, null);
+        var r = abertura.Nova("CHG-142", "Faturamento", Agente.Claude, null);
         Assert.False(r.Ok);
         Assert.Contains("wt.exe", r.Mensagem);
-        Assert.Empty(dados.Carregar().Repositorios.Single().Sessoes);
+        Assert.Empty(dados.Carregar().Demandas.Single().Repositorios.Single().Sessoes);
     }
 
     [Fact]
@@ -242,9 +243,9 @@ public class AberturaSessaoTests
     {
         var (abertura, dados, disparador, pasta) = Novo();
         using var _ = pasta;
-        Assert.False(abertura.Nova("Faturamento", Agente.Claude, "a;b").Ok);
+        Assert.False(abertura.Nova("CHG-142", "Faturamento", Agente.Claude, "a;b").Ok);
         Assert.Empty(disparador.Comandos);
-        Assert.Empty(dados.Carregar().Repositorios.Single().Sessoes);
+        Assert.Empty(dados.Carregar().Demandas.Single().Repositorios.Single().Sessoes);
     }
 
     [Fact]
@@ -252,8 +253,8 @@ public class AberturaSessaoTests
     {
         var (abertura, dados, _, pasta) = Novo();
         using var _p = pasta;
-        Assert.True(abertura.Nova("Faturamento", Agente.Claude, "   ").Ok);
-        Assert.Null(dados.Carregar().Repositorios.Single().Sessoes.Single().Rotulo);
+        Assert.True(abertura.Nova("CHG-142", "Faturamento", Agente.Claude, "   ").Ok);
+        Assert.Null(dados.Carregar().Demandas.Single().Repositorios.Single().Sessoes.Single().Rotulo);
     }
 
     [Fact]
@@ -261,7 +262,7 @@ public class AberturaSessaoTests
     {
         var (abertura, _, disparador, pasta) = Novo(cadastrar: false);
         using var _ = pasta;
-        Assert.False(abertura.Nova("Faturamento", Agente.Claude, null).Ok);
+        Assert.False(abertura.Nova("CHG-142", "Faturamento", Agente.Claude, null).Ok);
         Assert.Empty(disparador.Comandos);
     }
 
@@ -271,7 +272,7 @@ public class AberturaSessaoTests
         var (abertura, dados, disparador, pasta) = Novo();
         using var _ = pasta;
         File.WriteAllText(dados.Caminho, "lixo");
-        Assert.False(abertura.Nova("Faturamento", Agente.Claude, null).Ok);
+        Assert.False(abertura.Nova("CHG-142", "Faturamento", Agente.Claude, null).Ok);
         Assert.Empty(disparador.Comandos);
         Assert.Equal("lixo", File.ReadAllText(dados.Caminho));
     }
@@ -281,7 +282,7 @@ public class AberturaSessaoTests
     {
         var (abertura, _, disparador, pasta) = Novo();
         using var _ = pasta;
-        var s = new SessaoRegistrada(Agente.Claude, IdFixo, "Faturamento", null, Fabrica.Agora);
+        var s = new SessaoRegistrada(Agente.Claude, IdFixo, "Faturamento", null, Fabrica.Agora, "CHG-142");
         Assert.True(abertura.Retomar(s).Ok);
         Assert.Equal(["-Repo", "Faturamento", "-Sessao", IdFixo, "-Modo", "retomar"], Assert.Single(disparador.Comandos).Argumentos.TakeLast(6));
     }
@@ -291,7 +292,7 @@ public class AberturaSessaoTests
     {
         var (abertura, _, disparador, pasta) = Novo();
         using var _ = pasta;
-        var r = abertura.Retomar(new SessaoRegistrada(Agente.Claude, IdFixo, "..", null, Fabrica.Agora));
+        var r = abertura.Retomar(new SessaoRegistrada(Agente.Claude, IdFixo, "..", null, Fabrica.Agora, "CHG-142"));
         Assert.False(r.Ok);
         Assert.Empty(disparador.Comandos);
     }
@@ -302,8 +303,86 @@ public class AberturaSessaoTests
         var (abertura, _, disparador, pasta) = Novo();
         using var _ = pasta;
         disparador.Falhar = true;
-        var r = abertura.Retomar(new SessaoRegistrada(Agente.Claude, IdFixo, "Faturamento", null, Fabrica.Agora));
+        var r = abertura.Retomar(new SessaoRegistrada(Agente.Claude, IdFixo, "Faturamento", null, Fabrica.Agora, "CHG-142"));
         Assert.False(r.Ok);
         Assert.NotNull(r.Mensagem);
+    }
+}
+
+public class AberturaSessaoDemandaTests
+{
+    private const string IdFixo = "0b6f1c2e-5d1a-4c8e-9f3a-2b7d4e6a8c10";
+
+    private static (AberturaSessao Abertura, DadosPainel Dados, DisparadorFalso Disparador, PastaTemporaria Pasta) Novo()
+    {
+        var pasta = new PastaTemporaria();
+        var dados = new DadosPainel(Path.Combine(pasta.Caminho, "demandas.json"));
+        dados.CriarDemanda("A", "A", null, Fabrica.Agora);
+        dados.CriarDemanda("B", "B", null, Fabrica.Agora);
+        dados.VincularRepositorio("A", "Faturamento");
+        dados.VincularRepositorio("B", "Faturamento");
+        var disparador = new DisparadorFalso();
+        return (new AberturaSessao(dados, disparador, new RelogioFalso(Fabrica.Agora), () => Guid.Parse(IdFixo)), dados, disparador, pasta);
+    }
+
+    [Fact]
+    public void Mesma_pasta_em_duas_demandas_registra_na_demanda_indicada()
+    {
+        var (abertura, dados, disparador, pasta) = Novo();
+        using var _ = pasta;
+        Assert.True(abertura.Nova("B", "Faturamento", Agente.Claude, null).Ok);
+
+        var demandas = dados.Carregar().Demandas;
+        Assert.Empty(demandas.Single(d => d.Id == "A").Repositorios.Single().Sessoes);
+        var s = demandas.Single(d => d.Id == "B").Repositorios.Single().Sessoes.Single();
+        Assert.Equal(IdFixo, s.SessionId);
+        Assert.Equal("B", s.DemandaId);
+        Assert.Equal("B · Faturamento", Assert.Single(disparador.Comandos).Argumentos[4]);
+    }
+
+    [Fact]
+    public void Titulo_da_aba_leva_o_id_da_demanda_e_o_rotulo()
+    {
+        var (abertura, _, disparador, pasta) = Novo();
+        using var _ = pasta;
+        abertura.Nova("A", "Faturamento", Agente.Claude, "implementação");
+        Assert.Equal("A · Faturamento · implementação", Assert.Single(disparador.Comandos).Argumentos[4]);
+    }
+
+    [Fact]
+    public void Demanda_arquivada_ou_inexistente_nao_abre()
+    {
+        var (abertura, dados, disparador, pasta) = Novo();
+        using var _ = pasta;
+        dados.ArquivarDemanda("A");
+        Assert.False(abertura.Nova("A", "Faturamento", Agente.Claude, null).Ok);
+        Assert.False(abertura.Nova("Z", "Faturamento", Agente.Claude, null).Ok);
+        Assert.Empty(disparador.Comandos);
+    }
+
+    [Fact]
+    public void Repositorio_de_outra_demanda_nao_abre()
+    {
+        var (abertura, dados, disparador, pasta) = Novo();
+        using var _ = pasta;
+        dados.VincularRepositorio("A", "Estoque");
+        Assert.False(abertura.Nova("B", "Estoque", Agente.Claude, null).Ok);
+        Assert.Empty(disparador.Comandos);
+    }
+
+    [Fact]
+    public void Retomar_sessao_movida_abre_no_mesmo_repositorio()
+    {
+        var (abertura, dados, disparador, pasta) = Novo();
+        using var _ = pasta;
+        abertura.Nova("A", "Faturamento", Agente.Claude, null);
+        dados.CriarDemanda("C", "C", null, Fabrica.Agora);
+        Assert.True(dados.MoverSessao(IdFixo, "C").Ok);
+
+        var sessao = dados.Carregar().Demandas.Single(d => d.Id == "C").Repositorios.Single().Sessoes.Single();
+        Assert.True(abertura.Retomar(sessao).Ok);
+        var args = disparador.Comandos.Last().Argumentos;
+        Assert.Equal("C · Faturamento", args[4]);
+        Assert.Equal(["-Repo", "Faturamento", "-Sessao", IdFixo, "-Modo", "retomar"], args.TakeLast(6));
     }
 }

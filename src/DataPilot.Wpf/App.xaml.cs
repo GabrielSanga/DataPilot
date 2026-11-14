@@ -15,7 +15,7 @@ public partial class App : Application
         var dados = new DadosPainel(LerParametro(e.Args, "--dados") ?? DadosPainel.CaminhoPadrao);
         var abertura = new AberturaSessao(dados, new DisparadorProcesso(), TimeProvider.System);
 
-        _vm = new MainViewModel(pasta, TimeProvider.System, Dispatcher, dados, abertura, new InteracaoMessageBox());
+        _vm = new MainViewModel(pasta, TimeProvider.System, Dispatcher, dados, abertura, new InteracaoJanelas());
         var janela = new MainWindow { DataContext = _vm };
         MainWindow = janela;
         janela.Show();

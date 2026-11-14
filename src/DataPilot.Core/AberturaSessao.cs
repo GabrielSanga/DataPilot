@@ -5,7 +5,7 @@ public sealed class AberturaSessao(DadosPainel dados, IDisparador disparador, Ti
 {
     private readonly Func<Guid> _gerarGuid = gerarGuid ?? Guid.NewGuid;
 
-    public ResultadoOperacao Nova(string pasta, Agente agente, string? rotulo)
+    public ResultadoOperacao Nova(string demandaId, string pasta, Agente agente, string? rotulo)
     {
         rotulo = string.IsNullOrWhiteSpace(rotulo) ? null : rotulo.Trim();
         if (rotulo is not null && !ValidadorEntrada.RotuloValido(rotulo))
@@ -13,20 +13,23 @@ public sealed class AberturaSessao(DadosPainel dados, IDisparador disparador, Ti
 
         var estado = dados.Carregar();
         if (!estado.Disponivel) return ResultadoOperacao.Falha($"Dados do painel indisponíveis: {dados.Caminho}");
-        var repo = estado.Repositorios.FirstOrDefault(r => string.Equals(r.Pasta, pasta, StringComparison.OrdinalIgnoreCase));
-        if (repo is null) return ResultadoOperacao.Falha("Repositório não cadastrado.");
+        var demanda = estado.Demandas.FirstOrDefault(d => string.Equals(d.Id, demandaId, StringComparison.OrdinalIgnoreCase));
+        if (demanda is null) return ResultadoOperacao.Falha("Demanda não encontrada.");
+        if (demanda.Arquivada) return ResultadoOperacao.Falha("A demanda está arquivada.");
+        var repo = demanda.Repositorios.FirstOrDefault(r => string.Equals(r.Pasta, pasta, StringComparison.OrdinalIgnoreCase));
+        if (repo is null) return ResultadoOperacao.Falha("Repositório não vinculado a esta demanda.");
 
         // O GUID só existe para o Claude; o do Codex aparece depois, pelo hook.
         var id = agente == Agente.Claude ? _gerarGuid().ToString("D") : null;
 
         ComandoTerminal comando;
-        try { comando = MontadorComando.Novo(repo, agente, id, rotulo); }
+        try { comando = MontadorComando.Novo(demanda.Id, repo, agente, id, rotulo); }
         catch (EntradaInvalidaException e) { return ResultadoOperacao.Falha(e.Message); }
 
         // Registrar antes de abrir garante que toda sessão aberta possa ser retomada.
         if (id is not null)
         {
-            var registro = dados.RegistrarSessao(repo.Pasta, agente, id, rotulo, relogio.GetUtcNow());
+            var registro = dados.RegistrarSessao(demanda.Id, repo.Pasta, agente, id, rotulo, relogio.GetUtcNow());
             if (!registro.Ok) return registro;
         }
 

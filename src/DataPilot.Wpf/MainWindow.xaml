@@ -6,18 +6,151 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=local:MainViewModel}"
-        Title="DataPilot — Sessões" Height="480" Width="860" MinWidth="620" MinHeight="240">
+        Title="DataPilot — Demandas" Height="600" Width="1060" MinWidth="760" MinHeight="320">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolParaVisibilidade"/>
+
+
+        <!-- Linha de sessão: as não vinculadas não mostram botões (TemAcoes = falso). -->
+        <DataTemplate x:Key="LinhaSessao" DataType="{x:Type local:SessaoItem}">
+            <Grid Margin="2,4" ToolTip="{Binding Dica}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="60"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="130"/>
+                    <ColumnDefinition Width="52"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{Binding Agente}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
+                    <TextBlock Text="{Binding Pasta}" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding Rotulo}" TextTrimming="CharacterEllipsis" FontSize="11" Foreground="#1565C0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Rotulo}" Value="">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+                <Border Grid.Column="2" Background="{Binding CorFundo}" CornerRadius="3" Padding="8,2"
+                        HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding StatusTexto}" Foreground="{Binding CorTexto}"/>
+                </Border>
+                <TextBlock Grid.Column="3" Text="{Binding Tempo}" HorizontalAlignment="Right"
+                           VerticalAlignment="Center" Foreground="#616161"/>
+                <StackPanel Grid.Column="4" Orientation="Horizontal" Margin="8,0,0,0"
+                            Visibility="{Binding TemAcoes, Converter={StaticResource BoolParaVisibilidade}}"
+                            IsEnabled="{Binding DataContext.DadosDisponiveis, RelativeSource={RelativeSource AncestorType=Window}}">
+                    <Button Content="Retomar" Padding="8,2" Margin="0,0,4,0" Command="{Binding RetomarCommand}"/>
+                    <Button Content="Mover" Padding="8,2" Margin="0,0,4,0" Command="{Binding MoverCommand}"/>
+                    <Button Content="Remover" Padding="8,2" Command="{Binding RemoverCommand}"/>
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+
+        <!-- Card de repositório -->
+        <DataTemplate x:Key="CardRepositorio" DataType="{x:Type local:CardItem}">
+            <Border BorderBrush="#BDBDBD" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,0,10">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,4">
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                    IsEnabled="{Binding DataContext.DadosDisponiveis, RelativeSource={RelativeSource AncestorType=Window}}">
+                            <Button Content="Nova sessão" Padding="8,2" Margin="0,0,4,0" Command="{Binding NovaSessaoCommand}"
+                                    Visibility="{Binding PodeNovaSessao, Converter={StaticResource BoolParaVisibilidade}}"/>
+                            <Button Content="Remover" Padding="8,2" Command="{Binding RemoverRepositorioCommand}"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding Pasta}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </DockPanel>
+                    <ItemsControl ItemsSource="{Binding Sessoes}" ItemTemplate="{StaticResource LinhaSessao}"/>
+                    <TextBlock Text="Nenhuma sessão neste repositório." Foreground="#757575" FontSize="11">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Sessoes.Count}" Value="0">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+
+        <!-- Demanda selecionada -->
+        <DataTemplate x:Key="DetalheDemanda" DataType="{x:Type local:DemandaItem}">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                    <TextBlock Text="{Binding Cabecalho}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding Openspec}" Foreground="#616161" Margin="0,2,0,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Openspec}" Value="">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <TextBlock Text="{Binding Resumo}" Foreground="#616161" Margin="0,2,0,6"/>
+                    <StackPanel Orientation="Horizontal"
+                                IsEnabled="{Binding DataContext.DadosDisponiveis, RelativeSource={RelativeSource AncestorType=Window}}">
+                        <Button Content="Editar" Padding="10,3" Margin="0,0,6,0" Command="{Binding EditarCommand}"
+                                Visibility="{Binding PodeEditar, Converter={StaticResource BoolParaVisibilidade}}"/>
+                        <Button Content="Arquivar" Padding="10,3" Margin="0,0,6,0" Command="{Binding ArquivarCommand}"
+                                Visibility="{Binding PodeArquivar, Converter={StaticResource BoolParaVisibilidade}}"/>
+                        <Button Content="Desarquivar" Padding="10,3" Margin="0,0,6,0" Command="{Binding DesarquivarCommand}"
+                                Visibility="{Binding PodeDesarquivar, Converter={StaticResource BoolParaVisibilidade}}"/>
+                        <Button Content="Vincular repositório" Padding="10,3" Command="{Binding VincularCommand}"
+                                Visibility="{Binding PodeVincular, Converter={StaticResource BoolParaVisibilidade}}"/>
+                    </StackPanel>
+                </StackPanel>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                        <TextBlock Text="Esta demanda ainda não tem repositórios. Use &quot;Vincular repositório&quot; para começar."
+                                   TextWrapping="Wrap" Foreground="#757575" Margin="0,8,0,0"
+                                   Visibility="{Binding SemRepositorios, Converter={StaticResource BoolParaVisibilidade}}"/>
+                        <ItemsControl ItemsSource="{Binding Cards}" ItemTemplate="{StaticResource CardRepositorio}"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </DataTemplate>
+
+        <!-- Entrada "Não vinculadas": a lista simples, sem ações -->
+        <DataTemplate x:Key="DetalheNaoVinculadas" DataType="{x:Type local:DemandaItem}">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                    <TextBlock Text="{Binding Cabecalho}" FontSize="18" FontWeight="SemiBold"/>
+                    <TextBlock Foreground="#616161" TextWrapping="Wrap" Margin="0,2,0,0"
+                               Text="Sessões que o painel não abriu (por exemplo, as do Codex e as criadas por /clear). Aparecem só para consulta, sem ações."/>
+                </StackPanel>
+                <Grid>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl ItemsSource="{Binding NaoVinculadas}" ItemTemplate="{StaticResource LinhaSessao}"/>
+                    </ScrollViewer>
+                    <TextBlock Text="Nenhuma sessão não vinculada." HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Foreground="#757575"
+                               Visibility="{Binding SemNaoVinculadas, Converter={StaticResource BoolParaVisibilidade}}"/>
+                </Grid>
+            </DockPanel>
+        </DataTemplate>
     </Window.Resources>
+
     <DockPanel Margin="12">
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                <Button x:Name="BotaoNovaSessao" Content="Nova sessão" Padding="10,3" Margin="0,0,6,0"
-                        IsEnabled="{Binding DadosDisponiveis}" Click="NovaSessao_Click"/>
-                <Button x:Name="BotaoRepositorios" Content="Repositórios" Padding="10,3" Margin="0,0,12,0"
-                        IsEnabled="{Binding DadosDisponiveis}" Click="Repositorios_Click"/>
-                <CheckBox Content="Mostrar antigas" VerticalAlignment="Center"
+                <CheckBox Content="Mostrar arquivadas" VerticalAlignment="Center" Margin="0,0,12,0"
+                          IsChecked="{Binding MostrarArquivadas}"/>
+                <CheckBox Content="Mostrar antigas (não vinculadas)" VerticalAlignment="Center"
                           IsChecked="{Binding MostrarAntigas}"/>
             </StackPanel>
             <TextBlock Text="{Binding Resumo}" FontSize="16" FontWeight="SemiBold"
@@ -29,7 +162,7 @@
             <TextBlock Text="{Binding Aviso}" TextWrapping="Wrap" Foreground="#664D03"/>
         </Border>
 
-        <Border x:Name="AvisoDadosBorda" DockPanel.Dock="Top" Margin="0,0,0,8" Padding="8" Background="#FFF3CD" BorderBrush="#FFE69C" BorderThickness="1">
+        <Border DockPanel.Dock="Top" Margin="0,0,0,8" Padding="8" Background="#FFF3CD" BorderBrush="#FFE69C" BorderThickness="1">
             <Border.Style>
                 <Style TargetType="Border">
                     <Setter Property="Visibility" Value="Collapsed"/>
@@ -44,50 +177,69 @@
         </Border>
 
         <Grid>
-            <ListBox ItemsSource="{Binding Sessoes}" HorizontalContentAlignment="Stretch"
-                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                <ListBox.ItemTemplate>
-                    <DataTemplate DataType="{x:Type local:SessaoItem}">
-                        <Grid Margin="2,4" ToolTip="{Binding Dica}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="64"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="150"/>
-                                <ColumnDefinition Width="64"/>
-                                <ColumnDefinition Width="84"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="{Binding Agente}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
-                                <TextBlock Text="{Binding Pasta}" TextTrimming="CharacterEllipsis"/>
-                                <TextBlock Text="{Binding Registro}" TextTrimming="CharacterEllipsis"
-                                           FontSize="11" Foreground="#1565C0">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Visibility" Value="Visible"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding PodeRetomar}" Value="False">
-                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                            </StackPanel>
-                            <Border Grid.Column="2" Background="{Binding CorFundo}" CornerRadius="3" Padding="8,2"
-                                    HorizontalAlignment="Left" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding StatusTexto}" Foreground="{Binding CorTexto}"/>
-                            </Border>
-                            <TextBlock Grid.Column="3" Text="{Binding Tempo}" HorizontalAlignment="Right"
-                                       VerticalAlignment="Center" Foreground="#616161"/>
-                            <Button Grid.Column="4" Content="Retomar" Margin="8,0,0,0" Padding="8,2"
-                                    VerticalAlignment="Center" Command="{Binding RetomarCommand}"
-                                    Visibility="{Binding PodeRetomar, Converter={StaticResource BoolParaVisibilidade}}"/>
-                        </Grid>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
-            <TextBlock Text="Nenhuma sessão." HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#757575"
-                       Visibility="{Binding SemSessoes, Converter={StaticResource BoolParaVisibilidade}}"/>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300" MinWidth="220"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Lista de demandas -->
+            <DockPanel Grid.Column="0">
+                <Button DockPanel.Dock="Top" Content="Nova demanda" Padding="10,3" Margin="0,0,0,6" HorizontalAlignment="Left"
+                        IsEnabled="{Binding DadosDisponiveis}" Click="NovaDemanda_Click"/>
+                <TextBlock DockPanel.Dock="Top" TextWrapping="Wrap" Foreground="#757575" Margin="0,0,0,6"
+                           Text="Nenhuma demanda. Use &quot;Nova demanda&quot; para criar a primeira."
+                           Visibility="{Binding SemDemandas, Converter={StaticResource BoolParaVisibilidade}}"/>
+                <ListBox ItemsSource="{Binding Demandas}" SelectedItem="{Binding DemandaSelecionada, Mode=TwoWay}"
+                         HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate DataType="{x:Type local:DemandaItem}">
+                            <Grid Margin="2,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" Background="{Binding CorStatus}" CornerRadius="2" Margin="0,0,8,0"/>
+                                <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                                    <TextBlock Text="{Binding Cabecalho}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding Resumo}" FontSize="11" Foreground="#616161" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+
+            <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Center" VerticalAlignment="Stretch" Background="Transparent"/>
+
+            <!-- Demanda selecionada -->
+            <Grid Grid.Column="2">
+                <ContentControl Content="{Binding DemandaSelecionada}">
+                    <ContentControl.Style>
+                        <Style TargetType="ContentControl">
+                            <Setter Property="ContentTemplate" Value="{StaticResource DetalheDemanda}"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding DemandaSelecionada.EhNaoVinculadas}" Value="True">
+                                    <Setter Property="ContentTemplate" Value="{StaticResource DetalheNaoVinculadas}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ContentControl.Style>
+                </ContentControl>
+                <TextBlock Text="Selecione uma demanda na lista." HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Foreground="#757575">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding DemandaSelecionada}" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
         </Grid>
     </DockPanel>
 </Window>

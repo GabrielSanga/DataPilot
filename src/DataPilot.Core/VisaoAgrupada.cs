@@ -1,0 +1,140 @@
+namespace DataPilot.Core;
+
+/// <summary>
+/// Sessão registrada como a tela a mostra. <see cref="Lida"/> é null quando não há arquivo de status
+/// (status exibido "sem status"). Quem usa a ação "Retomar" só enxerga <see cref="Registrada"/>.
+/// </summary>
+public sealed record SessaoNaVisao(
+    SessaoRegistrada Registrada,
+    Sessao? Lida,
+    StatusExibido Status,
+    string Tempo);
+
+public sealed record CardNaVisao(string Pasta, IReadOnlyList<SessaoNaVisao> Sessoes);
+
+/// <summary>Demanda com o resumo da lista: repositórios, sessões e status mais urgente (null se nenhuma sessão tem status).</summary>
+public sealed record DemandaNaVisao(
+    Demanda Demanda,
+    IReadOnlyList<CardNaVisao> Cards,
+    int QuantidadeRepositorios,
+    int QuantidadeSessoes,
+    StatusExibido? MaisUrgente,
+    string Resumo)
+{
+    /// <summary>Alguma sessão exibida em status que pede confirmação antes de arquivar.</summary>
+    public bool TemSessaoEmAndamento
+        => Cards.SelectMany(c => c.Sessoes).Any(s => Correspondencia.ExigeConfirmacao(s.Status));
+}
+
+/// <summary>Tela inteira: demandas ordenadas, sessões não vinculadas e o resumo do cabeçalho.</summary>
+public sealed record Visao(
+    IReadOnlyList<DemandaNaVisao> Demandas,
+    IReadOnlyList<SessaoExibida> NaoVinculadas,
+    string ResumoCabecalho);
+
+/// <summary>Monta a visão agrupada por demanda como função pura; o relógio entra por <see cref="TimeProvider"/>.</summary>
+public static class VisaoAgrupada
+{
+    public static Visao Montar(
+        IReadOnlyList<Demanda> demandas,
+        IEnumerable<Sessao> sessoesLidas,
+        bool mostrarArquivadas,
+        bool mostrarAntigas,
+        TimeProvider relogio)
+    {
+        var lidas = new Dictionary<(Agente, string), Sessao>();
+        foreach (var s in sessoesLidas)
+            lidas.TryAdd((s.Agente, s.SessionId.ToLowerInvariant()), s);
+
+        // Toda sessão registrada, de qualquer demanda (inclusive arquivada ou oculta), deixa de ser "não vinculada".
+        var registradas = new HashSet<(Agente, string)>();
+        foreach (var d in demandas)
+            foreach (var r in d.Repositorios)
+                foreach (var s in r.Sessoes)
+                    registradas.Add((s.Agente, s.SessionId.ToLowerInvariant()));
+
+        var itens = new List<DemandaNaVisao>();
+        foreach (var d in demandas)
+        {
+            if (d.Arquivada && !mostrarArquivadas) continue;
+            if (RegrasDemanda.EhImplicita(d.Id) && d.Repositorios.Count == 0) continue;
+            itens.Add(MontarDemanda(d, lidas, relogio));
+        }
+        var ordenadas = Ordenar(itens);
+
+        var naoVinculadas = RegrasExibicao.Montar(
+            lidas.Where(p => !registradas.Contains((p.Key.Item1, p.Key.Item2))).Select(p => p.Value),
+            mostrarAntigas, relogio);
+
+        // O cabeçalho conta as sessões das demandas listadas e as não vinculadas visíveis; "sem status" não entra.
+        var paraResumo = ordenadas
+            .SelectMany(d => d.Cards).SelectMany(c => c.Sessoes)
+            .Where(s => s.Lida is not null)
+            .Select(s => new SessaoExibida(s.Lida!, s.Status, s.Tempo))
+            .Concat(naoVinculadas);
+
+        return new Visao(ordenadas, naoVinculadas, RegrasExibicao.Resumo(paraResumo));
+    }
+
+    private static DemandaNaVisao MontarDemanda(Demanda d, Dictionary<(Agente, string), Sessao> lidas, TimeProvider relogio)
+    {
+        var cards = new List<CardNaVisao>();
+        foreach (var repo in d.Repositorios)
+        {
+            var sessoes = new List<SessaoNaVisao>();
+            foreach (var r in repo.Sessoes)
+            {
+                if (lidas.TryGetValue((r.Agente, r.SessionId.ToLowerInvariant()), out var lida))
+                    sessoes.Add(new SessaoNaVisao(r, lida, RegrasExibicao.StatusExibido(lida, relogio),
+                        RegrasExibicao.TempoDecorrido(RegrasExibicao.Idade(lida, relogio))));
+                else
+                    sessoes.Add(new SessaoNaVisao(r, null, StatusExibido.SemStatus, ""));
+            }
+            sessoes.Sort(ComparaSessoes);
+            cards.Add(new CardNaVisao(repo.Pasta, sessoes));
+        }
+
+        var todas = cards.SelectMany(c => c.Sessoes).ToList();
+        var comStatus = todas.Where(s => s.Status != StatusExibido.SemStatus).ToList();
+        StatusExibido? urgente = comStatus.Count == 0 ? null : comStatus.Min(s => s.Status);
+        return new DemandaNaVisao(d, cards, cards.Count, todas.Count, urgente, TextoResumo(cards.Count, todas.Count, urgente));
+    }
+
+    private static string TextoResumo(int repositorios, int sessoes, StatusExibido? urgente)
+    {
+        var r = $"{repositorios} {(repositorios == 1 ? "repositório" : "repositórios")}";
+        var s = $"{sessoes} {(sessoes == 1 ? "sessão" : "sessões")}";
+        return urgente is null ? $"{r} · {s} · sem status" : $"{r} · {s} · {RegrasExibicao.Texto(urgente.Value)}";
+    }
+
+    /// <summary>Status exibido; no mesmo status, atualização mais recente primeiro (sem status: registro mais recente).</summary>
+    private static int ComparaSessoes(SessaoNaVisao a, SessaoNaVisao b)
+    {
+        var c = a.Status.CompareTo(b.Status);
+        if (c != 0) return c;
+        var da = a.Lida?.Atualizado ?? a.Registrada.CriadaEm;
+        var db = b.Lida?.Atualizado ?? b.Registrada.CriadaEm;
+        c = db.CompareTo(da);
+        return c != 0 ? c : string.CompareOrdinal(a.Registrada.SessionId, b.Registrada.SessionId);
+    }
+
+    private static DateTimeOffset? Atualizacao(DemandaNaVisao d)
+    {
+        var datas = d.Cards.SelectMany(c => c.Sessoes).Where(s => s.Lida is not null).Select(s => s.Lida!.Atualizado).ToList();
+        return datas.Count == 0 ? null : datas.Max();
+    }
+
+    /// <summary>Não arquivadas primeiro; depois status mais urgente, atualização mais recente; sem status por último. Estável.</summary>
+    private static List<DemandaNaVisao> Ordenar(List<DemandaNaVisao> itens)
+    {
+        return itens
+            .Select((d, i) => (d, i))
+            .OrderBy(x => x.d.Demanda.Arquivada)
+            .ThenBy(x => x.d.MaisUrgente is null)
+            .ThenBy(x => x.d.MaisUrgente ?? StatusExibido.SemStatus)
+            .ThenByDescending(x => Atualizacao(x.d) ?? DateTimeOffset.MinValue)
+            .ThenBy(x => x.i)
+            .Select(x => x.d)
+            .ToList();
+    }
+}

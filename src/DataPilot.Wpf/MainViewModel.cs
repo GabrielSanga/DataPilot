@@ -15,15 +15,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly IInteracao _interacao;
     private RetratoPasta? _retrato;
     private EstadoDados _estadoDados = EstadoDados.Vazio;
+    private readonly DemandaItem _naoVinculadas;
 
-    public ObservableCollection<SessaoItem> Sessoes { get; } = [];
-    public ObservableCollection<RepositorioCadastrado> Repositorios { get; } = [];
+    /// <summary>Lista da esquerda: demandas na ordem de urgência e, no fim, "Não vinculadas".</summary>
+    public ObservableCollection<DemandaItem> Demandas { get; } = [];
 
+    [ObservableProperty] private DemandaItem? _demandaSelecionada;
     [ObservableProperty] private string _resumo = "Carregando…";
     [ObservableProperty] private bool _pastaIndisponivel;
     [ObservableProperty] private string _aviso = "";
-    [ObservableProperty] private bool _semSessoes;
     [ObservableProperty] private bool _mostrarAntigas;
+    [ObservableProperty] private bool _mostrarArquivadas;
+    [ObservableProperty] private bool _semDemandas;
     [ObservableProperty] private bool _dadosDisponiveis = true;
     [ObservableProperty] private string _avisoDados = "";
 
@@ -35,6 +38,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _dados = dados;
         _abertura = abertura;
         _interacao = interacao;
+        _naoVinculadas = NovoDemandaItem(DemandaItem.ChaveNaoVinculadas, true);
         _monitor = new MonitorPasta(pasta);
         Aviso = $"Pasta de status indisponível: {TextoExibicao.Limpar(pasta)}";
         _monitor.RetratoAtualizado += r => _dispatcher.BeginInvoke(() => Receber(r));
@@ -44,6 +48,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public void Iniciar() => _monitor.Iniciar();
 
     partial void OnMostrarAntigasChanged(bool value) => Aplicar();
+    partial void OnMostrarArquivadasChanged(bool value) => Aplicar();
+
+    // ---------- fábricas dos itens (ligam as ações da tela às operações) ----------
+
+    private DemandaItem NovoDemandaItem(string chave, bool naoVinculadas)
+        => new(chave, naoVinculadas, EditarDemanda, ArquivarDemanda, DesarquivarDemanda, VincularRepositorio);
+
+    private CardItem NovoCard(string pasta) => new(pasta, NovaSessao, RemoverRepositorio);
+
+    private SessaoItem NovaSessaoItem(string sessionId) => new(sessionId, Retomar, MoverSessao, RemoverSessao);
 
     // ---------- dados do painel ----------
 
@@ -53,18 +67,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         DadosDisponiveis = _estadoDados.Disponivel;
         AvisoDados = _estadoDados.Disponivel ? ""
             : $"Dados do painel indisponíveis: {TextoExibicao.Limpar(_dados.Caminho)} ({TextoExibicao.Limpar(_estadoDados.Erro ?? "")}). "
-              + "O arquivo não foi alterado; cadastrar, abrir e retomar estão desabilitados.";
-
-        // Só recria a coleção quando o conteúdo muda: esta releitura acontece a cada poucos segundos,
-        // e recriar sempre apagaria a seleção dos diálogos abertos.
-        if (Assinatura(Repositorios) == Assinatura(_estadoDados.Repositorios)) return;
-        Repositorios.Clear();
-        foreach (var r in _estadoDados.Repositorios) Repositorios.Add(r);
+              + "O arquivo não foi alterado; criar e alterar demandas, abrir e retomar estão desabilitados.";
     }
-
-    private static string Assinatura(IEnumerable<RepositorioCadastrado> repositorios)
-        => string.Join("\n", repositorios.Select(r =>
-            r.Pasta + "|" + string.Join(",", r.Sessoes.Select(s => $"{s.Agente}:{s.SessionId}:{s.Rotulo}"))));
 
     private void RecarregarEAplicar()
     {
@@ -72,41 +76,122 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Aplicar();
     }
 
-    /// <summary>Cadastra o repositório; devolve a mensagem de recusa ou null se deu certo.</summary>
-    public string? Cadastrar(string pasta)
-    {
-        var r = _dados.Cadastrar(pasta.Trim());
-        RecarregarEAplicar();
-        return r.Ok ? null : r.Mensagem;
-    }
+    private void SelecionarPorChave(string chave)
+        => DemandaSelecionada = Demandas.FirstOrDefault(d => d.Chave == chave);
 
-    /// <summary>Remove o repositório, pedindo confirmação quando há sessões registradas.</summary>
-    public string? Remover(RepositorioCadastrado repo)
+    private static string Chave(string demandaId) => demandaId.ToLowerInvariant();
+
+    // ---------- demandas ----------
+
+    public void NovaDemanda()
     {
-        if (repo.Sessoes.Count > 0)
+        if (!DadosDisponiveis) return;
+        string? criada = null;
+        _interacao.DialogoDemanda(null, d =>
         {
-            var n = repo.Sessoes.Count;
-            var msg = $"O repositório {repo.Pasta} tem {n} {(n == 1 ? "sessão registrada que deixará" : "sessões registradas que deixarão")} de poder ser retomada{(n == 1 ? "" : "s")}. Remover mesmo assim?";
-            if (!_interacao.Confirmar(msg)) return null;
-        }
-        var r = _dados.Remover(repo.Pasta);
+            var r = _dados.CriarDemanda(d.Id, d.Titulo, d.OpenspecChange, _relogio.GetUtcNow());
+            if (!r.Ok) return r.Mensagem;
+            criada = d.Id;
+            return null;
+        });
+        if (criada is null) return;
         RecarregarEAplicar();
-        return r.Ok ? null : r.Mensagem;
+        SelecionarPorChave(Chave(criada));
     }
 
-    // ---------- abrir e retomar ----------
-
-    public ResultadoOperacao NovaSessao(string pasta, Agente agente, string? rotulo)
+    private void EditarDemanda(DemandaItem item)
     {
-        var r = _abertura.Nova(pasta, agente, rotulo);
+        if (!DadosDisponiveis || item.Demanda is not { } demanda || !RegrasDemanda.PodeEditar(demanda)) return;
+        string? novoId = null;
+        _interacao.DialogoDemanda(demanda, d =>
+        {
+            var r = _dados.EditarDemanda(demanda.Id, d.Id, d.Titulo, d.OpenspecChange);
+            if (!r.Ok) return r.Mensagem;
+            novoId = d.Id;
+            return null;
+        });
+        if (novoId is null) return;
         RecarregarEAplicar();
-        return r;
+        SelecionarPorChave(Chave(novoId)); // o id pode ter mudado, e com ele a chave do item
     }
 
-    public void AvisarSemRepositorios()
-        => _interacao.Informar("Cadastre um repositório antes de abrir uma sessão (botão \"Repositórios\").");
+    private void ArquivarDemanda(DemandaItem item)
+    {
+        if (!DadosDisponiveis || item.Demanda is not { } demanda) return;
+        if (!RegrasDemanda.PodeArquivar(demanda))
+        {
+            _interacao.Erro(RegrasDemanda.EhImplicita(demanda.Id)
+                ? "A demanda \"Sem demanda\" não pode ser arquivada." : "A demanda já está arquivada.");
+            return;
+        }
+        if (item.TemSessaoEmAndamento
+            && !_interacao.Confirmar("Esta demanda tem sessões em andamento. Arquivar mesmo assim?"))
+            return;
+        var r = _dados.ArquivarDemanda(demanda.Id);
+        RecarregarEAplicar();
+        if (!r.Ok) _interacao.Erro(r.Mensagem ?? "Não foi possível arquivar a demanda.");
+    }
 
-    public void MostrarErro(string mensagem) => _interacao.Erro(mensagem);
+    private void DesarquivarDemanda(DemandaItem item)
+    {
+        if (!DadosDisponiveis || item.Demanda is not { } demanda) return;
+        var r = _dados.DesarquivarDemanda(demanda.Id);
+        RecarregarEAplicar();
+        if (!r.Ok) _interacao.Erro(r.Mensagem ?? "Não foi possível desarquivar a demanda.");
+    }
+
+    // ---------- repositórios ----------
+
+    private void VincularRepositorio(DemandaItem item)
+    {
+        if (!DadosDisponiveis || item.Demanda is not { } demanda || !RegrasDemanda.PodeVincularRepositorio(demanda)) return;
+
+        // Sugere as pastas já usadas em outras demandas e ainda não vinculadas a esta.
+        var jaNaDemanda = demanda.Repositorios.Select(r => r.Pasta).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var sugestoes = _estadoDados.Demandas
+            .SelectMany(d => d.Repositorios.Select(r => r.Pasta))
+            .Where(p => !jaNaDemanda.Contains(p))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var vinculou = _interacao.DialogoVincularRepositorio(item.Cabecalho, sugestoes, pasta =>
+        {
+            var r = _dados.VincularRepositorio(demanda.Id, pasta.Trim());
+            return r.Ok ? null : r.Mensagem;
+        });
+        if (vinculou) RecarregarEAplicar();
+    }
+
+    private void RemoverRepositorio(CardItem card)
+    {
+        if (!DadosDisponiveis) return;
+        if (card.Sessoes.Count > 0)
+        {
+            var n = card.Sessoes.Count;
+            var msg = $"O repositório {card.Pasta} tem {n} {(n == 1 ? "sessão registrada que deixará" : "sessões registradas que deixarão")} de poder ser retomada{(n == 1 ? "" : "s")} nesta demanda. Remover mesmo assim?";
+            if (!_interacao.Confirmar(msg)) return;
+        }
+        var r = _dados.RemoverRepositorio(card.DemandaId, card.Pasta);
+        RecarregarEAplicar();
+        if (!r.Ok) _interacao.Erro(r.Mensagem ?? "Não foi possível remover o repositório.");
+    }
+
+    // ---------- abrir, retomar, mover e remover sessões ----------
+
+    private void NovaSessao(CardItem card)
+    {
+        if (!DadosDisponiveis) return;
+        var demanda = DemandaSelecionada?.Demanda;
+        if (demanda is null || !RegrasDemanda.PodeAbrirNovaSessao(demanda)) return;
+
+        var escolha = _interacao.PedirNovaSessao(DemandaSelecionada!.Cabecalho, card.Pasta);
+        if (escolha is null) return;
+
+        var r = _abertura.Nova(card.DemandaId, card.Pasta, escolha.Agente, escolha.Rotulo);
+        RecarregarEAplicar();
+        if (!r.Ok) _interacao.Erro(r.Mensagem ?? "Não foi possível abrir a sessão.");
+    }
 
     private void Retomar(SessaoItem item)
     {
@@ -120,7 +205,40 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (!r.Ok) _interacao.Erro(r.Mensagem ?? "Não foi possível retomar a sessão.");
     }
 
-    // ---------- lista ----------
+    private void MoverSessao(SessaoItem item)
+    {
+        if (!DadosDisponiveis || item.Registrada is not { } registrada) return;
+
+        var destinos = _estadoDados.Demandas
+            .Where(d => !d.Arquivada && !string.Equals(d.Id, registrada.DemandaId, StringComparison.OrdinalIgnoreCase))
+            .Select(d => new DestinoDemanda(d.Id, $"{TextoExibicao.Limpar(d.Id)} · {TextoExibicao.Limpar(d.Titulo)}"))
+            .ToList();
+        if (destinos.Count == 0)
+        {
+            _interacao.Informar("Não há outra demanda para receber a sessão. Crie uma demanda primeiro.");
+            return;
+        }
+
+        var destino = _interacao.EscolherDemandaDestino(destinos);
+        if (destino is null) return;
+
+        var r = _dados.MoverSessao(registrada.SessionId, destino);
+        RecarregarEAplicar();
+        if (!r.Ok) _interacao.Erro(r.Mensagem ?? "Não foi possível mover a sessão.");
+    }
+
+    private void RemoverSessao(SessaoItem item)
+    {
+        if (!DadosDisponiveis || item.Registrada is not { } registrada) return;
+        if (!_interacao.Confirmar("Remover o registro desta sessão? A conversa não é apagada, mas a sessão deixará de poder ser retomada pelo painel."))
+            return;
+
+        var r = _dados.RemoverSessao(registrada.SessionId);
+        RecarregarEAplicar();
+        if (!r.Ok) _interacao.Erro(r.Mensagem ?? "Não foi possível remover o registro da sessão.");
+    }
+
+    // ---------- tela ----------
 
     private void Receber(RetratoPasta retrato)
     {
@@ -134,31 +252,23 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (_retrato is null) return;
         PastaIndisponivel = !_retrato.Disponivel;
 
-        var alvo = RegrasExibicao.Montar(_retrato.Sessoes, MostrarAntigas, _relogio);
-        Resumo = _retrato.Disponivel ? RegrasExibicao.Resumo(alvo) : "";
-        SemSessoes = _retrato.Disponivel && alvo.Count == 0;
-        var repos = _estadoDados.Repositorios;
+        var visao = VisaoAgrupada.Montar(_estadoDados.Demandas, _retrato.Sessoes, MostrarArquivadas, MostrarAntigas, _relogio);
+        Resumo = _retrato.Disponivel ? visao.ResumoCabecalho : "";
+        SemDemandas = visao.Demandas.Count == 0;
 
-        // Atualiza a coleção no lugar, por identificador, para preservar seleção e rolagem.
-        var ids = alvo.Select(a => a.Sessao.SessionId).ToHashSet();
-        for (var i = Sessoes.Count - 1; i >= 0; i--)
-            if (!ids.Contains(Sessoes[i].SessionId)) Sessoes.RemoveAt(i);
+        // Tudo é atualizado no lugar, por chave: a demanda selecionada e a rolagem não se perdem
+        // quando um status muda ou quando a ordem das demandas muda.
+        var linhas = visao.Demandas.Select(d => (Chave: Chave(d.Demanda.Id), Dado: (DemandaNaVisao?)d)).ToList();
+        linhas.Add((DemandaItem.ChaveNaoVinculadas, null));
 
-        for (var i = 0; i < alvo.Count; i++)
-        {
-            var e = alvo[i];
-            var registrada = Correspondencia.Registrada(e.Sessao, repos);
-            var atual = -1;
-            for (var j = i; j < Sessoes.Count; j++)
-                if (Sessoes[j].SessionId == e.Sessao.SessionId) { atual = j; break; }
-
-            if (atual < 0) Sessoes.Insert(i, new SessaoItem(e, registrada, Retomar));
-            else
+        SincronizacaoColecao.Sincronizar(Demandas, linhas,
+            d => d.Chave, l => l.Chave,
+            l => l.Dado is null ? _naoVinculadas : NovoDemandaItem(l.Chave, false),
+            (item, l) =>
             {
-                if (atual != i) Sessoes.Move(atual, i);
-                Sessoes[i].Atualizar(e, registrada);
-            }
-        }
+                if (l.Dado is { } d) item.Atualizar(d, NovoCard, NovaSessaoItem);
+                else item.AtualizarNaoVinculadas(visao.NaoVinculadas, NovaSessaoItem);
+            });
     }
 
     public void Dispose() => _monitor.Dispose();

@@ -31,6 +31,7 @@ public static class RegrasExibicao
         Core.StatusExibido.Executando => "executando",
         Core.StatusExibido.Ativa => "ativa",
         Core.StatusExibido.Inativa => "inativa",
+        Core.StatusExibido.SemStatus => "sem status",
         _ => "encerrada",
     };
 

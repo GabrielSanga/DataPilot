@@ -14,6 +14,8 @@ public enum StatusExibido
     Ativa = 3,
     Inativa = 4,
     Encerrada = 5,
+    /// <summary>Sessão registrada sem arquivo de status. Último na ordem e fora do resumo do cabeçalho.</summary>
+    SemStatus = 6,
 }
 
 /// <summary>Sessão lida de um arquivo de status. Todos os valores servem apenas para exibição.</summary>

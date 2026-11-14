@@ -1,0 +1,149 @@
+using System.Collections.ObjectModel;
+using System.Windows.Media;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using DataPilot.Core;
+
+namespace DataPilot.Wpf;
+
+/// <summary>Atualiza uma coleção no lugar, por chave, para preservar seleção e rolagem (nada é recriado).</summary>
+public static class SincronizacaoColecao
+{
+    public static void Sincronizar<TItem, TDado>(
+        ObservableCollection<TItem> colecao,
+        IReadOnlyList<TDado> dados,
+        Func<TItem, string> chaveItem,
+        Func<TDado, string> chaveDado,
+        Func<TDado, TItem> criar,
+        Action<TItem, TDado> atualizar)
+    {
+        var chaves = dados.Select(chaveDado).ToHashSet();
+        for (var i = colecao.Count - 1; i >= 0; i--)
+            if (!chaves.Contains(chaveItem(colecao[i]))) colecao.RemoveAt(i);
+
+        for (var i = 0; i < dados.Count; i++)
+        {
+            var chave = chaveDado(dados[i]);
+            var atual = -1;
+            for (var j = i; j < colecao.Count; j++)
+                if (chaveItem(colecao[j]) == chave) { atual = j; break; }
+
+            if (atual < 0)
+            {
+                var novo = criar(dados[i]);
+                atualizar(novo, dados[i]); // já preenchido quando entra na lista
+                colecao.Insert(i, novo);
+                continue;
+            }
+            if (atual != i) colecao.Move(atual, i);
+            atualizar(colecao[i], dados[i]);
+        }
+    }
+}
+
+/// <summary>Card de um repositório dentro de uma demanda. Chave: a pasta (única dentro da demanda).</summary>
+public sealed partial class CardItem : ObservableObject
+{
+    public string Pasta { get; }
+    public string DemandaId { get; private set; } = "";
+    public ObservableCollection<SessaoItem> Sessoes { get; } = [];
+
+    [ObservableProperty] private bool _podeNovaSessao;
+    public IRelayCommand NovaSessaoCommand { get; }
+    public IRelayCommand RemoverRepositorioCommand { get; }
+
+    public CardItem(string pasta, Action<CardItem> novaSessao, Action<CardItem> remover)
+    {
+        Pasta = pasta;
+        NovaSessaoCommand = new RelayCommand(() => novaSessao(this));
+        RemoverRepositorioCommand = new RelayCommand(() => remover(this));
+    }
+
+    public void Atualizar(CardNaVisao card, Demanda demanda, Func<string, SessaoItem> criarSessao)
+    {
+        DemandaId = demanda.Id;
+        PodeNovaSessao = !demanda.Arquivada;
+        SincronizacaoColecao.Sincronizar(Sessoes, card.Sessoes,
+            s => s.SessionId, s => s.Registrada.SessionId,
+            s => criarSessao(s.Registrada.SessionId),
+            (item, dado) => item.Atualizar(dado));
+    }
+}
+
+/// <summary>
+/// Entrada da lista de demandas, também usada para "Não vinculadas" (<see cref="EhNaoVinculadas"/>).
+/// Chave: o <c>id</c> da demanda; a da entrada especial é fixa.
+/// </summary>
+public sealed partial class DemandaItem : ObservableObject
+{
+    public const string ChaveNaoVinculadas = "\u0001nao-vinculadas";
+
+    public string Chave { get; }
+    public bool EhNaoVinculadas { get; }
+    public Demanda? Demanda { get; private set; }
+    public bool TemSessaoEmAndamento { get; private set; }
+
+    public ObservableCollection<CardItem> Cards { get; } = [];
+    public ObservableCollection<SessaoItem> NaoVinculadas { get; } = [];
+
+    [ObservableProperty] private string _cabecalho = "";
+    [ObservableProperty] private string _openspec = "";
+    [ObservableProperty] private string _resumo = "";
+    [ObservableProperty] private Brush _corStatus = Cores.Cinza;
+    [ObservableProperty] private bool _arquivada;
+    [ObservableProperty] private bool _semRepositorios;
+    [ObservableProperty] private bool _semNaoVinculadas;
+    [ObservableProperty] private bool _podeEditar;
+    [ObservableProperty] private bool _podeArquivar;
+    [ObservableProperty] private bool _podeDesarquivar;
+    [ObservableProperty] private bool _podeVincular;
+
+    public IRelayCommand EditarCommand { get; }
+    public IRelayCommand ArquivarCommand { get; }
+    public IRelayCommand DesarquivarCommand { get; }
+    public IRelayCommand VincularCommand { get; }
+
+    public DemandaItem(string chave, bool naoVinculadas,
+        Action<DemandaItem> editar, Action<DemandaItem> arquivar, Action<DemandaItem> desarquivar, Action<DemandaItem> vincular)
+    {
+        Chave = chave;
+        EhNaoVinculadas = naoVinculadas;
+        EditarCommand = new RelayCommand(() => editar(this));
+        ArquivarCommand = new RelayCommand(() => arquivar(this));
+        DesarquivarCommand = new RelayCommand(() => desarquivar(this));
+        VincularCommand = new RelayCommand(() => vincular(this));
+    }
+
+    public void Atualizar(DemandaNaVisao v, Func<string, CardItem> criarCard, Func<string, SessaoItem> criarSessao)
+    {
+        var d = v.Demanda;
+        Demanda = d;
+        TemSessaoEmAndamento = v.TemSessaoEmAndamento;
+        Cabecalho = $"{TextoExibicao.Limpar(d.Id)} · {TextoExibicao.Limpar(d.Titulo)}";
+        Openspec = d.OpenspecChange is null ? "" : $"OpenSpec: {TextoExibicao.Limpar(d.OpenspecChange)}";
+        Resumo = v.Resumo + (d.Arquivada ? " · arquivada" : "");
+        CorStatus = v.MaisUrgente is { } s ? Cores.Fundo(s) : Cores.Cinza;
+        Arquivada = d.Arquivada;
+        SemRepositorios = v.Cards.Count == 0;
+        PodeEditar = RegrasDemanda.PodeEditar(d);
+        PodeArquivar = RegrasDemanda.PodeArquivar(d);
+        PodeDesarquivar = RegrasDemanda.PodeDesarquivar(d);
+        PodeVincular = RegrasDemanda.PodeVincularRepositorio(d);
+
+        SincronizacaoColecao.Sincronizar(Cards, v.Cards,
+            c => c.Pasta, c => c.Pasta,
+            c => criarCard(c.Pasta),
+            (item, dado) => item.Atualizar(dado, d, criarSessao));
+    }
+
+    public void AtualizarNaoVinculadas(IReadOnlyList<SessaoExibida> sessoes, Func<string, SessaoItem> criarSessao)
+    {
+        Cabecalho = "Não vinculadas";
+        Resumo = $"{sessoes.Count} {(sessoes.Count == 1 ? "sessão" : "sessões")}";
+        SemNaoVinculadas = sessoes.Count == 0;
+        SincronizacaoColecao.Sincronizar(NaoVinculadas, sessoes,
+            s => s.SessionId, s => s.Sessao.SessionId,
+            s => criarSessao(s.Sessao.SessionId),
+            (item, dado) => item.AtualizarNaoVinculada(dado));
+    }
+}
