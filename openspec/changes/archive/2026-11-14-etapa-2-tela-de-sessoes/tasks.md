@@ -37,10 +37,10 @@ Tarefas marcadas com **[manual]** são executadas pelo usuário, porque exigem o
 
 ## 6. Verificação integrada
 
-- [ ] 6.1 **[manual]** Abrir o painel com a pasta de exemplo e conferir o roteiro do `README.md`: cores, ordem, resumo, opção "mostrar antigas" e texto cortado
-- [ ] 6.2 **[manual]** Abrir o painel sem parâmetros e usar uma sessão do Claude e uma do Codex como `ia`; verificar que cada mudança de status aparece na janela em até 5 segundos e que os hooks continuam gravando normalmente
-- [ ] 6.3 **[manual]** Como `ia`, colocar na pasta de status um arquivo `.json` inválido e outro com mais de 16 KB; verificar que o painel continua aberto e não os lista, e depois apagar os dois como `ia`
-- [ ] 6.4 **[manual]** Deixar o painel aberto durante um período de trabalho; verificar que uma sessão parada passa a "inativa" sozinha e que a janela continua respondendo
+- [x] 6.1 **[manual]** Abrir o painel com a pasta de exemplo e conferir o roteiro do `README.md`: cores, ordem, resumo, opção "mostrar antigas" e texto cortado
+- [x] 6.2 **[manual]** Abrir o painel sem parâmetros e usar uma sessão do Claude e uma do Codex como `ia`; verificar que cada mudança de status aparece na janela em até 5 segundos e que os hooks continuam gravando normalmente
+- [x] 6.3 **[manual]** Como `ia`, colocar na pasta de status um arquivo `.json` inválido e outro com mais de 16 KB; verificar que o painel continua aberto e não os lista, e depois apagar os dois como `ia`
+- [x] 6.4 **[manual]** Deixar o painel aberto durante um período de trabalho; verificar que uma sessão parada passa a "inativa" sozinha e que a janela continua respondendo
 
 ## Workflow follow-up
 
