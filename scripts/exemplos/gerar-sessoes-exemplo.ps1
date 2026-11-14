@@ -12,7 +12,8 @@
 #>
 param(
     [string]$Pasta = (Join-Path $env:TEMP 'datapilot-exemplo'),
-    [string]$Dados = (Join-Path $env:TEMP 'datapilot-exemplo-demandas.json')
+    [string]$Dados = (Join-Path $env:TEMP 'datapilot-exemplo-demandas.json'),
+    [string]$DadosVarias = (Join-Path $env:TEMP 'datapilot-exemplo-varias-demandas.json')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -28,6 +29,10 @@ function Gravar([string]$nome, [string]$conteudo) {
 
 function Gravar-Dados([string]$conteudo) {
     [System.IO.File]::WriteAllText($Dados, $conteudo, $utf8)
+}
+
+function Gravar-DadosVarias([string]$conteudo) {
+    [System.IO.File]::WriteAllText($DadosVarias, $conteudo, $utf8)
 }
 
 function Sessao([string]$id, [string]$agente, [string]$cwd, [string]$status, [TimeSpan]$idade) {
@@ -81,6 +86,12 @@ Sessao '0b6f1c2e-5d1a-4c8e-9f3a-2b7d4e6a8c10' 'claude' 'C:\Windows' 'encerrada' 
 Sessao '11111111-2222-3333-4444-555555555555' 'claude' 'C:\Fontes\Estoque' 'ativa' ([TimeSpan]::FromMinutes(1))
 Sessao '22222222-3333-4444-5555-666666666666' 'claude' 'C:\Fontes\Estoque' 'ativa' ([TimeSpan]::FromMinutes(1))
 
+# Sessoes do arquivo de varias demandas (Etapa 4a). A 66666666... fica sem arquivo de status de proposito ("sem status").
+Sessao '33333333-4444-5555-6666-777777777777' 'claude' 'C:\Fontes\Faturamento' 'atencao'    ([TimeSpan]::FromMinutes(3))
+Sessao '55555555-6666-7777-8888-999999999999' 'claude' 'C:\Fontes\Estoque'     'executando' ([TimeSpan]::FromMinutes(1))
+Sessao '77777777-8888-9999-aaaa-bbbbbbbbbbbb' 'claude' 'C:\Fontes\Faturamento' 'aguardando' ([TimeSpan]::FromHours(2))
+Sessao '88888888-9999-aaaa-bbbb-cccccccccccc' 'claude' 'C:\Fontes\Compras'     'encerrada'  ([TimeSpan]::FromDays(5))
+
 # Arquivo de dados de exemplo (fora da pasta de status, que so le arquivos .json de sessao).
 $criada = $agora.AddDays(-1).ToString('o')
 Gravar-Dados @"
@@ -111,5 +122,101 @@ Gravar-Dados @"
 }
 "@
 
+# Arquivo de dados com varias demandas (Etapa 4a), para ver a tela agrupada:
+#  - sem-demanda: as sessoes da Etapa 3 (aparece sempre que tem repositorios);
+#  - CHG-142: Faturamento (precisa de atencao) e Estoque (executando + uma sessao sem status);
+#  - CHG-150: a MESMA pasta Faturamento, com a propria sessao (aguardando);
+#  - CHG-099: arquivada (so aparece com "Mostrar arquivadas");
+#  - CHG-200: demanda sem repositorios.
+Gravar-DadosVarias @"
+{
+  "demandas": [
+    {
+      "id": "sem-demanda",
+      "titulo": "Sem demanda",
+      "arquivada": false,
+      "repositorios": [
+        {
+          "nome": "Faturamento",
+          "pasta": "Faturamento",
+          "sessoes": [
+            { "agente": "claude", "sessionId": "0b6f1c2e-5d1a-4c8e-9f3a-2b7d4e6a8c10", "rotulo": "implementacao", "criadaEm": "$criada" }
+          ]
+        },
+        {
+          "nome": "Estoque",
+          "pasta": "Estoque",
+          "sessoes": [
+            { "agente": "claude", "sessionId": "11111111-2222-3333-4444-555555555555", "criadaEm": "$criada" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CHG-142",
+      "titulo": "Ajuste NF-e",
+      "openspecChange": "ajuste-nfe",
+      "criadaEm": "$criada",
+      "arquivada": false,
+      "repositorios": [
+        {
+          "nome": "Faturamento",
+          "pasta": "Faturamento",
+          "sessoes": [
+            { "agente": "claude", "sessionId": "33333333-4444-5555-6666-777777777777", "rotulo": "implementacao", "criadaEm": "$criada" }
+          ]
+        },
+        {
+          "nome": "Estoque",
+          "pasta": "Estoque",
+          "sessoes": [
+            { "agente": "claude", "sessionId": "55555555-6666-7777-8888-999999999999", "rotulo": "ajuste de saldo", "criadaEm": "$criada" },
+            { "agente": "claude", "sessionId": "66666666-7777-8888-9999-aaaaaaaaaaaa", "rotulo": "sem arquivo de status", "criadaEm": "$criada" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CHG-150",
+      "titulo": "Relatorio mensal",
+      "criadaEm": "$criada",
+      "arquivada": false,
+      "repositorios": [
+        {
+          "nome": "Faturamento",
+          "pasta": "Faturamento",
+          "sessoes": [
+            { "agente": "claude", "sessionId": "77777777-8888-9999-aaaa-bbbbbbbbbbbb", "criadaEm": "$criada" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CHG-099",
+      "titulo": "Concluida",
+      "criadaEm": "$criada",
+      "arquivada": true,
+      "repositorios": [
+        {
+          "nome": "Compras",
+          "pasta": "Compras",
+          "sessoes": [
+            { "agente": "claude", "sessionId": "88888888-9999-aaaa-bbbb-cccccccccccc", "criadaEm": "$criada" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CHG-200",
+      "titulo": "Sem repositorios ainda",
+      "criadaEm": "$criada",
+      "arquivada": false,
+      "repositorios": []
+    }
+  ]
+}
+"@
+
 Write-Output "Pasta de exemplo criada em: $Pasta"
 Write-Output "Arquivo de dados de exemplo criado em: $Dados"
+Write-Output "Arquivo de dados de varias demandas criado em: $DadosVarias"

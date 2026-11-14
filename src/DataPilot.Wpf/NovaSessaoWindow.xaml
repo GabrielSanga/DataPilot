@@ -4,8 +4,7 @@
         Title="Nova sessão" SizeToContent="Height" Width="380" ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
     <StackPanel Margin="12">
-        <TextBlock Text="Repositório" Margin="0,0,0,2"/>
-        <ComboBox x:Name="CampoRepositorio" DisplayMemberPath="Pasta" Margin="0,0,0,8"/>
+        <TextBlock x:Name="Destino" TextWrapping="Wrap" Margin="0,0,0,8"/>
         <TextBlock Text="Agente" Margin="0,0,0,2"/>
         <ComboBox x:Name="CampoAgente" Margin="0,0,0,8">
             <ComboBoxItem Content="Claude" IsSelected="True"/>
