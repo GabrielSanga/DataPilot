@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DataPilot.Core/DataPilot.Core.csproj" />
+    <Project Path="src/DataPilot.Wpf/DataPilot.Wpf.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DataPilot.Core.Tests/DataPilot.Core.Tests.csproj" />
+  </Folder>
+</Solution>
