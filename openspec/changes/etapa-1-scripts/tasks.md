@@ -6,7 +6,7 @@ Tarefas marcadas com **[manual]** são executadas pelo usuário, porque exigem a
 
 - [x] 1.1 **[manual]** Numa sessão `ssh ia@localhost`, rodar `claude --version`, `codex --version`, `claude --help` e `codex resume --help`; verificar que `--session-id`, `--resume` e `codex resume [SESSION_ID]` aparecem e anotar as versões em `docs/instalacao-etapa-1.md`
 - [x] 1.2 **[manual]** Configurar temporariamente um hook de `SessionStart` no Codex que grave a entrada padrão num arquivo; verificar no arquivo se `session_id` é um GUID canônico de 36 caracteres. Se não for, parar e rever a spec `abertura-de-sessao` antes do grupo 4
-- [ ] 1.3 **[manual]** Do mesmo modo, capturar no Claude um evento `Notification` de pedido de permissão; verificar no arquivo o nome do campo que traz o tipo (esperado: `notification_type`) e anotar no guia
+- [x] 1.3 **[manual]** Do mesmo modo, capturar no Claude um evento `Notification` de pedido de permissão; verificar no arquivo o nome do campo que traz o tipo (esperado: `notification_type`) e anotar no guia
 
 ## 2. Referência do projeto
 
@@ -37,9 +37,9 @@ Tarefas marcadas com **[manual]** são executadas pelo usuário, porque exigem a
 
 ## 6. Instalação e verificação integrada
 
-- [ ] 6.1 **[manual]** Como administrador, criar as pastas e aplicar as ACLs do guia; verificar com `icacls` que o `ia` tem modificação em `C:\ProgramData\Painel`, só leitura e execução em `C:\Painel`, e que o usuário principal sem elevação não consegue criar arquivo na pasta de status
-- [ ] 6.2 **[manual]** Copiar os scripts para `C:\Painel` e rodar `verificar.ps1` como `ia`; verificar que todos os casos passam nessa conta
-- [ ] 6.3 **[manual]** Mesclar os exemplos na configuração do `ia`, confiar nos hooks do Codex em `/hooks` e usar uma sessão de cada agente; verificar que o arquivo de status de cada sessão é criado e passa por `ativa`, `executando`, `atencao` (ao pedir permissão), de volta a `executando`, `aguardando` e `encerrada`, e que nada estranho aparece no contexto do agente
+- [x] 6.1 **[manual]** Como administrador, criar as pastas e aplicar as ACLs do guia; verificar com `icacls` que o `ia` tem modificação em `C:\ProgramData\Painel`, só leitura e execução em `C:\Painel`, e que o usuário principal sem elevação não consegue criar arquivo na pasta de status
+- [x] 6.2 **[manual]** Copiar os scripts para `C:\Painel` e rodar `verificar.ps1` como `ia`; verificar que todos os casos passam nessa conta
+- [x] 6.3 **[manual]** Mesclar os exemplos na configuração do `ia`, confiar nos hooks do Codex em `/hooks` e usar uma sessão de cada agente; verificar que o arquivo de status de cada sessão é criado e passa por `ativa`, `executando`, `atencao` (ao pedir permissão), de volta a `executando`, `aguardando` e `encerrada`, e que nada estranho aparece no contexto do agente
 - [x] 6.4 **[manual]** Pelo usuário principal, executar a linha de SSH do guia para abrir uma sessão nova do Claude com um GUID escolhido e depois retomá-la, e o mesmo para o Codex; verificar que a sessão do Claude usa o GUID informado e que as retomadas abrem a conversa certa
 - [x] 6.5 **[manual]** Responder e registrar no guia: se `/clear` no Claude muda o `session_id`; se fechar a aba do terminal dispara `SessionEnd`; e se uma sessão retomada mantém o mesmo arquivo de status
 
