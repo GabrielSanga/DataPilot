@@ -92,6 +92,10 @@ Sessao '55555555-6666-7777-8888-999999999999' 'claude' 'C:\Fontes\Estoque'     '
 Sessao '77777777-8888-9999-aaaa-bbbbbbbbbbbb' 'claude' 'C:\Fontes\Faturamento' 'aguardando' ([TimeSpan]::FromHours(2))
 Sessao '88888888-9999-aaaa-bbbb-cccccccccccc' 'claude' 'C:\Fontes\Compras'     'encerrada'  ([TimeSpan]::FromDays(5))
 
+# Sessao do Codex NAO vinculada, com GUID (Etapa 4b): aparece como sugestao nos cards Faturamento de CHG-142, CHG-150 e Sem demanda
+# (do arquivo de varias demandas) e em "Nao vinculadas" com a acao "Vincular". Status ativa, para nao mudar o resumo do cabecalho.
+Sessao '99999999-aaaa-bbbb-cccc-dddddddddddd' 'codex' 'C:\Fontes\Faturamento' 'ativa' ([TimeSpan]::FromMinutes(2))
+
 # Arquivo de dados de exemplo (fora da pasta de status, que so le arquivos .json de sessao).
 $criada = $agora.AddDays(-1).ToString('o')
 Gravar-Dados @"

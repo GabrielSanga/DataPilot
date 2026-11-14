@@ -7,7 +7,7 @@ namespace DataPilot.Wpf;
 
 /// <summary>
 /// Linha de sessão. Todo texto vem limpo e cortado pelo Core; é exibido só como texto simples.
-/// Sessões registradas (no card de um repositório) têm ações; as não vinculadas não têm nenhuma.
+/// Sessões registradas (no card de um repositório) têm Retomar, Mover e Remover; as não vinculadas só têm "Vincular".
 /// </summary>
 public sealed partial class SessaoItem : ObservableObject
 {
@@ -30,10 +30,21 @@ public sealed partial class SessaoItem : ObservableObject
     public IRelayCommand RetomarCommand { get; }
     public IRelayCommand MoverCommand { get; }
     public IRelayCommand RemoverCommand { get; }
+    public IRelayCommand VincularCommand { get; }
 
-    public SessaoItem(string sessionId, Action<SessaoItem> retomar, Action<SessaoItem> mover, Action<SessaoItem> remover)
+    // Sessão não vinculada (na entrada "Não vinculadas"): só a ação de vincular.
+    [ObservableProperty] private bool _temVincular;
+    [ObservableProperty] private bool _podeVincular;
+    [ObservableProperty] private string _motivoVincular = "";
+
+    /// <summary>Sessão lida da pasta de status (só para sessões não vinculadas); nunca vai a um comando.</summary>
+    public Sessao? Lida { get; private set; }
+
+    public SessaoItem(string sessionId, Action<SessaoItem> retomar, Action<SessaoItem> mover, Action<SessaoItem> remover,
+        Action<SessaoItem> vincular)
     {
         SessionId = sessionId;
+        VincularCommand = new RelayCommand(() => vincular(this));
         RetomarCommand = new RelayCommand(() => retomar(this));
         MoverCommand = new RelayCommand(() => mover(this));
         RemoverCommand = new RelayCommand(() => remover(this));
@@ -44,22 +55,30 @@ public sealed partial class SessaoItem : ObservableObject
     {
         var r = v.Registrada;
         Registrada = r;
+        Lida = null;
         TemAcoes = true;
+        TemVincular = false;
         Aplicar(v.Status, v.Tempo, v.Lida is null ? r.Pasta : TextoExibicao.NomePasta(v.Lida.Cwd), r.Agente);
         Rotulo = r.Rotulo is null ? "" : TextoExibicao.Limpar(r.Rotulo);
         Dica = (v.Lida is null ? "" : $"{TextoExibicao.Limpar(v.Lida.Cwd)}\n")
             + $"Sessão: {TextoExibicao.Limpar(r.SessionId)}\nRetomar abre em: {r.Pasta}";
     }
 
-    /// <summary>Sessão lida da pasta de status que o painel não registrou: só exibição.</summary>
+    /// <summary>Sessão lida da pasta de status que o painel não registrou: só exibição e a ação de vincular.</summary>
     public void AtualizarNaoVinculada(SessaoExibida e)
     {
         Registrada = null;
+        Lida = e.Sessao;
         TemAcoes = false;
+        TemVincular = true;
         var s = e.Sessao;
+        var pode = RegrasVinculo.PodeVincularSessao(s);
+        PodeVincular = pode.Sim;
+        MotivoVincular = pode.Motivo ?? "";
         Aplicar(e.Status, e.Tempo, TextoExibicao.NomePasta(s.Cwd), s.Agente);
         Rotulo = "";
-        Dica = $"{TextoExibicao.Limpar(s.Cwd)}\nSessão: {TextoExibicao.Limpar(s.SessionId)}";
+        Dica = $"{TextoExibicao.Limpar(s.Cwd)}\nSessão: {TextoExibicao.Limpar(s.SessionId)}"
+            + (pode.Sim ? "" : $"\n{pode.Motivo}");
     }
 
     private void Aplicar(StatusExibido status, string tempo, string pasta, Agente agente)

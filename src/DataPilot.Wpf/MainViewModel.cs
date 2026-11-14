@@ -57,7 +57,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private CardItem NovoCard(string pasta) => new(pasta, NovaSessao, RemoverRepositorio);
 
-    private SessaoItem NovaSessaoItem(string sessionId) => new(sessionId, Retomar, MoverSessao, RemoverSessao);
+    private SessaoItem NovaSessaoItem(string sessionId) => new(sessionId, Retomar, MoverSessao, RemoverSessao, VincularSessao);
 
     // ---------- dados do painel ----------
 
@@ -236,6 +236,53 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var r = _dados.RemoverSessao(registrada.SessionId);
         RecarregarEAplicar();
         if (!r.Ok) _interacao.Erro(r.Mensagem ?? "Não foi possível remover o registro da sessão.");
+    }
+
+    // ---------- vínculo de sessões não vinculadas ----------
+
+    /// <summary>"Vincular" na entrada "Não vinculadas": diálogo com demanda, repositório e rótulo.</summary>
+    private void VincularSessao(SessaoItem item)
+    {
+        if (!DadosDisponiveis || item.Lida is not { } lida) return;
+
+        var pedido = PedidoVinculo.Criar(lida);
+        if (pedido is null)
+        {
+            _interacao.Erro(RegrasVinculo.PodeVincularSessao(lida).Motivo ?? "Esta sessão não pode ser vinculada.");
+            return;
+        }
+
+        var opcoes = _estadoDados.Demandas
+            .Where(d => !d.Arquivada)
+            .Select(d => new OpcaoDemandaVinculo(
+                d.Id,
+                $"{TextoExibicao.Limpar(d.Id)} · {TextoExibicao.Limpar(d.Titulo)}",
+                d.Repositorios.Select(r => r.Pasta).ToList(),
+                d.Repositorios.Select(r => r.Pasta).FirstOrDefault(p => RegrasVinculo.PastaCoincide(lida, p))))
+            .ToList();
+        if (opcoes.Count == 0)
+        {
+            _interacao.Informar("Não há demanda para receber a sessão. Crie uma demanda primeiro.");
+            return;
+        }
+
+        var descricao = $"{(lida.Agente == Agente.Claude ? "Claude" : "Codex")} · pasta {TextoExibicao.NomePasta(lida.Cwd)} · sessão {TextoExibicao.Limpar(lida.SessionId)}";
+        var vinculou = _interacao.DialogoVincularSessao(descricao, opcoes, escolha =>
+        {
+            if (!ValidadorEntrada.PastaValida(escolha.Repositorio))
+                return "Repositório inválido: use apenas letras, dígitos, \"_\", \".\" e \"-\", e não só pontos.";
+            if (escolha.Rotulo is not null && !ValidadorEntrada.RotuloValido(escolha.Rotulo))
+                return "Rótulo inválido: use até 40 caracteres, sem \";\" nem caracteres de controle.";
+
+            if (RegrasVinculo.AvisarPastaDivergente(lida, escolha.Repositorio)
+                && !_interacao.Confirmar($"A pasta de trabalho desta sessão termina em \"{TextoExibicao.NomePasta(lida.Cwd)}\", mas o repositório escolhido é \"{escolha.Repositorio}\". "
+                    + "Ao retomar, o agente pode não encontrar a conversa. Vincular mesmo assim?"))
+                return ""; // não confirmou: o diálogo continua aberto
+
+            var r = _dados.VincularSessao(pedido, escolha.DemandaId, escolha.Repositorio, escolha.Rotulo, _relogio.GetUtcNow());
+            return r.Ok ? null : r.Mensagem ?? "Não foi possível vincular a sessão.";
+        });
+        if (vinculou) RecarregarEAplicar();
     }
 
     // ---------- tela ----------
