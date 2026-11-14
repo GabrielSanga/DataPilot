@@ -1,0 +1,38 @@
+namespace DataPilot.Core;
+
+public enum Agente { Claude, Codex }
+
+/// <summary>Status como gravado pelo hook no arquivo.</summary>
+public enum StatusGravado { Ativa, Executando, Aguardando, Atencao, Encerrada }
+
+/// <summary>Status exibido, na ordem de urgência (menor valor = mais urgente).</summary>
+public enum StatusExibido
+{
+    PrecisaAtencao = 0,
+    Aguardando = 1,
+    Executando = 2,
+    Ativa = 3,
+    Inativa = 4,
+    Encerrada = 5,
+}
+
+/// <summary>Sessão lida de um arquivo de status. Todos os valores servem apenas para exibição.</summary>
+public sealed record Sessao(
+    Agente Agente,
+    string SessionId,
+    string Cwd,
+    StatusGravado Status,
+    DateTimeOffset Atualizado);
+
+/// <summary>Prazos e limites do painel.</summary>
+public static class Constantes
+{
+    public const string PastaStatusPadrao = @"C:\ProgramData\Painel\sessoes";
+    public static readonly TimeSpan InatividadeAtiva = TimeSpan.FromMinutes(15);
+    public static readonly TimeSpan InatividadeEspera = TimeSpan.FromHours(8);
+    public static readonly TimeSpan IdadeSessaoAntiga = TimeSpan.FromDays(3);
+    public static readonly TimeSpan IntervaloReleitura = TimeSpan.FromSeconds(5);
+    public const int TamanhoMaximoArquivo = 16 * 1024;
+    public const int MaximoArquivos = 500;
+    public const int MaximoTexto = 260;
+}
