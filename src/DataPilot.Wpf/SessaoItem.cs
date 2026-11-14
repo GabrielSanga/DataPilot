@@ -1,5 +1,6 @@
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using DataPilot.Core;
 
 namespace DataPilot.Wpf;
@@ -18,23 +19,40 @@ public sealed partial class SessaoItem : ObservableObject
     [ObservableProperty] private Brush _corFundo = Cores.Cinza;
     [ObservableProperty] private Brush _corTexto = Brushes.White;
 
-    public SessaoItem(SessaoExibida e)
+    // Dados do painel (arquivo de dados), nunca do arquivo de status.
+    [ObservableProperty] private bool _podeRetomar;
+    [ObservableProperty] private string _registro = "";
+
+    public StatusExibido Status { get; private set; }
+    public SessaoRegistrada? Registrada { get; private set; }
+    public IRelayCommand RetomarCommand { get; }
+
+    public SessaoItem(SessaoExibida e, SessaoRegistrada? registrada, Action<SessaoItem> retomar)
     {
         SessionId = e.Sessao.SessionId;
-        Atualizar(e);
+        RetomarCommand = new RelayCommand(() => retomar(this));
+        Atualizar(e, registrada);
     }
 
-    public void Atualizar(SessaoExibida e)
+    public void Atualizar(SessaoExibida e, SessaoRegistrada? registrada)
     {
         var s = e.Sessao;
+        Status = e.Status;
+        Registrada = registrada;
         Agente = s.Agente == DataPilot.Core.Agente.Claude ? "Claude" : "Codex";
         Pasta = TextoExibicao.NomePasta(s.Cwd);
         PastaCompleta = TextoExibicao.Limpar(s.Cwd);
-        Dica = $"{PastaCompleta}\nSessão: {TextoExibicao.Limpar(s.SessionId)}";
         StatusTexto = RegrasExibicao.Texto(e.Status);
         Tempo = e.Tempo;
         CorFundo = Cores.Fundo(e.Status);
         CorTexto = Cores.Texto(e.Status);
+
+        PodeRetomar = registrada is not null;
+        Registro = registrada is null ? ""
+            : registrada.Rotulo is null ? $"Repositório: {registrada.Pasta}"
+            : $"Repositório: {registrada.Pasta} · {registrada.Rotulo}";
+        Dica = $"{PastaCompleta}\nSessão: {TextoExibicao.Limpar(s.SessionId)}"
+            + (registrada is null ? "" : $"\nRetomar abre em: {registrada.Pasta}");
     }
 }
 

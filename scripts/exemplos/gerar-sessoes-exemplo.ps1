@@ -11,7 +11,8 @@
     dotnet run --project src/DataPilot.Wpf -- --pasta-status "$env:TEMP\datapilot-exemplo"
 #>
 param(
-    [string]$Pasta = (Join-Path $env:TEMP 'datapilot-exemplo')
+    [string]$Pasta = (Join-Path $env:TEMP 'datapilot-exemplo'),
+    [string]$Dados = (Join-Path $env:TEMP 'datapilot-exemplo-demandas.json')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -23,6 +24,10 @@ $agora = [DateTimeOffset]::Now
 
 function Gravar([string]$nome, [string]$conteudo) {
     [System.IO.File]::WriteAllText((Join-Path $Pasta $nome), $conteudo, $utf8)
+}
+
+function Gravar-Dados([string]$conteudo) {
+    [System.IO.File]::WriteAllText($Dados, $conteudo, $utf8)
 }
 
 function Sessao([string]$id, [string]$agente, [string]$cwd, [string]$status, [TimeSpan]$idade) {
@@ -68,4 +73,43 @@ Gravar 'ex-grande.json' ('{"agente":"claude","session_id":"ex-grande","cwd":"C:\
     $agora.ToString('o') + '","enchimento":"' + ('x' * 20000) + '"}')
 Gravar 'ex-temporario.123.tmp' '{"agente":"claude","session_id":"ex-temporario","cwd":"C:\\X","status":"ativa","atualizado":"' + $agora.ToString('o') + '"}'
 
+# Sessoes com identificador GUID, para o arquivo de dados de exemplo (Etapa 3):
+#  - 0b6f1c2e... registrada em Faturamento, encerrada, com cwd divergente: "Retomar" abre sem confirmacao em Faturamento;
+#  - 11111111... registrada em Estoque, ativa: "Retomar" pede confirmacao;
+#  - 22222222... NAO registrada (como a sessao criada por /clear): sem "Retomar".
+Sessao '0b6f1c2e-5d1a-4c8e-9f3a-2b7d4e6a8c10' 'claude' 'C:\Windows' 'encerrada' ([TimeSpan]::FromHours(2))
+Sessao '11111111-2222-3333-4444-555555555555' 'claude' 'C:\Fontes\Estoque' 'ativa' ([TimeSpan]::FromMinutes(1))
+Sessao '22222222-3333-4444-5555-666666666666' 'claude' 'C:\Fontes\Estoque' 'ativa' ([TimeSpan]::FromMinutes(1))
+
+# Arquivo de dados de exemplo (fora da pasta de status, que so le arquivos .json de sessao).
+$criada = $agora.AddDays(-1).ToString('o')
+Gravar-Dados @"
+{
+  "demandas": [
+    {
+      "id": "sem-demanda",
+      "titulo": "Sem demanda",
+      "arquivada": false,
+      "repositorios": [
+        {
+          "nome": "Faturamento",
+          "pasta": "Faturamento",
+          "sessoes": [
+            { "agente": "claude", "sessionId": "0b6f1c2e-5d1a-4c8e-9f3a-2b7d4e6a8c10", "rotulo": "implementacao", "criadaEm": "$criada" }
+          ]
+        },
+        {
+          "nome": "Estoque",
+          "pasta": "Estoque",
+          "sessoes": [
+            { "agente": "claude", "sessionId": "11111111-2222-3333-4444-555555555555", "criadaEm": "$criada" }
+          ]
+        }
+      ]
+    }
+  ]
+}
+"@
+
 Write-Output "Pasta de exemplo criada em: $Pasta"
+Write-Output "Arquivo de dados de exemplo criado em: $Dados"
