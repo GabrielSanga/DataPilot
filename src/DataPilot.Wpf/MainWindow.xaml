@@ -11,7 +11,7 @@
         <BooleanToVisibilityConverter x:Key="BoolParaVisibilidade"/>
 
 
-        <!-- Linha de sessão: as não vinculadas não mostram botões (TemAcoes = falso). -->
+        <!-- Linha de sessão: as registradas têm Retomar, Mover e Remover; as não vinculadas só têm Vincular. -->
         <DataTemplate x:Key="LinhaSessao" DataType="{x:Type local:SessaoItem}">
             <Grid Margin="2,4" ToolTip="{Binding Dica}">
                 <Grid.ColumnDefinitions>
@@ -49,6 +49,18 @@
                     <Button Content="Retomar" Padding="8,2" Margin="0,0,4,0" Command="{Binding RetomarCommand}"/>
                     <Button Content="Mover" Padding="8,2" Margin="0,0,4,0" Command="{Binding MoverCommand}"/>
                     <Button Content="Remover" Padding="8,2" Command="{Binding RemoverCommand}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="4" Orientation="Horizontal" Margin="8,0,0,0"
+                            Visibility="{Binding TemVincular, Converter={StaticResource BoolParaVisibilidade}}">
+                    <Button Content="Vincular" Padding="8,2" Command="{Binding VincularCommand}"
+                            ToolTip="{Binding MotivoVincular}" ToolTipService.ShowOnDisabled="True">
+                        <Button.IsEnabled>
+                            <MultiBinding Converter="{x:Static local:TodosVerdadeiros.Instancia}">
+                                <Binding Path="PodeVincular"/>
+                                <Binding Path="DataContext.DadosDisponiveis" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                            </MultiBinding>
+                        </Button.IsEnabled>
+                    </Button>
                 </StackPanel>
             </Grid>
         </DataTemplate>
@@ -125,13 +137,13 @@
             </DockPanel>
         </DataTemplate>
 
-        <!-- Entrada "Não vinculadas": a lista simples, sem ações -->
+        <!-- Entrada "Não vinculadas": só a ação Vincular -->
         <DataTemplate x:Key="DetalheNaoVinculadas" DataType="{x:Type local:DemandaItem}">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
                     <TextBlock Text="{Binding Cabecalho}" FontSize="18" FontWeight="SemiBold"/>
                     <TextBlock Foreground="#616161" TextWrapping="Wrap" Margin="0,2,0,0"
-                               Text="Sessões que o painel não abriu (por exemplo, as do Codex e as criadas por /clear). Aparecem só para consulta, sem ações."/>
+                               Text="Sessões que o painel não abriu (por exemplo, as do Codex e as criadas por /clear). Use &quot;Vincular&quot; para associar uma delas a uma demanda."/>
                 </StackPanel>
                 <Grid>
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">

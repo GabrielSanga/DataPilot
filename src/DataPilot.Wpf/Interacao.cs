@@ -9,6 +9,11 @@ public sealed record NovaSessaoEscolha(Agente Agente, string? Rotulo);
 
 public sealed record DestinoDemanda(string Id, string Texto);
 
+/// <summary>Demanda oferecida no diálogo de vínculo, com os repositórios dela e o que coincide com a pasta da sessão (se houver).</summary>
+public sealed record OpcaoDemandaVinculo(string Id, string Texto, IReadOnlyList<string> Repositorios, string? RepositorioSugerido);
+
+public sealed record EscolhaVinculo(string DemandaId, string Repositorio, string? Rotulo);
+
 /// <summary>
 /// Perguntas, avisos e diálogos ao usuário, atrás de uma interface para a lógica do view model não depender de janelas.
 /// Nos diálogos de demanda e de vínculo, <c>aplicar</c> grava e devolve a mensagem de recusa (ou null); o diálogo
@@ -22,6 +27,8 @@ public interface IInteracao
 
     bool DialogoDemanda(Demanda? existente, Func<DadosDemanda, string?> aplicar);
     bool DialogoVincularRepositorio(string demandaTitulo, IReadOnlyList<string> sugestoes, Func<string, string?> aplicar);
+    /// <summary>Diálogo de vínculo. <c>aplicar</c> devolve a mensagem de recusa; "" mantém o diálogo aberto sem mensagem (o usuário não confirmou o aviso).</summary>
+    bool DialogoVincularSessao(string descricaoSessao, IReadOnlyList<OpcaoDemandaVinculo> demandas, Func<EscolhaVinculo, string?> aplicar);
     NovaSessaoEscolha? PedirNovaSessao(string demandaTitulo, string pasta);
     string? EscolherDemandaDestino(IReadOnlyList<DestinoDemanda> destinos);
 }
@@ -45,6 +52,9 @@ public sealed class InteracaoJanelas : IInteracao
     public bool DialogoVincularRepositorio(string demandaTitulo, IReadOnlyList<string> sugestoes, Func<string, string?> aplicar)
         => new VincularRepositorioWindow(demandaTitulo, sugestoes, aplicar) { Owner = Dono }.ShowDialog() == true;
 
+    public bool DialogoVincularSessao(string descricaoSessao, IReadOnlyList<OpcaoDemandaVinculo> demandas, Func<EscolhaVinculo, string?> aplicar)
+        => new VincularSessaoWindow(descricaoSessao, demandas, aplicar) { Owner = Dono }.ShowDialog() == true;
+
     public NovaSessaoEscolha? PedirNovaSessao(string demandaTitulo, string pasta)
     {
         var janela = new NovaSessaoWindow(demandaTitulo, pasta) { Owner = Dono };
@@ -56,4 +66,16 @@ public sealed class InteracaoJanelas : IInteracao
         var janela = new MoverSessaoWindow(destinos) { Owner = Dono };
         return janela.ShowDialog() == true ? janela.DestinoEscolhido : null;
     }
+}
+
+/// <summary>Conversor para habilitar um controle quando todas as condições são verdadeiras.</summary>
+public sealed class TodosVerdadeiros : System.Windows.Data.IMultiValueConverter
+{
+    public static readonly TodosVerdadeiros Instancia = new();
+
+    public object Convert(object[] values, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        => values.All(v => v is true);
+
+    public object[] ConvertBack(object value, Type[] targetTypes, object parameter, System.Globalization.CultureInfo culture)
+        => throw new NotSupportedException();
 }

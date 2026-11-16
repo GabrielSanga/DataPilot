@@ -10,6 +10,7 @@ public sealed record SessaoNaVisao(
     StatusExibido Status,
     string Tempo);
 
+/// <summary>Card de um repositório: só sessões registradas. As não vinculadas ficam na entrada "Não vinculadas".</summary>
 public sealed record CardNaVisao(string Pasta, IReadOnlyList<SessaoNaVisao> Sessoes);
 
 /// <summary>Demanda com o resumo da lista: repositórios, sessões e status mais urgente (null se nenhuma sessão tem status).</summary>
@@ -53,6 +54,10 @@ public static class VisaoAgrupada
                 foreach (var s in r.Sessoes)
                     registradas.Add((s.Agente, s.SessionId.ToLowerInvariant()));
 
+        var naoVinculadas = RegrasExibicao.Montar(
+            lidas.Where(p => !registradas.Contains((p.Key.Item1, p.Key.Item2))).Select(p => p.Value),
+            mostrarAntigas, relogio);
+
         var itens = new List<DemandaNaVisao>();
         foreach (var d in demandas)
         {
@@ -61,10 +66,6 @@ public static class VisaoAgrupada
             itens.Add(MontarDemanda(d, lidas, relogio));
         }
         var ordenadas = Ordenar(itens);
-
-        var naoVinculadas = RegrasExibicao.Montar(
-            lidas.Where(p => !registradas.Contains((p.Key.Item1, p.Key.Item2))).Select(p => p.Value),
-            mostrarAntigas, relogio);
 
         // O cabeçalho conta as sessões das demandas listadas e as não vinculadas visíveis; "sem status" não entra.
         var paraResumo = ordenadas

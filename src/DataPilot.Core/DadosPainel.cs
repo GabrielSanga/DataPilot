@@ -264,6 +264,18 @@ public sealed class DadosPainel(string caminho)
     // ---------- sessões ----------
 
     public ResultadoOperacao RegistrarSessao(string demandaId, string pasta, Agente agente, string sessionId, string? rotulo, DateTimeOffset criadaEm)
+        => Registrar(demandaId, pasta, agente, sessionId, rotulo, criadaEm, vinculadaEm: null, criarRepositorio: false);
+
+    /// <summary>
+    /// Vínculo explícito de uma sessão que o painel não abriu. Recebe só o <see cref="PedidoVinculo"/> (agente e
+    /// identificador); demanda, pasta e rótulo vêm da escolha do usuário. Grava <c>vinculadaEm</c> (e usa a mesma
+    /// data em <c>criadaEm</c>) e vincula o repositório à demanda quando faltar. Demanda arquivada não recebe vínculo.
+    /// </summary>
+    public ResultadoOperacao VincularSessao(PedidoVinculo pedido, string demandaId, string pasta, string? rotulo, DateTimeOffset vinculadaEm)
+        => Registrar(demandaId, pasta, pedido.Agente, pedido.SessionId, rotulo, vinculadaEm, vinculadaEm, criarRepositorio: true);
+
+    private ResultadoOperacao Registrar(string demandaId, string pasta, Agente agente, string sessionId, string? rotulo,
+        DateTimeOffset criadaEm, DateTimeOffset? vinculadaEm, bool criarRepositorio)
     {
         if (!ValidadorEntrada.PastaValida(pasta)) return ResultadoOperacao.Falha("Repositório inválido.");
         if (!ValidadorEntrada.IdentificadorValido(sessionId)) return ResultadoOperacao.Falha("Identificador de sessão inválido.");
@@ -273,10 +285,18 @@ public sealed class DadosPainel(string caminho)
         {
             var demanda = EncontrarDemanda(raiz, demandaId);
             if (demanda is null) return ResultadoOperacao.Falha($"A demanda {demandaId} não existe.");
+            if (vinculadaEm is not null && demanda["arquivada"] is JsonValue arq && arq.TryGetValue<bool>(out var arquivada) && arquivada)
+                return ResultadoOperacao.Falha($"A demanda {demandaId} está arquivada.");
             var repo = EncontrarRepositorio(demanda, pasta);
-            if (repo is null) return ResultadoOperacao.Falha($"O repositório {pasta} não está vinculado a esta demanda.");
+            if (repo is null && !criarRepositorio)
+                return ResultadoOperacao.Falha($"O repositório {pasta} não está vinculado a esta demanda.");
             if (SessoesComId(raiz, sessionId).Any())
                 return ResultadoOperacao.Falha("Esta sessão já está registrada.");
+            if (repo is null)
+            {
+                repo = NovoRepositorio(pasta);
+                Repositorios(demanda).Add(repo);
+            }
 
             var sessoes = repo["sessoes"] as JsonArray;
             if (sessoes is null) repo["sessoes"] = sessoes = new JsonArray();
@@ -288,6 +308,7 @@ public sealed class DadosPainel(string caminho)
             };
             if (rotulo is not null) sessao["rotulo"] = rotulo;
             sessao["criadaEm"] = criadaEm.ToString("o", CultureInfo.InvariantCulture);
+            if (vinculadaEm is not null) sessao["vinculadaEm"] = vinculadaEm.Value.ToString("o", CultureInfo.InvariantCulture);
             sessoes.Add(sessao);
             return ResultadoOperacao.Sucesso;
         });

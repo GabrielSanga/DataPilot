@@ -36,7 +36,7 @@ Logo após gerar, a janela deve mostrar:
 - Ocultas até marcar "Mostrar antigas (não vinculadas)": `ex-antiga-encerrada` (7 dias) e `ex-antiga-inativa` (4 dias).
 - Passar o mouse sobre uma linha mostra a pasta completa e o identificador.
 
-## Demandas, abrir e retomar sessões (Etapas 3 e 4a)
+## Demandas, abrir e retomar sessões (Etapas 3, 4a e 4b)
 
 A janela tem duas áreas. À esquerda, a lista de demandas; cada uma mostra a quantidade de repositórios e de sessões e o status mais urgente entre as sessões. A lista é ordenada pelo status mais urgente e, em empate, pela atualização mais recente; demandas sem sessões com status vêm depois, e as arquivadas por último. No fim da lista fica a entrada **Não vinculadas**. À direita, a demanda selecionada: `id`, título, change do OpenSpec (quando houver) e um card por repositório, com as sessões registradas nele.
 
@@ -51,9 +51,20 @@ A demanda e a rolagem escolhidas não mudam sozinhas quando um status muda ou a 
 - **Nova sessão** (no card): escolhe o agente (Claude ou Codex) e um rótulo opcional (até 40 caracteres, sem `;`) e abre uma aba do Windows Terminal que chama o `abrir.ps1` como o usuário `ia`, pelo SSH local. Todas as abas ficam na janela `painel`. O título da aba é `id · repositório [· rótulo]`; para sessões de **Sem demanda**, o nome do agente ocupa o lugar do `id`. A sessão nova do Claude fica registrada no repositório dessa demanda.
 - **Retomar**, **Mover** e **Remover** (na linha da sessão registrada). Retomar pede confirmação se a sessão não estiver encerrada, inativa nem sem status. **Mover** leva a sessão para outra demanda, no repositório de mesma pasta (vinculado ao destino se faltar). **Remover** só apaga o registro no painel, depois de confirmar: a conversa e a pasta de status não são tocadas.
 
-Sessões registradas aparecem sempre na sua demanda, sem esconder as antigas; as que não têm arquivo de status aparecem como **sem status** (cinza, por último, e fora do resumo do cabeçalho). As sessões da pasta de status que o painel não registrou (as do Codex e a sessão nova que o Claude cria depois de um `/clear`) ficam em **Não vinculadas**, só para consulta e sem ações; a opção **Mostrar antigas** vale só para elas (encerradas ou inativas há mais de 3 dias ficam ocultas por padrão). O vínculo dessas sessões fica para a Etapa 4b.
+Sessões registradas aparecem sempre na sua demanda, sem esconder as antigas; as que não têm arquivo de status aparecem como **sem status** (cinza, por último, e fora do resumo do cabeçalho). As sessões da pasta de status que o painel não registrou (as do Codex e a sessão nova que o Claude cria depois de um `/clear`) ficam em **Não vinculadas**, onde a única ação é **Vincular** (ver abaixo); a opção **Mostrar antigas** vale só para elas (encerradas ou inativas há mais de 3 dias ficam ocultas por padrão).
 
-O comando é montado só com dados do arquivo de dados ou da escolha na tela, nunca com valores lidos de arquivos de status, e iniciado como lista de argumentos, sem shell. Requer o Windows Terminal (`wt.exe`) e o SSH local da Etapa 1.
+O comando é montado só com dados do arquivo de dados ou da escolha na tela, nunca com valores lidos de arquivos de status, com uma única exceção: o identificador e o agente de uma sessão que você vincula (ver "Vincular sessões"). O comando é iniciado como lista de argumentos, sem shell. Requer o Windows Terminal (`wt.exe`) e o SSH local da Etapa 1.
+
+### Vincular sessões (Etapa 4b)
+
+As sessões que o painel não abriu (todas as do Codex, a sessão nova que o Claude cria depois de um `/clear` e as abertas à mão) ficam em **Não vinculadas** até você vinculá-las a uma demanda. O vínculo nunca é automático, nem para o Codex aberto pelo próprio painel.
+
+- **Vincular** (linha de **Não vinculadas**): escolha a demanda (não arquivada), o repositório (os da demanda ou um novo, nome de pasta dentro de `C:\Fontes`) e, opcionalmente, um rótulo. A demanda e o repositório vêm pré-selecionados quando o nome do último segmento da pasta de trabalho da sessão coincide com um repositório cadastrado. Se não houver demanda, o painel orienta a criar uma e não grava nada. Se a pasta de trabalho da sessão não coincidir com o repositório escolhido, o painel avisa que a retomada pode não encontrar a conversa e só vincula se você confirmar.
+- Os cards de repositório mostram só sessões registradas. Uma sessão não vinculada aparece apenas em **Não vinculadas**, mesmo quando a pasta de trabalho dela tem o nome de um repositório da demanda.
+- Só identificadores no formato GUID (8-4-4-4-12) podem ser vinculados; para os demais o botão fica desabilitado, com a dica do motivo.
+- Do arquivo de status cruzam para `demandas.json` apenas o **identificador** e o **agente**. A pasta de trabalho, o status, o evento e a data do arquivo de status nunca são gravados. A sessão vinculada ganha o campo `vinculadaEm` (a data do vínculo, que também vale como `criadaEm`); as abertas pelo painel não têm esse campo.
+- Vincular de novo uma sessão já registrada (por exemplo, por outra janela do painel) é recusado com uma mensagem.
+- **Remover** o registro de uma sessão vinculada a devolve a **Não vinculadas**, enquanto existir arquivo de status para ela.
 
 ### Arquivo de dados
 
@@ -78,9 +89,25 @@ dotnet run --project src/DataPilot.Wpf -- --pasta-status "$TEMP/datapilot-exempl
 - `Faturamento` aparece em `CHG-142`, `CHG-150` e **Sem demanda**, cada um com a própria sessão.
 - Em **Sem demanda**, a sessão encerrada tem **Retomar**, e a linha mostra a pasta `C:\Windows` do arquivo de status, mas o repositório de abertura é `Faturamento` (vale o registrado).
 - Em `CHG-200`, a área da demanda orienta a vincular um repositório e não há cards.
-- Em **Não vinculadas**, as linhas não têm botões.
+- Em **Não vinculadas**, as linhas só têm **Vincular** (desabilitado quando o identificador não é GUID); não há **Retomar**.
 - Para ver o aviso de dados indisponíveis, aponte `--dados` para um arquivo com texto que não seja JSON: **Nova demanda** e as ações das demandas ficam desabilitadas e o arquivo não é alterado.
 - Para ver o estado de nenhuma demanda, aponte `--dados` para um arquivo que não existe: a janela orienta a criar uma demanda e só mostra **Não vinculadas**.
+
+#### Roteiro do vínculo (Etapa 4b)
+
+O script de exemplo cria uma sessão do Codex não vinculada (`99999999-aaaa-bbbb-cccc-dddddddddddd`, pasta `C:\Fontes\Faturamento`). Trabalhe numa cópia do arquivo de dados, porque o vínculo grava nele:
+
+```bash
+cp "$TEMP/datapilot-exemplo-varias-demandas.json" "$TEMP/datapilot-vinculo.json"
+dotnet run --project src/DataPilot.Wpf -- --pasta-status "$TEMP/datapilot-exemplo" --dados "$TEMP/datapilot-vinculo.json"
+```
+
+- Em `CHG-142`, `CHG-150` e **Sem demanda**, o card `Faturamento` não mostra a sessão do Codex: ela aparece só em **Não vinculadas**.
+- Em **Não vinculadas**, use **Vincular** na sessão do Codex: o diálogo já vem com uma demanda que tem `Faturamento` e com esse repositório. Escolha `CHG-142` e confirme: a sessão passa a aparecer no card `Faturamento` de `CHG-142`, com o status, e some de **Não vinculadas**. No arquivo, o registro tem `agente`, `sessionId`, `criadaEm` e `vinculadaEm`, e nada da pasta de trabalho.
+- Em **Não vinculadas**, **Vincular** nas sessões de exemplo cujo identificador não é GUID (`ex-atencao`, `ex-aguardando-1`, ...) está desabilitado, com a dica do motivo.
+- Em **Não vinculadas**, use **Vincular** numa sessão com GUID (por exemplo `22222222-3333-4444-5555-666666666666`, do Claude em `Estoque`): o diálogo já vem com `CHG-142` e `Estoque`. Escolha `Faturamento`: o painel avisa; cancele no aviso e o diálogo continua aberto sem gravar nada.
+- **Remover** a sessão vinculada (confirmando): ela volta a **Não vinculadas**.
+- Sem nenhuma demanda não arquivada (use `--dados` com um arquivo inexistente), **Vincular** orienta a criar uma demanda e não grava nada.
 
 O primeiro arquivo de exemplo (`datapilot-exemplo-demandas.json`, no formato da Etapa 3, só com **Sem demanda**) serve para conferir que o arquivo antigo continua sendo lido.
 
@@ -89,6 +116,6 @@ Verificação manual com a conta `ia` (grupo 6 de `openspec/changes/etapa-4a-dem
 1. Copie o `demandas.json` real, abra o painel novo com `--dados` apontando para a cópia e confira que **Sem demanda** traz os repositórios e as sessões de antes, e que **Retomar** abre a conversa certa.
 2. Crie uma demanda, vincule dois repositórios que existam em `C:\Fontes` e abra uma sessão do Claude em cada um: elas aparecem agrupadas, o título de cada aba começa pelo `id` da demanda e o resumo na lista acompanha o status.
 3. Mova uma sessão de **Sem demanda** para a demanda criada e retome-a: a conversa certa abre.
-4. Abra uma sessão do Codex pelo card e execute `/clear` numa sessão do Claude: as duas sessões novas aparecem em **Não vinculadas**, sem ações.
+4. Abra uma sessão do Codex pelo card e execute `/clear` numa sessão do Claude: as duas sessões novas aparecem em **Não vinculadas**, com a ação **Vincular**.
 5. Com uma demanda selecionada e sessões em andamento, use o painel por alguns minutos: a seleção e a rolagem não mudam sozinhas. Depois arquive e desarquive a demanda.
 6. Confirme que o `ia` não lê o arquivo de dados (deve ser negado), executando como usuário principal: `ssh ia@localhost powershell -NoProfile -Command Get-Content $env:APPDATA\Painel\demandas.json`.

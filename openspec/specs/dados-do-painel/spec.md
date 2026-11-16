@@ -80,11 +80,15 @@ Ao abrir uma sessão nova do Claude, o painel SHALL registrar no repositório es
 - **THEN** nenhuma sessão é registrada no arquivo de dados
 
 ### Requirement: Dados de status nunca são gravados
-O painel SHALL NOT copiar para o arquivo de dados nenhum valor lido de arquivos de status.
+O painel SHALL NOT copiar para o arquivo de dados nenhum valor lido de arquivos de status, com uma única exceção: no vínculo de uma sessão acionado pelo usuário, o identificador da sessão, validado como GUID canônico, e o agente SHALL poder ser gravados.
 
 #### Scenario: Sessão desconhecida aparece na pasta de status
-- **WHEN** surge um arquivo de status de uma sessão que o painel não abriu
+- **WHEN** surge um arquivo de status de uma sessão que o painel não abriu e o usuário não aciona o vínculo
 - **THEN** o arquivo de dados permanece inalterado
+
+#### Scenario: Vínculo acionado pelo usuário
+- **WHEN** o usuário vincula uma sessão não vinculada
+- **THEN** o arquivo de dados passa a ter o identificador e o agente dessa sessão, e nenhum outro valor do arquivo de status
 
 ### Requirement: Validação ao carregar
 Ao carregar o arquivo de dados, o painel SHALL desconsiderar repositórios cuja `pasta` não siga a regra do cadastro ou repita a de um repositório anterior da mesma demanda, e sessões cujo `sessionId` não seja um GUID canônico ou cujo `agente` não seja `claude` nem `codex`. As entradas desconsideradas SHALL NOT ser usadas em nenhum comando.
