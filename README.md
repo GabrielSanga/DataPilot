@@ -15,7 +15,7 @@ O painel lê `C:\ProgramData\Painel\sessoes` por padrão e nunca escreve nela.
 
 ### Pasta de exemplo e roteiro de conferência
 
-Para ver o painel sem a conta `ia`, gere os dados de exemplo (datas relativas ao momento da geração). O script cria a pasta de status e dois arquivos de dados, tudo em `$TEMP`:
+Para ver o painel sem a conta `ia`, gere os dados de exemplo (datas relativas ao momento da geração). O script cria a pasta de status e três arquivos de dados, tudo em `$TEMP`:
 
 ```bash
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/exemplos/gerar-sessoes-exemplo.ps1
@@ -57,7 +57,7 @@ O comando é montado só com dados do arquivo de dados ou da escolha na tela, nu
 
 ### Vincular sessões (Etapa 4b)
 
-As sessões que o painel não abriu (todas as do Codex, a sessão nova que o Claude cria depois de um `/clear` e as abertas à mão) ficam em **Não vinculadas** até você vinculá-las a uma demanda. O vínculo nunca é automático, nem para o Codex aberto pelo próprio painel.
+As sessões que o painel não abriu (a sessão nova que o Claude cria depois de um `/clear`, uma segunda conversa no mesmo terminal do Codex e as abertas à mão) ficam em **Não vinculadas** até você vinculá-las a uma demanda. A única exceção é a sessão nova do Codex aberta pelo próprio painel, que entra sozinha no card em que você clicou (veja **Vínculo automático do Codex**).
 
 - **Vincular** (linha de **Não vinculadas**): escolha a demanda (não arquivada), o repositório (os da demanda ou um novo, nome de pasta dentro de `C:\Fontes`) e, opcionalmente, um rótulo. A demanda e o repositório vêm pré-selecionados quando o nome do último segmento da pasta de trabalho da sessão coincide com um repositório cadastrado. Se não houver demanda, o painel orienta a criar uma e não grava nada. Se a pasta de trabalho da sessão não coincidir com o repositório escolhido, o painel avisa que a retomada pode não encontrar a conversa e só vincula se você confirmar.
 - Os cards de repositório mostram só sessões registradas. Uma sessão não vinculada aparece apenas em **Não vinculadas**, mesmo quando a pasta de trabalho dela tem o nome de um repositório da demanda.
@@ -65,6 +65,37 @@ As sessões que o painel não abriu (todas as do Codex, a sessão nova que o Cla
 - Do arquivo de status cruzam para `demandas.json` apenas o **identificador** e o **agente**. A pasta de trabalho, o status, o evento e a data do arquivo de status nunca são gravados. A sessão vinculada ganha o campo `vinculadaEm` (a data do vínculo, que também vale como `criadaEm`); as abertas pelo painel não têm esse campo.
 - Vincular de novo uma sessão já registrada (por exemplo, por outra janela do painel) é recusado com uma mensagem.
 - **Remover** o registro de uma sessão vinculada a devolve a **Não vinculadas**, enquanto existir arquivo de status para ela.
+
+### Vínculo automático do Codex
+
+O Codex cria o identificador da sessão depois de aberto, então o painel não o conhece ao abrir a aba. Em **Nova sessão** com o Codex, o painel grava no repositório do card um **lançamento pendente** (agente, rótulo e data) em `demandas.json`, antes de abrir o terminal; se o terminal não abrir, o lançamento é desfeito. "Nova sessão" do Claude e **Retomar** não geram lançamento.
+
+O Codex só cria o arquivo de status ao receber a primeira mensagem. Quando surge uma sessão do Codex ainda não registrada, com identificador GUID, cuja pasta de trabalho termina no nome do repositório (sem diferenciar maiúsculas) e cujo arquivo de status foi **criado** na data do lançamento ou depois, o painel a registra naquela demanda e repositório, com o rótulo do lançamento e `vinculadaEm`, sem outra ação. A data de criação do arquivo é lida do sistema de arquivos e o hook a preserva (verificado em `verificar.ps1`).
+
+Limites:
+
+- Cada lançamento vincula **uma** sessão e deixa de existir ao ser usado; por isso uma sessão removida não volta sozinha.
+- Um lançamento não usado vale por **24 horas** (e é removido ao gravar outro no mesmo repositório). Demanda arquivada ou repositório removido não vinculam.
+- Havendo vários lançamentos pendentes para a mesma pasta, vale o **mais recente** anterior à criação da sessão. Com o mesmo repositório em duas demandas e dois cliques sem mensagem entre eles, as sessões podem cair na demanda trocada; **Mover** corrige.
+- Uma sessão antiga do Codex na mesma pasta, criada antes do clique, continua em **Não vinculadas**.
+- Uma sessão do Codex aberta à mão na mesma pasta, depois do clique e antes da sessão do painel, pode ocupar o lançamento; **Remover** e o vínculo manual corrigem.
+- Continuam manuais: sessões abertas fora do painel, a criada por `/clear` no Claude e a segunda conversa no mesmo terminal do Codex.
+- Do arquivo de status só o identificador e o agente são gravados; o nome da pasta e a data de criação do arquivo apenas são comparados com o lançamento, nunca gravados nem usados em comandos.
+
+#### Roteiro do vínculo automático (Etapa 4c)
+
+O script de exemplo também gera `datapilot-exemplo-lancamento.json`: o de várias demandas com um lançamento pendente do Codex (rótulo `ajuste automatico`) no card `Faturamento` de `CHG-142`, de uma hora atrás. A sessão de exemplo do Codex `99999999-aaaa-bbbb-cccc-dddddddddddd` (pasta `Faturamento`) é criada na hora da geração, portanto depois do lançamento. Trabalhe numa cópia, porque o vínculo grava no arquivo:
+
+```bash
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/exemplos/gerar-sessoes-exemplo.ps1
+cp "$TEMP/datapilot-exemplo-lancamento.json" "$TEMP/datapilot-automatico.json"
+dotnet run --project src/DataPilot.Wpf -- --pasta-status "$TEMP/datapilot-exemplo" --dados "$TEMP/datapilot-automatico.json"
+```
+
+- Selecione `CHG-142`: a sessão do Codex aparece direto no card `Faturamento`, com o rótulo `ajuste automatico` e o status, e não aparece em **Não vinculadas**. A demanda selecionada não muda.
+- No arquivo copiado, o lançamento sumiu e a sessão tem `agente`, `sessionId`, `rotulo`, `criadaEm` e `vinculadaEm`, sem a pasta de trabalho.
+- **Remover** a sessão (confirmando): ela volta a **Não vinculadas** e não é vinculada de novo.
+- Com `datapilot-exemplo-varias-demandas.json` (sem lançamento) a mesma sessão fica em **Não vinculadas**, como no roteiro da Etapa 4b.
 
 ### Arquivo de dados
 
@@ -116,6 +147,6 @@ Verificação manual com a conta `ia` (grupo 6 de `openspec/changes/etapa-4a-dem
 1. Copie o `demandas.json` real, abra o painel novo com `--dados` apontando para a cópia e confira que **Sem demanda** traz os repositórios e as sessões de antes, e que **Retomar** abre a conversa certa.
 2. Crie uma demanda, vincule dois repositórios que existam em `C:\Fontes` e abra uma sessão do Claude em cada um: elas aparecem agrupadas, o título de cada aba começa pelo `id` da demanda e o resumo na lista acompanha o status.
 3. Mova uma sessão de **Sem demanda** para a demanda criada e retome-a: a conversa certa abre.
-4. Abra uma sessão do Codex pelo card e execute `/clear` numa sessão do Claude: as duas sessões novas aparecem em **Não vinculadas**, com a ação **Vincular**.
+4. Execute `/clear` numa sessão do Claude e abra uma sessão do Codex à mão, fora do painel: as duas sessões novas aparecem em **Não vinculadas**, com a ação **Vincular**. (O Codex aberto pelo card entra sozinho: veja **Vínculo automático do Codex**.)
 5. Com uma demanda selecionada e sessões em andamento, use o painel por alguns minutos: a seleção e a rolagem não mudam sozinhas. Depois arquive e desarquive a demanda.
 6. Confirme que o `ia` não lê o arquivo de dados (deve ser negado), executando como usuário principal: `ssh ia@localhost powershell -NoProfile -Command Get-Content $env:APPDATA\Painel\demandas.json`.

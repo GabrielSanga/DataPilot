@@ -17,7 +17,7 @@ public sealed class LeitorPasta
     private static readonly UTF8Encoding Utf8Estrito = new(false, true);
 
     private readonly string _pasta;
-    private readonly Dictionary<string, (DateTime Modificado, long Tamanho, Sessao? Sessao)> _cache =
+    private readonly Dictionary<string, (DateTime Modificado, DateTime Criado, long Tamanho, Sessao? Sessao)> _cache =
         new(StringComparer.OrdinalIgnoreCase);
 
     public LeitorPasta(string pasta) => _pasta = pasta;
@@ -89,12 +89,15 @@ public sealed class LeitorPasta
             arq.Refresh();
             if (!arq.Exists || (arq.Attributes & FileAttributes.ReparsePoint) != 0) return null;
             var modificado = arq.LastWriteTimeUtc;
+            var criado = arq.CreationTimeUtc;
             var tamanho = arq.Length;
-            if (_cache.TryGetValue(arq.Name, out var c) && c.Modificado == modificado && c.Tamanho == tamanho)
+            if (_cache.TryGetValue(arq.Name, out var c) && c.Modificado == modificado && c.Criado == criado && c.Tamanho == tamanho)
                 return c.Sessao;
 
             var sessao = LerEValidar(arq);
-            _cache[arq.Name] = (modificado, tamanho, sessao);
+            // A data de criação vem do sistema de arquivos; o conteúdo do arquivo não a define.
+            if (sessao is not null) sessao = sessao with { ArquivoCriadoEm = new DateTimeOffset(criado, TimeSpan.Zero) };
+            _cache[arq.Name] = (modificado, criado, tamanho, sessao);
             return sessao;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)

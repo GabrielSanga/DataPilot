@@ -216,13 +216,15 @@ public class AberturaSessaoTests
     }
 
     [Fact]
-    public void Codex_novo_nao_registra_nada()
+    public void Codex_novo_nao_registra_sessao_e_registra_lancamento()
     {
         var (abertura, dados, disparador, pasta) = Novo();
         using var _ = pasta;
-        var antes = File.ReadAllBytes(dados.Caminho);
-        Assert.True(abertura.Nova("CHG-142", "Faturamento", Agente.Codex, null).Ok);
-        Assert.Equal(antes, File.ReadAllBytes(dados.Caminho));
+        Assert.True(abertura.Nova("CHG-142", "Faturamento", Agente.Codex, "ajuste").Ok);
+
+        var repo = dados.Carregar().Demandas.Single().Repositorios.Single();
+        Assert.Empty(repo.Sessoes);
+        Assert.Equal(new LancamentoPendente(IdFixo, Agente.Codex, Fabrica.Agora, "ajuste"), Assert.Single(repo.Lancamentos));
         Assert.DoesNotContain("-Sessao", Assert.Single(disparador.Comandos).Argumentos);
     }
 

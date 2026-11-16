@@ -13,7 +13,8 @@
 param(
     [string]$Pasta = (Join-Path $env:TEMP 'datapilot-exemplo'),
     [string]$Dados = (Join-Path $env:TEMP 'datapilot-exemplo-demandas.json'),
-    [string]$DadosVarias = (Join-Path $env:TEMP 'datapilot-exemplo-varias-demandas.json')
+    [string]$DadosVarias = (Join-Path $env:TEMP 'datapilot-exemplo-varias-demandas.json'),
+    [string]$DadosLancamento = (Join-Path $env:TEMP 'datapilot-exemplo-lancamento.json')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -24,7 +25,11 @@ Get-ChildItem -Path $Pasta -File | Remove-Item -Force
 $agora = [DateTimeOffset]::Now
 
 function Gravar([string]$nome, [string]$conteudo) {
-    [System.IO.File]::WriteAllText((Join-Path $Pasta $nome), $conteudo, $utf8)
+    $caminho = Join-Path $Pasta $nome
+    [System.IO.File]::WriteAllText($caminho, $conteudo, $utf8)
+    # O Windows reaproveita a data de criacao de um arquivo apagado ha pouco com o mesmo nome (tunelamento);
+    # o vinculo automatico compara essa data, entao ela e fixada em "agora".
+    [System.IO.File]::SetCreationTimeUtc($caminho, [DateTime]::UtcNow)
 }
 
 function Gravar-Dados([string]$conteudo) {
@@ -132,7 +137,7 @@ Gravar-Dados @"
 #  - CHG-150: a MESMA pasta Faturamento, com a propria sessao (aguardando);
 #  - CHG-099: arquivada (so aparece com "Mostrar arquivadas");
 #  - CHG-200: demanda sem repositorios.
-Gravar-DadosVarias @"
+$variasJson = @"
 {
   "demandas": [
     {
@@ -165,7 +170,7 @@ Gravar-DadosVarias @"
       "repositorios": [
         {
           "nome": "Faturamento",
-          "pasta": "Faturamento",
+          "pasta": "Faturamento",@@LANCAMENTOS@@
           "sessoes": [
             { "agente": "claude", "sessionId": "33333333-4444-5555-6666-777777777777", "rotulo": "implementacao", "criadaEm": "$criada" }
           ]
@@ -221,6 +226,16 @@ Gravar-DadosVarias @"
 }
 "@
 
+Gravar-DadosVarias $variasJson.Replace('@@LANCAMENTOS@@', '')
+
+# Arquivo de dados com um lancamento pendente (Etapa 4c): igual ao de varias demandas, mas o repositorio Faturamento de
+# CHG-142 tem um lancamento do Codex de uma hora atras, com rotulo. A sessao 99999999... do Codex, criada agora na pasta
+# Faturamento, e vinculada sozinha a esse card ao abrir o painel. "Remover" a devolve a "Nao vinculadas" e ela nao volta.
+$lancamentoJson = '"lancamentos": [ { "id": "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa", "agente": "codex", "rotulo": "ajuste automatico", "criadoEm": "' +
+    $agora.AddHours(-1).ToString('o') + '" } ],'
+[System.IO.File]::WriteAllText($DadosLancamento, $variasJson.Replace('@@LANCAMENTOS@@', $lancamentoJson), $utf8)
+
 Write-Output "Pasta de exemplo criada em: $Pasta"
 Write-Output "Arquivo de dados de exemplo criado em: $Dados"
 Write-Output "Arquivo de dados de varias demandas criado em: $DadosVarias"
+Write-Output "Arquivo de dados com lancamento pendente criado em: $DadosLancamento"
