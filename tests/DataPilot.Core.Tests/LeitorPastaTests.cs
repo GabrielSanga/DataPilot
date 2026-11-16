@@ -183,6 +183,50 @@ public class LeitorPastaTests
     }
 
     [Fact]
+    public void DataDeCriacao_VemDoSistemaDeArquivos_ENaoDoUltimoEvento()
+    {
+        using var p = new PastaTemporaria();
+        var caminho = p.Escrever("s1.json", Fabrica.Json());
+        var criacao = new DateTime(2026, 11, 10, 8, 30, 0, DateTimeKind.Utc);
+        File.SetCreationTimeUtc(caminho, criacao);
+        // Evento posterior: muda a modificação e o conteúdo, não a criação.
+        File.WriteAllText(caminho, Fabrica.Json(status: "aguardando", atualizado: "2026-11-14T10:00:00-03:00"));
+        File.SetCreationTimeUtc(caminho, criacao);
+        File.SetLastWriteTimeUtc(caminho, criacao.AddDays(4));
+
+        var sessao = Assert.Single(new LeitorPasta(p.Caminho).Ler().Sessoes);
+        Assert.Equal(new DateTimeOffset(criacao, TimeSpan.Zero), sessao.ArquivoCriadoEm);
+    }
+
+    [Fact]
+    public void DataDeCriacao_DeArquivoRecemCriado_EOMomentoEmQueSurgiu()
+    {
+        using var p = new PastaTemporaria();
+        var antes = DateTime.UtcNow.AddSeconds(-2);
+        p.Escrever("s1.json", Fabrica.Json());
+        var depois = DateTime.UtcNow.AddSeconds(2);
+
+        var criada = Assert.Single(new LeitorPasta(p.Caminho).Ler().Sessoes).ArquivoCriadoEm;
+        Assert.NotNull(criada);
+        Assert.InRange(criada!.Value.UtcDateTime, antes, depois);
+    }
+
+    [Fact]
+    public void DataDeCriacao_NaoEAlteradaPeloConteudo_EAtualizaSeOArquivoForRecriado()
+    {
+        using var p = new PastaTemporaria();
+        var caminho = p.Escrever("s1.json", Fabrica.Json());
+        var leitor = new LeitorPasta(p.Caminho);
+        var primeira = leitor.Ler().Sessoes[0].ArquivoCriadoEm;
+
+        File.SetCreationTimeUtc(caminho, new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        var segunda = leitor.Ler().Sessoes[0].ArquivoCriadoEm;
+
+        Assert.NotEqual(primeira, segunda);
+        Assert.Equal(new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero), segunda);
+    }
+
+    [Fact]
     public void LeituraENaoMonitoramento_NaoAlteramAPasta()
     {
         using var p = new PastaTemporaria();

@@ -18,13 +18,18 @@ public enum StatusExibido
     SemStatus = 6,
 }
 
-/// <summary>Sessão lida de um arquivo de status. Todos os valores servem apenas para exibição.</summary>
+/// <summary>
+/// Sessão lida de um arquivo de status. Os valores servem para exibição e, junto com o agente e o nome da pasta,
+/// para comparar com os lançamentos pendentes. <see cref="ArquivoCriadoEm"/> vem do sistema de arquivos
+/// (não do conteúdo), é a data da primeira gravação do hook e é nulo quando a sessão não foi lida de um arquivo.
+/// </summary>
 public sealed record Sessao(
     Agente Agente,
     string SessionId,
     string Cwd,
     StatusGravado Status,
-    DateTimeOffset Atualizado);
+    DateTimeOffset Atualizado,
+    DateTimeOffset? ArquivoCriadoEm = null);
 
 /// <summary>Prazos e limites do painel.</summary>
 public static class Constantes

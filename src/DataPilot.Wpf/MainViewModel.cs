@@ -291,6 +291,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         _retrato = retrato;
         RecarregarDados();
+        // Sessões que correspondem a um lançamento pendente entram no card antes de a tela ser montada.
+        if (retrato.Disponivel && VinculoAutomatico.Aplicar(_dados, _estadoDados, retrato.Sessoes, _relogio) > 0)
+            RecarregarDados();
         Aplicar();
     }
 

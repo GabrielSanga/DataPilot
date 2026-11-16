@@ -12,8 +12,18 @@ public sealed record SessaoRegistrada(
     DateTimeOffset CriadaEm,
     string DemandaId);
 
-/// <summary>Repositório vinculado a uma demanda, com as sessões registradas nele.</summary>
-public sealed record RepositorioCadastrado(string Pasta, IReadOnlyList<SessaoRegistrada> Sessoes);
+/// <summary>
+/// Sessão nova do Codex aberta pelo painel, cujo identificador ainda não existe. Fica no repositório do card em que
+/// o usuário clicou até uma sessão surgir na pasta de status e ser vinculada a ela. Nenhum campo vem de arquivo de status.
+/// </summary>
+public sealed record LancamentoPendente(string Id, Agente Agente, DateTimeOffset CriadoEm, string? Rotulo);
+
+/// <summary>Repositório vinculado a uma demanda, com as sessões registradas e os lançamentos pendentes nele.</summary>
+public sealed record RepositorioCadastrado(
+    string Pasta, IReadOnlyList<SessaoRegistrada> Sessoes, IReadOnlyList<LancamentoPendente> Lancamentos)
+{
+    public RepositorioCadastrado(string pasta, IReadOnlyList<SessaoRegistrada> sessoes) : this(pasta, sessoes, []) { }
+}
 
 /// <summary>Demanda do arquivo de dados: reúne os repositórios e as sessões de um mesmo trabalho.</summary>
 public sealed record Demanda(

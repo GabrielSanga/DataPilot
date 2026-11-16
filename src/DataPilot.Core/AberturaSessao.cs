@@ -19,8 +19,10 @@ public sealed class AberturaSessao(DadosPainel dados, IDisparador disparador, Ti
         var repo = demanda.Repositorios.FirstOrDefault(r => string.Equals(r.Pasta, pasta, StringComparison.OrdinalIgnoreCase));
         if (repo is null) return ResultadoOperacao.Falha("Repositório não vinculado a esta demanda.");
 
-        // O GUID só existe para o Claude; o do Codex aparece depois, pelo hook.
+        // O GUID da sessão só existe para o Claude; o do Codex aparece depois, pelo hook. Para o Codex, o painel
+        // registra um lançamento pendente, que vincula a sessão quando ela surgir na pasta de status.
         var id = agente == Agente.Claude ? _gerarGuid().ToString("D") : null;
+        var idLancamento = agente == Agente.Codex ? _gerarGuid().ToString("D") : null;
 
         ComandoTerminal comando;
         try { comando = MontadorComando.Novo(demanda.Id, repo, agente, id, rotulo); }
@@ -32,6 +34,11 @@ public sealed class AberturaSessao(DadosPainel dados, IDisparador disparador, Ti
             var registro = dados.RegistrarSessao(demanda.Id, repo.Pasta, agente, id, rotulo, relogio.GetUtcNow());
             if (!registro.Ok) return registro;
         }
+        if (idLancamento is not null)
+        {
+            var lancamento = dados.RegistrarLancamento(demanda.Id, repo.Pasta, agente, idLancamento, rotulo, relogio.GetUtcNow());
+            if (!lancamento.Ok) return lancamento;
+        }
 
         try
         {
@@ -41,6 +48,7 @@ public sealed class AberturaSessao(DadosPainel dados, IDisparador disparador, Ti
         catch (FalhaDisparoException e)
         {
             if (id is not null) dados.DesfazerRegistro(id);
+            if (idLancamento is not null) dados.DesfazerLancamento(idLancamento);
             return ResultadoOperacao.Falha(e.Message);
         }
     }

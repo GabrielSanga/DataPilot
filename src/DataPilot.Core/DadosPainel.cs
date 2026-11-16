@@ -73,8 +73,10 @@ public sealed class DadosPainel(string caminho)
             foreach (var r in repositorios)
             {
                 if (r is not JsonObject repo) continue; // entrada desconsiderada na carga
-                if (!repo.TryGetPropertyValue("sessoes", out var ses) || ses is null) continue;
-                if (ses is not JsonArray) return "\"sessoes\" não é uma lista";
+                if (repo.TryGetPropertyValue("sessoes", out var ses) && ses is not null && ses is not JsonArray)
+                    return "\"sessoes\" não é uma lista";
+                if (repo.TryGetPropertyValue("lancamentos", out var lan) && lan is not null && lan is not JsonArray)
+                    return "\"lancamentos\" não é uma lista";
             }
         }
         return null;
@@ -86,6 +88,7 @@ public sealed class DadosPainel(string caminho)
         var resultado = new List<Demanda>();
         var idsDemanda = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var idsSessao = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var idsLancamento = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (raiz["demandas"] is not JsonArray demandas) return resultado;
 
         foreach (var demanda in demandas.OfType<JsonObject>())
@@ -118,7 +121,24 @@ public sealed class DadosPainel(string caminho)
                             sessoes.Add(new SessaoRegistrada(agente, sessionId!, pasta!, rotulo, criada, id));
                         }
                     }
-                    repositorios.Add(new RepositorioCadastrado(pasta!, sessoes));
+                    var lancamentos = new List<LancamentoPendente>();
+                    if (repo["lancamentos"] is JsonArray pendentes)
+                    {
+                        foreach (var l in pendentes.OfType<JsonObject>())
+                        {
+                            if (!ValidadorEntrada.TentarAgente(Texto(l, "agente"), out var agenteLancamento)) continue;
+                            var idLancamento = Texto(l, "id");
+                            if (!ValidadorEntrada.IdentificadorValido(idLancamento)) continue;
+                            if (!DateTimeOffset.TryParse(Texto(l, "criadoEm"), CultureInfo.InvariantCulture,
+                                    DateTimeStyles.None, out var criadoEm)) continue;
+                            var rotuloLancamento = Texto(l, "rotulo");
+                            // Rótulo ausente vale; rótulo presente e inválido invalida o lançamento.
+                            if (l.ContainsKey("rotulo") && l["rotulo"] is not null && !ValidadorEntrada.RotuloValido(rotuloLancamento)) continue;
+                            if (!idsLancamento.Add(idLancamento!)) continue;
+                            lancamentos.Add(new LancamentoPendente(idLancamento!, agenteLancamento, criadoEm, rotuloLancamento));
+                        }
+                    }
+                    repositorios.Add(new RepositorioCadastrado(pasta!, sessoes, lancamentos));
                 }
             }
 
@@ -298,21 +318,147 @@ public sealed class DadosPainel(string caminho)
                 Repositorios(demanda).Add(repo);
             }
 
-            var sessoes = repo["sessoes"] as JsonArray;
-            if (sessoes is null) repo["sessoes"] = sessoes = new JsonArray();
-
-            var sessao = new JsonObject
-            {
-                ["agente"] = ValidadorEntrada.NomeAgente(agente),
-                ["sessionId"] = sessionId,
-            };
-            if (rotulo is not null) sessao["rotulo"] = rotulo;
-            sessao["criadaEm"] = criadaEm.ToString("o", CultureInfo.InvariantCulture);
-            if (vinculadaEm is not null) sessao["vinculadaEm"] = vinculadaEm.Value.ToString("o", CultureInfo.InvariantCulture);
-            sessoes.Add(sessao);
+            AdicionarSessao(repo, agente, sessionId, rotulo, criadaEm, vinculadaEm);
             return ResultadoOperacao.Sucesso;
         });
     }
+
+    private static void AdicionarSessao(JsonObject repo, Agente agente, string sessionId, string? rotulo,
+        DateTimeOffset criadaEm, DateTimeOffset? vinculadaEm)
+    {
+        var sessoes = repo["sessoes"] as JsonArray;
+        if (sessoes is null) repo["sessoes"] = sessoes = new JsonArray();
+
+        var sessao = new JsonObject
+        {
+            ["agente"] = ValidadorEntrada.NomeAgente(agente),
+            ["sessionId"] = sessionId,
+        };
+        if (rotulo is not null) sessao["rotulo"] = rotulo;
+        sessao["criadaEm"] = criadaEm.ToString("o", CultureInfo.InvariantCulture);
+        if (vinculadaEm is not null) sessao["vinculadaEm"] = vinculadaEm.Value.ToString("o", CultureInfo.InvariantCulture);
+        sessoes.Add(sessao);
+    }
+
+    // ---------- lançamentos pendentes ----------
+
+    /// <summary>
+    /// Registra o lançamento pendente de uma sessão nova do Codex no repositório do card. O identificador do
+    /// lançamento é gerado por quem chama. Lançamentos do repositório com mais de <see cref="ValidadeLancamento"/>
+    /// são removidos na mesma gravação.
+    /// </summary>
+    public ResultadoOperacao RegistrarLancamento(string demandaId, string pasta, Agente agente, string lancamentoId,
+        string? rotulo, DateTimeOffset criadoEm)
+    {
+        if (!ValidadorEntrada.PastaValida(pasta)) return ResultadoOperacao.Falha("Repositório inválido.");
+        if (!ValidadorEntrada.IdentificadorValido(lancamentoId)) return ResultadoOperacao.Falha("Identificador de lançamento inválido.");
+        if (rotulo is not null && !ValidadorEntrada.RotuloValido(rotulo)) return ResultadoOperacao.Falha("Rótulo inválido.");
+
+        return Alterar(raiz =>
+        {
+            var demanda = EncontrarDemanda(raiz, demandaId);
+            if (demanda is null) return ResultadoOperacao.Falha($"A demanda {demandaId} não existe.");
+            var repo = EncontrarRepositorio(demanda, pasta);
+            if (repo is null) return ResultadoOperacao.Falha($"O repositório {pasta} não está vinculado a esta demanda.");
+            if (LancamentosComId(raiz, lancamentoId).Any()) return ResultadoOperacao.Falha("Este lançamento já está registrado.");
+
+            var lista = repo["lancamentos"] as JsonArray;
+            if (lista is null) repo["lancamentos"] = lista = new JsonArray();
+            for (var i = lista.Count - 1; i >= 0; i--)
+            {
+                if (lista[i] is JsonObject l && LancamentoVencido(l, criadoEm)) lista.RemoveAt(i);
+            }
+
+            var novo = new JsonObject
+            {
+                ["id"] = lancamentoId,
+                ["agente"] = ValidadorEntrada.NomeAgente(agente),
+            };
+            if (rotulo is not null) novo["rotulo"] = rotulo;
+            novo["criadoEm"] = criadoEm.ToString("o", CultureInfo.InvariantCulture);
+            lista.Add(novo);
+            return ResultadoOperacao.Sucesso;
+        });
+    }
+
+    /// <summary>Desfaz o registro do lançamento quando o terminal não abre.</summary>
+    public ResultadoOperacao DesfazerLancamento(string lancamentoId)
+    {
+        return Alterar(raiz =>
+        {
+            var removido = false;
+            foreach (var repo in Todos(raiz))
+            {
+                if (repo["lancamentos"] is not JsonArray lista) continue;
+                for (var i = lista.Count - 1; i >= 0; i--)
+                {
+                    if (lista[i] is JsonObject l && LancamentoIgual(l, lancamentoId))
+                    {
+                        lista.RemoveAt(i);
+                        removido = true;
+                    }
+                }
+            }
+            return removido ? ResultadoOperacao.Sucesso : ResultadoOperacao.Falha("Lançamento não registrado.");
+        });
+    }
+
+    /// <summary>
+    /// Aplica, numa única gravação, o vínculo de uma sessão a um lançamento pendente: confere que o lançamento ainda
+    /// existe (com o mesmo agente) e que o identificador não está registrado, registra a sessão com o rótulo do
+    /// lançamento e <c>vinculadaEm</c>, e remove o lançamento. Demanda arquivada não recebe vínculo.
+    /// </summary>
+    public ResultadoOperacao VincularPorLancamento(PedidoVinculo pedido, string demandaId, string pasta,
+        string lancamentoId, DateTimeOffset vinculadaEm)
+    {
+        if (!ValidadorEntrada.PastaValida(pasta)) return ResultadoOperacao.Falha("Repositório inválido.");
+        if (!ValidadorEntrada.IdentificadorValido(pedido.SessionId)) return ResultadoOperacao.Falha("Identificador de sessão inválido.");
+
+        return Alterar(raiz =>
+        {
+            var demanda = EncontrarDemanda(raiz, demandaId);
+            if (demanda is null) return ResultadoOperacao.Falha($"A demanda {demandaId} não existe.");
+            if (demanda["arquivada"] is JsonValue arq && arq.TryGetValue<bool>(out var arquivada) && arquivada)
+                return ResultadoOperacao.Falha($"A demanda {demandaId} está arquivada.");
+            var repo = EncontrarRepositorio(demanda, pasta);
+            if (repo is null) return ResultadoOperacao.Falha($"O repositório {pasta} não está vinculado a esta demanda.");
+
+            if (repo["lancamentos"] is not JsonArray lista
+                || lista.OfType<JsonObject>().FirstOrDefault(l => LancamentoIgual(l, lancamentoId)) is not { } lancamento)
+                return ResultadoOperacao.Falha("O lançamento não existe mais.");
+            if (Texto(lancamento, "agente") != ValidadorEntrada.NomeAgente(pedido.Agente))
+                return ResultadoOperacao.Falha("O agente da sessão não é o do lançamento.");
+            if (SessoesComId(raiz, pedido.SessionId).Any())
+                return ResultadoOperacao.Falha("Esta sessão já está registrada.");
+
+            var rotulo = Texto(lancamento, "rotulo");
+            if (!ValidadorEntrada.RotuloValido(rotulo)) rotulo = null;
+
+            AdicionarSessao(repo, pedido.Agente, pedido.SessionId, rotulo, vinculadaEm, vinculadaEm);
+            lista.Remove(lancamento);
+            return ResultadoOperacao.Sucesso;
+        });
+    }
+
+    /// <summary>Quanto tempo um lançamento não usado continua valendo.</summary>
+    public static readonly TimeSpan ValidadeLancamento = TimeSpan.FromHours(24);
+
+    private static bool LancamentoVencido(JsonObject lancamento, DateTimeOffset agora)
+        => DateTimeOffset.TryParse(Texto(lancamento, "criadoEm"), CultureInfo.InvariantCulture, DateTimeStyles.None, out var criado)
+           && agora - criado > ValidadeLancamento;
+
+    private static bool LancamentoIgual(JsonObject lancamento, string id)
+        => string.Equals(Texto(lancamento, "id"), id, StringComparison.OrdinalIgnoreCase);
+
+    private static IEnumerable<JsonObject> Todos(JsonObject raiz)
+        => raiz["demandas"]!.AsArray().OfType<JsonObject>()
+            .Select(d => d["repositorios"] as JsonArray).OfType<JsonArray>()
+            .SelectMany(rs => rs.OfType<JsonObject>());
+
+    private static IEnumerable<JsonObject> LancamentosComId(JsonObject raiz, string id)
+        => Todos(raiz).Select(r => r["lancamentos"] as JsonArray).OfType<JsonArray>()
+            .SelectMany(ls => ls.OfType<JsonObject>())
+            .Where(l => LancamentoIgual(l, id));
 
     /// <summary>
     /// Move a sessão para a demanda de destino, no repositório de mesma pasta (criado ali se faltar).

@@ -219,6 +219,26 @@ try {
     [void](Rodar-Hook $pasta (Evento 'PreCompact'))
     Conferir 'evento desconhecido nao cria arquivo' ((Contar $pasta) -eq 0)
 
+    Grupo 'hook: data de criacao do arquivo preservada'
+    $pasta = Nova-Pasta
+    [void](Rodar-Hook $pasta (Evento 'SessionStart'))
+    $arq = Join-Path $pasta ($IdPadrao + '.json')
+    $fixada = [DateTime]::UtcNow.AddDays(-3)
+    [System.IO.File]::SetCreationTimeUtc($arq, $fixada)
+    $esperada = [System.IO.File]::GetCreationTimeUtc($arq)
+    Conferir 'data de criacao recuada para o teste' ($esperada -lt [DateTime]::UtcNow.AddDays(-2))
+    Start-Sleep -Milliseconds 50
+    [void](Rodar-Hook $pasta (Evento 'UserPromptSubmit'))
+    Conferir 'evento posterior atualiza o status' ((Ler-Status $pasta).status -ceq 'executando')
+    Conferir 'evento posterior preserva a data de criacao' ([System.IO.File]::GetCreationTimeUtc($arq) -eq $esperada) ('(' + [System.IO.File]::GetCreationTimeUtc($arq).ToString('o') + ')')
+    [void](Rodar-Hook $pasta (Evento 'Stop'))
+    Conferir 'varios eventos preservam a data de criacao' ([System.IO.File]::GetCreationTimeUtc($arq) -eq $esperada)
+    $pasta = Nova-Pasta
+    $antes = [DateTime]::UtcNow.AddSeconds(-2)
+    [void](Rodar-Hook $pasta (Evento 'SessionStart'))
+    $criado = [System.IO.File]::GetCreationTimeUtc((Join-Path $pasta ($IdPadrao + '.json')))
+    Conferir 'primeiro evento cria o arquivo no momento da gravacao' ($criado -ge $antes -and $criado -le [DateTime]::UtcNow.AddSeconds(2)) ('(' + $criado.ToString('o') + ')')
+
     Grupo 'hook: notificacoes filtradas por tipo'
     foreach ($tipo in @('permission_prompt', 'elicitation_dialog')) {
         $pasta = Nova-Pasta
