@@ -53,6 +53,46 @@ public sealed class AberturaSessao(DadosPainel dados, IDisparador disparador, Ti
         }
     }
 
+    /// <summary>
+    /// Abre de novo o agente de um lançamento pendente (aba fechada antes da primeira mensagem). Como ainda não existe
+    /// conversa, é o mesmo comando de uma sessão nova, no repositório e com o rótulo do lançamento. Reaproveita o
+    /// lançamento: a data passa a ser a deste clique e volta à anterior se o terminal não abrir.
+    /// </summary>
+    public ResultadoOperacao ReabrirLancamento(string lancamentoId)
+    {
+        var estado = dados.Carregar();
+        if (!estado.Disponivel) return ResultadoOperacao.Falha($"Dados do painel indisponíveis: {dados.Caminho}");
+
+        var agora = relogio.GetUtcNow();
+        var achado = estado.Demandas
+            .Where(d => !d.Arquivada)
+            .SelectMany(d => d.Repositorios.SelectMany(r => r.Lancamentos.Select(l => (Demanda: d, Repo: r, Lancamento: l))))
+            .Where(x => string.Equals(x.Lancamento.Id, lancamentoId, StringComparison.OrdinalIgnoreCase)
+                && agora - x.Lancamento.CriadoEm <= DadosPainel.ValidadeLancamento)
+            .Select(x => ((Demanda Demanda, RepositorioCadastrado Repo, LancamentoPendente Lancamento)?)x)
+            .FirstOrDefault();
+        if (achado is null) return ResultadoOperacao.Falha("Este lançamento não existe mais.");
+        var (demanda, repo, lancamento) = achado.Value;
+
+        ComandoTerminal comando;
+        try { comando = MontadorComando.Novo(demanda.Id, repo, lancamento.Agente, null, lancamento.Rotulo); }
+        catch (EntradaInvalidaException e) { return ResultadoOperacao.Falha(e.Message); }
+
+        var renovacao = dados.RenovarLancamento(lancamento.Id, agora);
+        if (!renovacao.Ok) return renovacao;
+
+        try
+        {
+            disparador.Iniciar(comando);
+            return ResultadoOperacao.Sucesso;
+        }
+        catch (FalhaDisparoException e)
+        {
+            dados.RenovarLancamento(lancamento.Id, lancamento.CriadoEm);
+            return ResultadoOperacao.Falha(e.Message);
+        }
+    }
+
     public ResultadoOperacao Retomar(SessaoRegistrada sessao)
     {
         ComandoTerminal comando;

@@ -10,8 +10,20 @@ public sealed record SessaoNaVisao(
     StatusExibido Status,
     string Tempo);
 
-/// <summary>Card de um repositório: só sessões registradas. As não vinculadas ficam na entrada "Não vinculadas".</summary>
-public sealed record CardNaVisao(string Pasta, IReadOnlyList<SessaoNaVisao> Sessoes);
+/// <summary>
+/// Lançamento pendente como a tela o mostra: uma sessão nova do Codex ainda sem a primeira mensagem. Não é uma
+/// sessão: não tem status, identificador de sessão nem "Retomar". Tudo vem do arquivo de dados.
+/// </summary>
+public sealed record LancamentoNaVisao(LancamentoPendente Lancamento, string Tempo);
+
+/// <summary>
+/// Card de um repositório: sessões registradas e, depois delas, os lançamentos pendentes válidos (do mais recente
+/// para o mais antigo). As sessões não vinculadas ficam na entrada "Não vinculadas".
+/// </summary>
+public sealed record CardNaVisao(string Pasta, IReadOnlyList<SessaoNaVisao> Sessoes, IReadOnlyList<LancamentoNaVisao> Lancamentos)
+{
+    public CardNaVisao(string pasta, IReadOnlyList<SessaoNaVisao> sessoes) : this(pasta, sessoes, []) { }
+}
 
 /// <summary>Demanda com o resumo da lista: repositórios, sessões e status mais urgente (null se nenhuma sessão tem status).</summary>
 public sealed record DemandaNaVisao(
@@ -92,13 +104,29 @@ public static class VisaoAgrupada
                     sessoes.Add(new SessaoNaVisao(r, null, StatusExibido.SemStatus, ""));
             }
             sessoes.Sort(ComparaSessoes);
-            cards.Add(new CardNaVisao(repo.Pasta, sessoes));
+            cards.Add(new CardNaVisao(repo.Pasta, sessoes, MontarLancamentos(d, repo, relogio)));
         }
 
         var todas = cards.SelectMany(c => c.Sessoes).ToList();
         var comStatus = todas.Where(s => s.Status != StatusExibido.SemStatus).ToList();
         StatusExibido? urgente = comStatus.Count == 0 ? null : comStatus.Min(s => s.Status);
         return new DemandaNaVisao(d, cards, cards.Count, todas.Count, urgente, TextoResumo(cards.Count, todas.Count, urgente));
+    }
+
+    /// <summary>
+    /// Lançamentos pendentes válidos do repositório, do mais recente para o mais antigo. Vencidos e os de demanda
+    /// arquivada não aparecem, pela mesma regra que os impede de vincular. Ficam fora de todas as contagens.
+    /// </summary>
+    private static List<LancamentoNaVisao> MontarLancamentos(Demanda d, RepositorioCadastrado repo, TimeProvider relogio)
+    {
+        if (d.Arquivada) return [];
+        var agora = relogio.GetUtcNow();
+        return repo.Lancamentos
+            .Where(l => agora - l.CriadoEm <= DadosPainel.ValidadeLancamento)
+            .OrderByDescending(l => l.CriadoEm)
+            .ThenBy(l => l.Id, StringComparer.Ordinal)
+            .Select(l => new LancamentoNaVisao(l, RegrasExibicao.TempoDecorrido(agora - l.CriadoEm < TimeSpan.Zero ? TimeSpan.Zero : agora - l.CriadoEm)))
+            .ToList();
     }
 
     private static string TextoResumo(int repositorios, int sessoes, StatusExibido? urgente)

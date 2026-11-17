@@ -65,6 +65,32 @@
             </Grid>
         </DataTemplate>
 
+        <!-- Lançamento pendente: sessão nova do Codex ainda sem a primeira mensagem. Tem Abrir e Cancelar. -->
+        <DataTemplate x:Key="LinhaLancamento" DataType="{x:Type local:LancamentoItem}">
+            <Grid Margin="2,4" ToolTip="Ainda não é uma sessão: ela aparece aqui quando a primeira mensagem for enviada.">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="60"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="130"/>
+                    <ColumnDefinition Width="52"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{Binding Agente}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{Binding Rotulo}" TextTrimming="CharacterEllipsis" Foreground="#1565C0"
+                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBlock Grid.Column="2" Text="aguardando a primeira mensagem" FontStyle="Italic" Foreground="#616161"
+                           TextWrapping="Wrap" VerticalAlignment="Center" FontSize="11"/>
+                <TextBlock Grid.Column="3" Text="{Binding Tempo}" HorizontalAlignment="Right"
+                           VerticalAlignment="Center" Foreground="#616161"/>
+                <StackPanel Grid.Column="4" Orientation="Horizontal" Margin="8,0,0,0"
+                            IsEnabled="{Binding DataContext.DadosDisponiveis, RelativeSource={RelativeSource AncestorType=Window}}">
+                    <Button Content="Abrir" Padding="8,2" Margin="0,0,4,0" Command="{Binding AbrirCommand}"
+                            ToolTip="Abre o agente de novo neste repositório. Use quando a aba foi fechada antes da primeira mensagem."/>
+                    <Button Content="Cancelar" Padding="8,2" Command="{Binding CancelarCommand}"/>
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+
         <!-- Card de repositório -->
         <DataTemplate x:Key="CardRepositorio" DataType="{x:Type local:CardItem}">
             <Border BorderBrush="#BDBDBD" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,0,10">
@@ -80,12 +106,13 @@
                                    TextTrimming="CharacterEllipsis"/>
                     </DockPanel>
                     <ItemsControl ItemsSource="{Binding Sessoes}" ItemTemplate="{StaticResource LinhaSessao}"/>
+                    <ItemsControl ItemsSource="{Binding Lancamentos}" ItemTemplate="{StaticResource LinhaLancamento}"/>
                     <TextBlock Text="Nenhuma sessão neste repositório." Foreground="#757575" FontSize="11">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
                                 <Setter Property="Visibility" Value="Collapsed"/>
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Sessoes.Count}" Value="0">
+                                    <DataTrigger Binding="{Binding Vazio}" Value="True">
                                         <Setter Property="Visibility" Value="Visible"/>
                                     </DataTrigger>
                                 </Style.Triggers>

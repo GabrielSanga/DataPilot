@@ -80,7 +80,17 @@ Copy-Item scripts\testes\verificar.ps1 C:\Painel\testes\ -Force
 Copy-Item scripts\exemplos\*.json C:\Painel\exemplos\ -Force
 ```
 
-Sempre que um script mudar no repositório, repita a cópia. A raiz dos fontes do `ia` é a constante `$RaizFontes` no topo do `abrir.ps1` (`C:\Fontes`).
+Sempre que um script mudar no repositório, repita a cópia. Na Etapa 4d mudaram o `abrir.ps1` e o `verificar.ps1`: se você já instalou uma versão anterior, repita pelo menos estes dois comandos, como administrador, e rode de novo o passo 3:
+
+```powershell
+Copy-Item scripts\abrir.ps1 C:\Painel\ -Force
+```
+
+```powershell
+Copy-Item scripts\testes\verificar.ps1 C:\Painel\testes\ -Force
+```
+
+A raiz dos fontes do `ia` é a constante `$RaizFontes` no topo do `abrir.ps1` (`C:\Fontes`).
 
 ## Passo 3: verificação automatizada como ia
 
@@ -90,7 +100,9 @@ Num PowerShell comum (sem elevação):
 ssh ia@localhost powershell -NoProfile -ExecutionPolicy Bypass -File C:\Painel\testes\verificar.ps1
 ```
 
-A última linha deve terminar com `Falhas: 0`. Os casos usam só pastas temporárias; nenhum agente é iniciado.
+A última linha deve terminar com `Falhas: 0`. Os casos usam pastas temporárias; nenhum agente real é iniciado.
+
+Os casos da retomada usam um `claude` e um `codex` falsos, postos à frente no `PATH` só durante a verificação, e uma pasta qualquer de `C:\Fontes`. Um deles espera 31 segundos, então a verificação leva cerca de um minuto. Sem nenhuma pasta válida em `C:\Fontes`, esses casos são pulados com a linha `AVISO`.
 
 ## Passo 4: hooks do Claude Code
 
@@ -185,6 +197,8 @@ ssh -t ia@localhost powershell -NoProfile -ExecutionPolicy Bypass -File C:\Paine
 |---|---|
 | Retomar | A conversa anterior aparece com o histórico. |
 | Olhar a pasta de status | Anote se continua existindo um único arquivo para a sessão (questão em aberto 3). |
+
+Retomada de uma sessão fechada antes da primeira mensagem: o Claude só grava a conversa depois da primeira mensagem, então `claude --resume` não a encontra e termina com erro. Nesse caso o `abrir.ps1` avisa "A conversa ainda nao tem mensagens" e inicia o Claude com `--session-id` e o mesmo identificador, de modo que o registro e o arquivo de status continuam valendo. A segunda tentativa só acontece quando a retomada falha em menos de 30 segundos, e só para o Claude; a retomada do Codex nunca tem segunda tentativa. Para ver isso, gere outro identificador, abra a sessão com `-Modo novo`, feche a aba sem digitar nada (não use `/exit`, que grava a conversa) e rode o comando de retomada acima com esse identificador.
 
 ### 3. Sessão do Codex: abrir, status e retomar
 

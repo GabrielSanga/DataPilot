@@ -41,12 +41,47 @@ public static class SincronizacaoColecao
     }
 }
 
+/// <summary>
+/// Linha de um lançamento pendente: uma sessão nova do Codex ainda sem a primeira mensagem. Não é uma sessão:
+/// só tem "Abrir" (abre o agente de novo, reaproveitando o lançamento) e "Cancelar". Chave: o identificador do
+/// lançamento. Todo texto vem limpo do Core e é exibido como texto simples.
+/// </summary>
+public sealed partial class LancamentoItem : ObservableObject
+{
+    public string Id { get; }
+
+    [ObservableProperty] private string _agente = "";
+    [ObservableProperty] private string _rotulo = "";
+    [ObservableProperty] private string _tempo = "";
+
+    public IRelayCommand AbrirCommand { get; }
+    public IRelayCommand CancelarCommand { get; }
+
+    public LancamentoItem(string id, Action<LancamentoItem> abrir, Action<LancamentoItem> cancelar)
+    {
+        Id = id;
+        AbrirCommand = new RelayCommand(() => abrir(this));
+        CancelarCommand = new RelayCommand(() => cancelar(this));
+    }
+
+    public void Atualizar(LancamentoNaVisao v)
+    {
+        var l = v.Lancamento;
+        Agente = l.Agente == DataPilot.Core.Agente.Claude ? "Claude" : "Codex";
+        Rotulo = l.Rotulo is null ? "" : TextoExibicao.Limpar(l.Rotulo);
+        Tempo = v.Tempo.Length == 0 ? "—" : v.Tempo;
+    }
+}
+
 /// <summary>Card de um repositório dentro de uma demanda. Chave: a pasta (única dentro da demanda).</summary>
 public sealed partial class CardItem : ObservableObject
 {
     public string Pasta { get; }
     public string DemandaId { get; private set; } = "";
     public ObservableCollection<SessaoItem> Sessoes { get; } = [];
+    public ObservableCollection<LancamentoItem> Lancamentos { get; } = [];
+
+    [ObservableProperty] private bool _vazio;
 
     [ObservableProperty] private bool _podeNovaSessao;
     public IRelayCommand NovaSessaoCommand { get; }
@@ -59,13 +94,19 @@ public sealed partial class CardItem : ObservableObject
         RemoverRepositorioCommand = new RelayCommand(() => remover(this));
     }
 
-    public void Atualizar(CardNaVisao card, Demanda demanda, Func<string, SessaoItem> criarSessao)
+    public void Atualizar(CardNaVisao card, Demanda demanda, Func<string, SessaoItem> criarSessao,
+        Func<string, LancamentoItem> criarLancamento)
     {
         DemandaId = demanda.Id;
         PodeNovaSessao = !demanda.Arquivada;
+        Vazio = card.Sessoes.Count == 0 && card.Lancamentos.Count == 0;
         SincronizacaoColecao.Sincronizar(Sessoes, card.Sessoes,
             s => s.SessionId, s => s.Registrada.SessionId,
             s => criarSessao(s.Registrada.SessionId),
+            (item, dado) => item.Atualizar(dado));
+        SincronizacaoColecao.Sincronizar(Lancamentos, card.Lancamentos,
+            l => l.Id, l => l.Lancamento.Id,
+            l => criarLancamento(l.Lancamento.Id),
             (item, dado) => item.Atualizar(dado));
     }
 }
@@ -114,7 +155,8 @@ public sealed partial class DemandaItem : ObservableObject
         VincularCommand = new RelayCommand(() => vincular(this));
     }
 
-    public void Atualizar(DemandaNaVisao v, Func<string, CardItem> criarCard, Func<string, SessaoItem> criarSessao)
+    public void Atualizar(DemandaNaVisao v, Func<string, CardItem> criarCard, Func<string, SessaoItem> criarSessao,
+        Func<string, LancamentoItem> criarLancamento)
     {
         var d = v.Demanda;
         Demanda = d;
@@ -133,7 +175,7 @@ public sealed partial class DemandaItem : ObservableObject
         SincronizacaoColecao.Sincronizar(Cards, v.Cards,
             c => c.Pasta, c => c.Pasta,
             c => criarCard(c.Pasta),
-            (item, dado) => item.Atualizar(dado, d, criarSessao));
+            (item, dado) => item.Atualizar(dado, d, criarSessao, criarLancamento));
     }
 
     public void AtualizarNaoVinculadas(IReadOnlyList<SessaoExibida> sessoes, Func<string, SessaoItem> criarSessao)

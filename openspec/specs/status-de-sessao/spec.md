@@ -4,6 +4,7 @@
 Registra o status de cada sessão do Claude Code e do Codex em arquivos que o Painel de Demandas lê, para que o usuário veja o que está executando, aguardando ou pedindo atenção sem interpretar a tela do terminal.
 
 ## Requirements
+
 ### Requirement: Arquivo de status por sessão
 O hook SHALL manter um arquivo por sessão em `C:\ProgramData\Painel\sessoes\<session_id>.json`, contendo um objeto JSON com exatamente os campos `agente`, `session_id`, `cwd`, `status`, `evento` e `atualizado`. `atualizado` SHALL ser a data e hora do evento em ISO 8601 com deslocamento de fuso.
 
@@ -125,3 +126,14 @@ A instalação SHALL configurar `C:\ProgramData\Painel` de modo que o usuário `
 #### Scenario: Usuário principal lê o status
 - **WHEN** um processo do usuário principal lê um arquivo de status gravado pelo `ia`
 - **THEN** a leitura é bem-sucedida
+
+### Requirement: Data de criação do arquivo preservada
+O hook SHALL atualizar o arquivo de status de uma sessão sem alterar a data de criação do arquivo, que SHALL permanecer a da primeira gravação feita para a sessão.
+
+#### Scenario: Eventos posteriores ao primeiro
+- **WHEN** o hook grava `SessionStart` e, mais tarde, `UserPromptSubmit` e `Stop` da mesma sessão
+- **THEN** a data de criação do arquivo de status continua sendo a da primeira gravação
+
+#### Scenario: Primeiro evento da sessão
+- **WHEN** o hook grava o primeiro evento de uma sessão que ainda não tem arquivo
+- **THEN** a data de criação do arquivo é a do momento dessa gravação

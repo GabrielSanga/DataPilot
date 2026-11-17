@@ -388,6 +388,79 @@ try {
     $r = Conferir-Recusa 'repositorio valido e inexistente' @('-Agente', 'codex', '-Repo', 'painel-verificar-inexistente', '-Modo', 'novo') @(3)
     Conferir 'repositorio inexistente: mensagem' ($r.Saida -match 'nao encontrado')
     [void](Conferir-Recusa 'repositorio inexistente com sessao valida' @('-Agente', 'claude', '-Repo', 'painel-verificar-inexistente', '-Sessao', $IdPadrao, '-Modo', 'retomar') @(3))
+
+    # ----- abrir.ps1: retomada com agente falso -------------------------------
+    # Um claude e um codex falsos, postos a frente no PATH, registram os argumentos recebidos e
+    # terminam com o codigo pedido. A raiz dos fontes e fixa no abrir.ps1, entao os casos usam uma
+    # pasta existente em C:\Fontes e sao pulados quando nao ha nenhuma.
+
+    Grupo 'abrir: retomada com agente falso'
+    $repoReal = $null
+    if (Test-Path -LiteralPath 'C:\Fontes' -PathType Container) {
+        $cand = Get-ChildItem -LiteralPath 'C:\Fontes' -Directory -Force |
+            Where-Object { $_.Name -match '\A[A-Za-z0-9_.-]+\z' -and $_.Name -notmatch '\A\.+\z' } |
+            Select-Object -First 1
+        if ($cand) { $repoReal = $cand.Name }
+    }
+    if (-not $repoReal) {
+        Write-Host '  AVISO  sem pasta valida em C:\Fontes: casos de retomada com agente falso pulados'
+    } else {
+        $pastaFalsos = Nova-Pasta
+        $modelo = @(
+            '@echo off',
+            'if exist "%FAKE_LOG%" (set "COD=%FAKE_CODIGO2%") else (set "COD=%FAKE_CODIGO%")',
+            'if not exist "%FAKE_LOG%" if defined FAKE_ATRASO powershell -NoProfile -Command Start-Sleep -Seconds %FAKE_ATRASO%',
+            'echo %*>>"%FAKE_LOG%"',
+            'exit /b %COD%'
+        ) -join "`r`n"
+        foreach ($f in @('claude.cmd', 'codex.cmd')) {
+            [System.IO.File]::WriteAllText((Join-Path $pastaFalsos $f), $modelo, [System.Text.Encoding]::ASCII)
+        }
+
+        function Retomar-Falso([string]$Agente, [string]$Codigo1, [string]$Codigo2, [string]$Atraso) {
+            # Devolve o resultado do abrir.ps1 e as linhas de argumentos que o agente falso recebeu.
+            $log = Join-Path (Nova-Pasta) 'chamadas.txt'
+            $env:FAKE_LOG = $log
+            $env:FAKE_CODIGO = $Codigo1
+            $env:FAKE_CODIGO2 = $Codigo2
+            $env:FAKE_ATRASO = $Atraso
+            $r = Executar $Abrir @('-Agente', $Agente, '-Repo', $repoReal, '-Sessao', $IdPadrao, '-Modo', 'retomar') ''
+            $linhas = @()
+            if (Test-Path -LiteralPath $log) {
+                $linhas = @(Get-Content -LiteralPath $log | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+            }
+            return [pscustomobject]@{ Codigo = $r.Codigo; Saida = $r.Saida; Chamadas = $linhas }
+        }
+
+        $pathOriginal = $env:PATH
+        try {
+            $env:PATH = $pastaFalsos + ';' + $pathOriginal
+
+            $r = Retomar-Falso 'claude' '0' '0' ''
+            Conferir 'claude retomar com sucesso: uma chamada com --resume' ($r.Chamadas.Count -eq 1 -and $r.Chamadas[0] -ceq ('--resume ' + $IdPadrao)) ('(' + ($r.Chamadas -join ' | ') + ')')
+            Conferir 'claude retomar com sucesso: codigo 0' ($r.Codigo -eq 0) ('(codigo ' + $r.Codigo + ')')
+
+            $r = Retomar-Falso 'claude' '1' '0' ''
+            Conferir 'claude retomar falha logo: segunda chamada com --session-id e o mesmo identificador' ($r.Chamadas.Count -eq 2 -and $r.Chamadas[0] -ceq ('--resume ' + $IdPadrao) -and $r.Chamadas[1] -ceq ('--session-id ' + $IdPadrao)) ('(' + ($r.Chamadas -join ' | ') + ')')
+            Conferir 'claude retomar falha logo: codigo da segunda execucao (0)' ($r.Codigo -eq 0) ('(codigo ' + $r.Codigo + ')')
+            Conferir 'claude retomar falha logo: avisa na aba' ($r.Saida -match 'nao tem mensagens')
+
+            $r = Retomar-Falso 'claude' '1' '7' ''
+            Conferir 'claude retomar falha logo: codigo da segunda execucao (7)' ($r.Chamadas.Count -eq 2 -and $r.Codigo -eq 7) ('(codigo ' + $r.Codigo + ')')
+
+            $r = Retomar-Falso 'claude' '5' '0' '31'
+            Conferir 'claude retomar falha depois de 30 segundos: sem segunda chamada' ($r.Chamadas.Count -eq 1 -and $r.Chamadas[0] -ceq ('--resume ' + $IdPadrao)) ('(' + ($r.Chamadas -join ' | ') + ')')
+            Conferir 'claude retomar falha depois de 30 segundos: codigo do agente' ($r.Codigo -eq 5) ('(codigo ' + $r.Codigo + ')')
+
+            $r = Retomar-Falso 'codex' '1' '0' ''
+            Conferir 'codex retomar falha: sem segunda chamada' ($r.Chamadas.Count -eq 1 -and $r.Chamadas[0] -ceq ('resume ' + $IdPadrao)) ('(' + ($r.Chamadas -join ' | ') + ')')
+            Conferir 'codex retomar falha: codigo do agente' ($r.Codigo -eq 1) ('(codigo ' + $r.Codigo + ')')
+        }
+        finally {
+            $env:PATH = $pathOriginal
+            Remove-Item Env:FAKE_LOG, Env:FAKE_CODIGO, Env:FAKE_CODIGO2, Env:FAKE_ATRASO -ErrorAction SilentlyContinue
+        }
+    }
 }
 finally {
     foreach ($p in $script:Pastas) {
