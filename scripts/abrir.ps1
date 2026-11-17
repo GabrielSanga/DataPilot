@@ -73,6 +73,8 @@ if (-not (Get-Command $Agente -ErrorAction SilentlyContinue)) {
 
 Set-Location -LiteralPath $item.FullName
 
+$inicio = Get-Date
+
 switch ("$Agente-$Modo") {
     'claude-novo'    { & claude --session-id $Sessao }
     'claude-retomar' { & claude --resume $Sessao }
@@ -82,4 +84,16 @@ switch ("$Agente-$Modo") {
 
 $codigo = $LASTEXITCODE
 if ($null -eq $codigo) { $codigo = 0 }
+
+# O Claude so grava a conversa depois da primeira mensagem. Se a retomada falha logo, a sessao
+# provavelmente foi fechada antes disso: inicia como sessao nova, com o mesmo identificador.
+# O Codex nao tem segunda tentativa.
+if ("$Agente-$Modo" -ceq 'claude-retomar' -and $codigo -ne 0 -and
+    ((Get-Date) - $inicio).TotalSeconds -lt 30) {
+    Write-Host 'A conversa ainda nao tem mensagens. Iniciando a sessao com o mesmo identificador.'
+    & claude --session-id $Sessao
+    $codigo = $LASTEXITCODE
+    if ($null -eq $codigo) { $codigo = 0 }
+}
+
 exit $codigo

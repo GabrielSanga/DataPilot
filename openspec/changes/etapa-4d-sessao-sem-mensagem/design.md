@@ -47,29 +47,29 @@ A segunda tentativa só acontece quando a retomada falha logo. Uma retomada que 
 
 ### 3. Ensaio antes do script
 
-A primeira tarefa é um ensaio manual, como `ia`, numa pasta de `C:\Fontes`:
+A primeira tarefa é um ensaio manual, como `ia`, que reproduz o caso do painel: a aba é fechada sem que nada seja digitado. O identificador vai escrito por extenso, porque a variável se perde ao fechar a aba.
+
+Numa aba com `ssh ia@localhost` e `powershell`, numa pasta de `C:\Fontes`:
 
 ```powershell
-$id = [guid]::NewGuid().ToString()
+claude --session-id a4c552c7-d5c5-4c28-a1ba-d1d838cdd8d1
+```
+
+Sem digitar nada no Claude, fechar a aba. Numa aba nova, na mesma pasta:
+
+```powershell
+claude --resume a4c552c7-d5c5-4c28-a1ba-d1d838cdd8d1; $LASTEXITCODE
 ```
 
 ```powershell
-claude --session-id $id
-```
-
-Sair com `/exit`, sem enviar mensagem. Depois:
-
-```powershell
-claude --resume $id; $LASTEXITCODE
-```
-
-```powershell
-claude --session-id $id; $LASTEXITCODE
+claude --session-id a4c552c7-d5c5-4c28-a1ba-d1d838cdd8d1; $LASTEXITCODE
 ```
 
 Esperado: a retomada informa que não encontrou a conversa e termina com código diferente de 0; a segunda linha abre o Claude normalmente.
 
 - Por quê: a decisão 1 depende desses dois comportamentos. Se a retomada terminar com código 0, ou se o identificador não puder ser reutilizado, o desenho é revisto antes de mexer no script.
+- Primeira execução, inconclusiva: o roteiro mandava sair com `/exit`. Nesse caso a retomada terminou com código 0 e `claude --session-id` respondeu `Session ID ... is already in use`, com código 1. A explicação provável é que sair com `/exit` faz o Claude gravar a conversa, o que não acontece quando a aba é fechada.
+- Segunda execução, com o roteiro acima: confirmada pelo usuário. A retomada da sessão fechada sem nada digitado não encontrou a conversa e terminou com código diferente de 0, e `claude --session-id` com o mesmo identificador abriu o Claude normalmente. A decisão 1 fica mantida. O que essa execução confirma é que `claude --session-id` recusa, com código 1, um identificador que já tem conversa gravada.
 
 ### 4. Só o Claude tem segunda tentativa
 
@@ -98,6 +98,17 @@ A quantidade de sessões, o status mais urgente da demanda, a ordem das demandas
 
 - Por quê sem confirmação: nada se perde. Se a aba ainda estiver aberta e receber uma mensagem, a sessão aparece em "Não vinculadas" e pode ser vinculada manualmente.
 - Se o lançamento já tiver sido usado ou removido por outra janela do painel, o cancelamento não altera nada e a linha some na atualização seguinte.
+
+### 7a. Abrir de novo reaproveita o lançamento
+
+A linha também oferece "Abrir". O painel monta o mesmo comando de uma sessão nova do agente, no repositório e com o rótulo do lançamento, passa a data do lançamento para o momento desse clique e inicia o terminal. Se o terminal não abrir, a data anterior é restaurada.
+
+- Por quê: no uso, uma aba do Codex fechada antes da primeira mensagem deixava a linha sem saída além de "Cancelar". Como ainda não existe conversa, abrir o Codex de novo é o equivalente a retomar, do mesmo jeito que a decisão 1 faz para o Claude.
+- Por quê reaproveitar em vez de criar outro lançamento: o card continua com uma linha só, e o rótulo informado no primeiro clique é mantido.
+- Por quê renovar a data: as 24 horas de validade recomeçam, e só uma sessão criada depois desse clique corresponde ao lançamento.
+- Não há aviso de aba possivelmente aberta, porque o painel não tem como saber. Se a aba anterior ainda estiver aberta, a primeira das duas a receber mensagem fica no card e a outra vai para "Não vinculadas".
+- Lançamento vencido, de demanda arquivada ou que não existe mais não é aberto.
+- O comando usa só dados do arquivo de dados, pelo mesmo montador da sessão nova.
 
 ### 8. Sincronização da tela
 

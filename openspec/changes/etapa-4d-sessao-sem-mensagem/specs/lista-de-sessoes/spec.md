@@ -3,11 +3,11 @@
 ## ADDED Requirements
 
 ### Requirement: Lançamento pendente no card
-O card de um repositório SHALL mostrar, depois das sessões registradas, uma linha para cada lançamento pendente válido desse repositório, do mais recente para o mais antigo, com o agente, o rótulo quando houver, o texto "aguardando a primeira mensagem" e o tempo decorrido desde o lançamento. A linha SHALL oferecer somente a ação "Cancelar". Lançamentos vencidos e lançamentos de demanda arquivada SHALL NOT ser mostrados.
+O card de um repositório SHALL mostrar, depois das sessões registradas, uma linha para cada lançamento pendente válido desse repositório, do mais recente para o mais antigo, com o agente, o rótulo quando houver, o texto "aguardando a primeira mensagem" e o tempo decorrido desde o lançamento. A linha SHALL oferecer as ações "Abrir" e "Cancelar", e nenhuma outra. Lançamentos vencidos e lançamentos de demanda arquivada SHALL NOT ser mostrados.
 
 #### Scenario: Codex recém-aberto
 - **WHEN** o usuário abre uma sessão nova do Codex no card `Faturamento`, com o rótulo `ajuste`, e ainda não enviou mensagem
-- **THEN** o card `Faturamento` mostra uma linha do Codex com o rótulo `ajuste` e "aguardando a primeira mensagem", sem "Retomar"
+- **THEN** o card `Faturamento` mostra uma linha do Codex com o rótulo `ajuste` e "aguardando a primeira mensagem", com "Abrir" e "Cancelar" e sem "Retomar"
 
 #### Scenario: Primeira mensagem enviada
 - **WHEN** o usuário envia a primeira mensagem e a sessão é vinculada pelo lançamento

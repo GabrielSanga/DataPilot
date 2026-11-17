@@ -12,6 +12,7 @@ Uma sessão que ainda não recebeu a primeira mensagem se comporta mal no painel
 - O `abrir.ps1`, ao retomar uma sessão do Claude que ainda não tem conversa gravada, passa a iniciar uma sessão nova com o mesmo identificador, em vez de terminar com erro.
 - O card de um repositório passa a mostrar o lançamento pendente do Codex assim que o usuário abre a sessão, como uma linha "aguardando a primeira mensagem", com o agente, o rótulo e o tempo decorrido.
 - A linha do lançamento pendente é substituída pela sessão quando a primeira mensagem chega e o vínculo automático acontece.
+- A linha oferece "Abrir", que abre o Codex de novo no mesmo repositório reaproveitando o lançamento, para o caso de a aba ter sido fechada antes da primeira mensagem.
 - A linha oferece "Cancelar", que remove o lançamento pendente. Não oferece "Retomar", "Mover" nem "Remover".
 - Lançamentos pendentes não entram na contagem de sessões nem no status das demandas.
 
@@ -30,6 +31,7 @@ Nenhuma.
 - `abertura-de-sessao`: a retomada de uma sessão do Claude sem conversa gravada inicia a sessão com o mesmo identificador.
 - `lista-de-sessoes`: o card mostra os lançamentos pendentes, fora das contagens e do status das demandas.
 - `vinculo-de-sessao`: o usuário pode cancelar um lançamento pendente.
+- `lancamento-de-sessao`: o usuário pode abrir de novo o agente de um lançamento pendente.
 
 ## Impact
 

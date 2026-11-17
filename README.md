@@ -15,7 +15,7 @@ O painel lê `C:\ProgramData\Painel\sessoes` por padrão e nunca escreve nela.
 
 ### Pasta de exemplo e roteiro de conferência
 
-Para ver o painel sem a conta `ia`, gere os dados de exemplo (datas relativas ao momento da geração). O script cria a pasta de status e três arquivos de dados, tudo em `$TEMP`:
+Para ver o painel sem a conta `ia`, gere os dados de exemplo (datas relativas ao momento da geração). O script cria a pasta de status e quatro arquivos de dados, tudo em `$TEMP`:
 
 ```bash
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/exemplos/gerar-sessoes-exemplo.ps1
@@ -96,6 +96,41 @@ dotnet run --project src/DataPilot.Wpf -- --pasta-status "$TEMP/datapilot-exempl
 - No arquivo copiado, o lançamento sumiu e a sessão tem `agente`, `sessionId`, `rotulo`, `criadaEm` e `vinculadaEm`, sem a pasta de trabalho.
 - **Remover** a sessão (confirmando): ela volta a **Não vinculadas** e não é vinculada de novo.
 - Com `datapilot-exemplo-varias-demandas.json` (sem lançamento) a mesma sessão fica em **Não vinculadas**, como no roteiro da Etapa 4b.
+
+### Sessão ainda sem mensagem (Etapa 4d)
+
+Uma sessão que ainda não recebeu a primeira mensagem se comporta de um jeito diferente em cada agente.
+
+**Codex: a linha "aguardando a primeira mensagem".** Entre o clique em **Nova sessão** e a primeira mensagem, o Codex não cria arquivo de status. Nesse intervalo o card mostra uma linha para o lançamento pendente, depois das sessões registradas, com o agente, o rótulo (quando houver), o texto "aguardando a primeira mensagem" e o tempo decorrido. Com vários lançamentos, o mais recente vem primeiro.
+
+- A linha não é uma sessão: só tem **Abrir** e **Cancelar** (sem **Retomar**, **Mover** nem **Remover**). Ela não entra na quantidade de sessões da demanda, no status mais urgente, na ordem da lista nem no resumo do cabeçalho.
+- Quando a primeira mensagem chega e o vínculo automático acontece, a linha dá lugar à sessão na mesma atualização da tela.
+- Lançamentos vencidos (mais de 24 horas) e os de demanda arquivada não são mostrados.
+- **Abrir** abre o Codex de novo no mesmo repositório, com o rótulo do lançamento. Serve para a aba fechada antes da primeira mensagem: como ainda não existe conversa, é o equivalente a retomar. O lançamento é reaproveitado, então o card continua com uma linha só, e a data dele passa a ser a desse clique (as 24 horas recomeçam). Se a aba anterior ainda estiver aberta, a primeira das duas a receber mensagem fica no card e a outra vai para **Não vinculadas**.
+- **Cancelar** remove só aquele lançamento de `demandas.json`, sem confirmar e sem fechar a aba. Se a aba continuar aberta e receber uma mensagem, a sessão vai para **Não vinculadas** e pode ser vinculada à mão. Cancelar um lançamento que outra janela do painel acabou de usar não altera nada.
+
+**Claude: retomar uma sessão fechada antes da primeira mensagem.** O Claude só grava a conversa depois da primeira mensagem, então `claude --resume` não encontra uma sessão fechada antes disso e termina com erro. O `abrir.ps1` trata esse caso: se a retomada do Claude terminar com código diferente de 0 em menos de 30 segundos, ele avisa "A conversa ainda nao tem mensagens" e inicia o Claude com `--session-id` e o mesmo identificador, de modo que o registro e o arquivo de status continuam valendo. Uma retomada que falha depois de 30 segundos e a retomada do Codex nunca têm segunda tentativa. O comando montado pelo painel não muda; basta copiar o `abrir.ps1` novo para `C:\Painel` (veja `docs/instalacao-etapa-1.md`).
+
+#### Roteiro da linha do lançamento pendente (Etapa 4d)
+
+O script de exemplo também gera `datapilot-exemplo-aguardando.json`: o de várias demandas com dois lançamentos pendentes do Codex no card `Estoque` de `CHG-142`, um de 5 minutos atrás (rótulo `aguardando exemplo`) e um de 3 horas atrás (sem rótulo). Não há sessão do Codex na pasta `Estoque`, então nada os vincula. Trabalhe numa cópia, porque **Cancelar** grava no arquivo:
+
+```bash
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/exemplos/gerar-sessoes-exemplo.ps1
+cp "$TEMP/datapilot-exemplo-aguardando.json" "$TEMP/datapilot-aguardando.json"
+dotnet run --project src/DataPilot.Wpf -- --pasta-status "$TEMP/datapilot-exemplo" --dados "$TEMP/datapilot-aguardando.json"
+```
+
+- Selecione `CHG-142`: o card `Estoque` mostra as duas sessões e, depois delas, duas linhas do Codex "aguardando a primeira mensagem" (`5 min` com o rótulo `aguardando exemplo`, depois `3 h`), cada uma com **Abrir** e **Cancelar**. O resumo da demanda continua `2 repositórios · 3 sessões · precisa de atenção` e o do cabeçalho não muda.
+- **Cancelar** a linha de `5 min`: só ela some, a de `3 h` continua, `CHG-142` continua selecionada e o arquivo copiado perde só aquele lançamento.
+- Para ver a substituição pela sessão, com o painel aberto crie na pasta de status um arquivo de uma sessão do Codex com `cwd` `C:\Fontes\Estoque` (GUID novo, `status` `ativa`, `atualizado` agora): a linha restante é substituída pela sessão, sem o lançamento no arquivo, e a demanda selecionada não muda.
+- Com `datapilot-exemplo-varias-demandas.json` (sem lançamento) o card `Estoque` não mostra nenhuma linha de lançamento.
+
+#### Roteiro da retomada sem mensagem (Etapa 4d)
+
+1. Copie `abrir.ps1` e `verificar.ps1` para `C:\Painel`, como administrador, e rode a verificação como `ia` (`docs/instalacao-etapa-1.md`, passos 2 e 3): a última linha deve terminar com `Falhas: 0`.
+2. No painel, abra uma sessão **nova do Claude** pelo card, feche a aba **sem digitar nada** (não use `/exit`) e acione **Retomar**: o terminal avisa que a conversa ainda não tem mensagens, o Claude abre com o mesmo identificador, o status volta a `ativa` e a mesma linha do card continua valendo.
+3. Numa sessão do Claude com mensagens, feche a aba e acione **Retomar**: a conversa volta com o histórico e não há aviso.
 
 ### Arquivo de dados
 

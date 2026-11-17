@@ -14,7 +14,8 @@ param(
     [string]$Pasta = (Join-Path $env:TEMP 'datapilot-exemplo'),
     [string]$Dados = (Join-Path $env:TEMP 'datapilot-exemplo-demandas.json'),
     [string]$DadosVarias = (Join-Path $env:TEMP 'datapilot-exemplo-varias-demandas.json'),
-    [string]$DadosLancamento = (Join-Path $env:TEMP 'datapilot-exemplo-lancamento.json')
+    [string]$DadosLancamento = (Join-Path $env:TEMP 'datapilot-exemplo-lancamento.json'),
+    [string]$DadosAguardando = (Join-Path $env:TEMP 'datapilot-exemplo-aguardando.json')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -177,7 +178,7 @@ $variasJson = @"
         },
         {
           "nome": "Estoque",
-          "pasta": "Estoque",
+          "pasta": "Estoque",@@LANCAMENTOS_ESTOQUE@@
           "sessoes": [
             { "agente": "claude", "sessionId": "55555555-6666-7777-8888-999999999999", "rotulo": "ajuste de saldo", "criadaEm": "$criada" },
             { "agente": "claude", "sessionId": "66666666-7777-8888-9999-aaaaaaaaaaaa", "rotulo": "sem arquivo de status", "criadaEm": "$criada" }
@@ -226,16 +227,28 @@ $variasJson = @"
 }
 "@
 
-Gravar-DadosVarias $variasJson.Replace('@@LANCAMENTOS@@', '')
+Gravar-DadosVarias $variasJson.Replace('@@LANCAMENTOS@@', '').Replace('@@LANCAMENTOS_ESTOQUE@@', '')
 
 # Arquivo de dados com um lancamento pendente (Etapa 4c): igual ao de varias demandas, mas o repositorio Faturamento de
 # CHG-142 tem um lancamento do Codex de uma hora atras, com rotulo. A sessao 99999999... do Codex, criada agora na pasta
 # Faturamento, e vinculada sozinha a esse card ao abrir o painel. "Remover" a devolve a "Nao vinculadas" e ela nao volta.
 $lancamentoJson = '"lancamentos": [ { "id": "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa", "agente": "codex", "rotulo": "ajuste automatico", "criadoEm": "' +
     $agora.AddHours(-1).ToString('o') + '" } ],'
-[System.IO.File]::WriteAllText($DadosLancamento, $variasJson.Replace('@@LANCAMENTOS@@', $lancamentoJson), $utf8)
+[System.IO.File]::WriteAllText($DadosLancamento,
+    $variasJson.Replace('@@LANCAMENTOS@@', $lancamentoJson).Replace('@@LANCAMENTOS_ESTOQUE@@', ''), $utf8)
+
+# Arquivo de dados com lancamentos pendentes SEM sessao correspondente (Etapa 4d): o repositorio Estoque de CHG-142 tem
+# dois lancamentos do Codex, um de 5 minutos atras (com rotulo) e um de 3 horas atras (sem rotulo). Nao ha sessao do Codex
+# na pasta Estoque, entao nada os vincula: o card mostra as duas linhas "aguardando a primeira mensagem", a mais recente
+# primeiro, com a acao "Cancelar". O repositorio Faturamento de CHG-142 fica sem lancamento.
+$aguardandoJson = '"lancamentos": [ ' +
+    '{ "id": "bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb", "agente": "codex", "criadoEm": "' + $agora.AddHours(-3).ToString('o') + '" }, ' +
+    '{ "id": "cccccccc-3333-4333-8333-cccccccccccc", "agente": "codex", "rotulo": "aguardando exemplo", "criadoEm": "' + $agora.AddMinutes(-5).ToString('o') + '" } ],'
+[System.IO.File]::WriteAllText($DadosAguardando,
+    $variasJson.Replace('@@LANCAMENTOS@@', '').Replace('@@LANCAMENTOS_ESTOQUE@@', $aguardandoJson), $utf8)
 
 Write-Output "Pasta de exemplo criada em: $Pasta"
 Write-Output "Arquivo de dados de exemplo criado em: $Dados"
 Write-Output "Arquivo de dados de varias demandas criado em: $DadosVarias"
 Write-Output "Arquivo de dados com lancamento pendente criado em: $DadosLancamento"
+Write-Output "Arquivo de dados com lancamentos aguardando a primeira mensagem criado em: $DadosAguardando"

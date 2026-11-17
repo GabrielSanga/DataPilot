@@ -57,6 +57,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private CardItem NovoCard(string pasta) => new(pasta, NovaSessao, RemoverRepositorio);
 
+    private LancamentoItem NovoLancamentoItem(string id) => new(id, AbrirLancamento, CancelarLancamento);
+
     private SessaoItem NovaSessaoItem(string sessionId) => new(sessionId, Retomar, MoverSessao, RemoverSessao, VincularSessao);
 
     // ---------- dados do painel ----------
@@ -238,6 +240,38 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (!r.Ok) _interacao.Erro(r.Mensagem ?? "Não foi possível remover o registro da sessão.");
     }
 
+    /// <summary>
+    /// "Abrir" na linha de um lançamento pendente: abre o agente de novo no mesmo repositório, reaproveitando o
+    /// lançamento (aba fechada antes da primeira mensagem). Se ele já não existir, nada é aberto e a linha some
+    /// na atualização.
+    /// </summary>
+    private void AbrirLancamento(LancamentoItem item)
+    {
+        if (!DadosDisponiveis) return;
+        var r = _abertura.ReabrirLancamento(item.Id);
+        RecarregarEAplicar();
+        // Só é erro se o lançamento continua no arquivo, ou seja, se a falha foi ao gravar ou ao iniciar o terminal.
+        var continua = _estadoDados.Demandas.SelectMany(d => d.Repositorios).SelectMany(x => x.Lancamentos)
+            .Any(l => string.Equals(l.Id, item.Id, StringComparison.OrdinalIgnoreCase));
+        if (!r.Ok && continua) _interacao.Erro(r.Mensagem ?? "Não foi possível abrir a sessão.");
+    }
+
+    /// <summary>
+    /// "Cancelar" na linha de um lançamento pendente: remove só o lançamento do arquivo de dados, sem confirmação e
+    /// sem fechar a aba. Se ele já não existir (usado ou removido por outra janela), nada é gravado e a linha some
+    /// na atualização.
+    /// </summary>
+    private void CancelarLancamento(LancamentoItem item)
+    {
+        if (!DadosDisponiveis) return;
+        var r = _dados.CancelarLancamento(item.Id);
+        RecarregarEAplicar();
+        // Só é erro se o lançamento continua no arquivo, ou seja, se a gravação falhou.
+        var continua = _estadoDados.Demandas.SelectMany(d => d.Repositorios).SelectMany(x => x.Lancamentos)
+            .Any(l => string.Equals(l.Id, item.Id, StringComparison.OrdinalIgnoreCase));
+        if (!r.Ok && continua) _interacao.Erro(r.Mensagem ?? "Não foi possível cancelar o lançamento.");
+    }
+
     // ---------- vínculo de sessões não vinculadas ----------
 
     /// <summary>"Vincular" na entrada "Não vinculadas": diálogo com demanda, repositório e rótulo.</summary>
@@ -316,7 +350,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             l => l.Dado is null ? _naoVinculadas : NovoDemandaItem(l.Chave, false),
             (item, l) =>
             {
-                if (l.Dado is { } d) item.Atualizar(d, NovoCard, NovaSessaoItem);
+                if (l.Dado is { } d) item.Atualizar(d, NovoCard, NovaSessaoItem, NovoLancamentoItem);
                 else item.AtualizarNaoVinculadas(visao.NaoVinculadas, NovaSessaoItem);
             });
     }

@@ -381,6 +381,27 @@ public sealed class DadosPainel(string caminho)
         });
     }
 
+    /// <summary>
+    /// Cancela um lançamento pendente pela linha dele no card. Remove só esse lançamento e não pede confirmação; se
+    /// ele não existir mais (usado ou removido por outra janela), nada é gravado.
+    /// </summary>
+    public ResultadoOperacao CancelarLancamento(string lancamentoId) => DesfazerLancamento(lancamentoId);
+
+    /// <summary>
+    /// Troca a data de um lançamento pendente, quando o usuário abre o agente de novo pela linha dele: a validade
+    /// recomeça e só uma sessão criada depois disso corresponde a ele. Se o lançamento não existir mais, nada é gravado.
+    /// </summary>
+    public ResultadoOperacao RenovarLancamento(string lancamentoId, DateTimeOffset criadoEm)
+    {
+        return Alterar(raiz =>
+        {
+            var lancamento = LancamentosComId(raiz, lancamentoId).FirstOrDefault();
+            if (lancamento is null) return ResultadoOperacao.Falha("O lançamento não existe mais.");
+            lancamento["criadoEm"] = criadoEm.ToString("o", CultureInfo.InvariantCulture);
+            return ResultadoOperacao.Sucesso;
+        });
+    }
+
     /// <summary>Desfaz o registro do lançamento quando o terminal não abre.</summary>
     public ResultadoOperacao DesfazerLancamento(string lancamentoId)
     {
