@@ -13,6 +13,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly DadosPainel _dados;
     private readonly AberturaSessao _abertura;
     private readonly IInteracao _interacao;
+    private readonly LeitorTasks _leitorTasks;
     private RetratoPasta? _retrato;
     private EstadoDados _estadoDados = EstadoDados.Vazio;
     private readonly DemandaItem _naoVinculadas;
@@ -31,8 +32,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _avisoDados = "";
 
     public MainViewModel(string pasta, TimeProvider relogio, Dispatcher dispatcher,
-        DadosPainel dados, AberturaSessao abertura, IInteracao interacao)
+        DadosPainel dados, AberturaSessao abertura, IInteracao interacao, LeitorTasks leitorTasks)
     {
+        _leitorTasks = leitorTasks;
         _relogio = relogio;
         _dispatcher = dispatcher;
         _dados = dados;
@@ -46,6 +48,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     public void Iniciar() => _monitor.Iniciar();
+
+    // Ao trocar de demanda o progresso aparece na hora, sem esperar o ciclo seguinte.
+    partial void OnDemandaSelecionadaChanged(DemandaItem? value) => AtualizarProgresso();
+
+    /// <summary>
+    /// Relê o progresso da change só da demanda selecionada (a única que o mostra), a cada atualização da tela e
+    /// ao trocar de demanda. Não há <c>FileSystemWatcher</c> nas pastas do <c>ia</c>.
+    /// </summary>
+    private void AtualizarProgresso()
+    {
+        if (DemandaSelecionada is not { Demanda: { } demanda } item) return;
+        var progresso = ProgressoDemanda.Montar(demanda.OpenspecChange, demanda.Repositorios.Select(r => r.Pasta), _leitorTasks);
+        item.AplicarProgresso(progresso);
+    }
 
     partial void OnMostrarAntigasChanged(bool value) => Aplicar();
     partial void OnMostrarArquivadasChanged(bool value) => Aplicar();
@@ -353,6 +369,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 if (l.Dado is { } d) item.Atualizar(d, NovoCard, NovaSessaoItem, NovoLancamentoItem);
                 else item.AtualizarNaoVinculadas(visao.NaoVinculadas, NovaSessaoItem);
             });
+
+        AtualizarProgresso();
     }
 
     public void Dispose() => _monitor.Dispose();

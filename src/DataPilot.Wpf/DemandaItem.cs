@@ -82,6 +82,8 @@ public sealed partial class CardItem : ObservableObject
     public ObservableCollection<LancamentoItem> Lancamentos { get; } = [];
 
     [ObservableProperty] private bool _vazio;
+    /// <summary>Progresso da change neste repositório ("4 de 6"); vazio quando não há o que mostrar.</summary>
+    [ObservableProperty] private string _progresso = "";
 
     [ObservableProperty] private bool _podeNovaSessao;
     public IRelayCommand NovaSessaoCommand { get; }
@@ -130,6 +132,11 @@ public sealed partial class DemandaItem : ObservableObject
     [ObservableProperty] private string _cabecalho = "";
     [ObservableProperty] private string _openspec = "";
     [ObservableProperty] private string _resumo = "";
+    /// <summary>Texto da barra de progresso da change ("7 de 12 tarefas") ou o aviso que a substitui.</summary>
+    [ObservableProperty] private string _progressoTexto = "";
+    [ObservableProperty] private bool _temProgresso;
+    [ObservableProperty] private bool _temBarra;
+    [ObservableProperty] private double _progressoFracao;
     [ObservableProperty] private Brush _corStatus = Cores.Cinza;
     [ObservableProperty] private bool _arquivada;
     [ObservableProperty] private bool _semRepositorios;
@@ -176,6 +183,17 @@ public sealed partial class DemandaItem : ObservableObject
             c => c.Pasta, c => c.Pasta,
             c => criarCard(c.Pasta),
             (item, dado) => item.Atualizar(dado, d, criarSessao, criarLancamento));
+    }
+
+    /// <summary>Mostra o progresso da change na área da demanda e em cada card. Texto vem do Core, exibido como texto simples.</summary>
+    public void AplicarProgresso(ProgressoDemanda p)
+    {
+        ProgressoTexto = p.Texto;
+        TemProgresso = p.Texto.Length > 0;
+        TemBarra = p.TemSoma;
+        ProgressoFracao = p.Fracao;
+        foreach (var card in Cards)
+            card.Progresso = p.Repositorios.FirstOrDefault(r => r.Pasta == card.Pasta)?.Texto ?? "";
     }
 
     public void AtualizarNaoVinculadas(IReadOnlyList<SessaoExibida> sessoes, Func<string, SessaoItem> criarSessao)

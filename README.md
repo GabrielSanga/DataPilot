@@ -132,6 +132,37 @@ dotnet run --project src/DataPilot.Wpf -- --pasta-status "$TEMP/datapilot-exempl
 2. No painel, abra uma sessão **nova do Claude** pelo card, feche a aba **sem digitar nada** (não use `/exit`) e acione **Retomar**: o terminal avisa que a conversa ainda não tem mensagens, o Claude abre com o mesmo identificador, o status volta a `ativa` e a mesma linha do card continua valendo.
 3. Numa sessão do Claude com mensagens, feche a aba e acione **Retomar**: a conversa volta com o histórico e não há aviso.
 
+### Progresso do OpenSpec (Etapa 5a)
+
+Quando a demanda selecionada tem `openspecChange`, o painel lê o `tasks.md` da change em cada repositório da demanda, em `C:\Fontes\<pasta>\openspec\changes\<openspecChange>\tasks.md`, e mostra:
+
+- abaixo do nome da change, uma barra com a soma dos repositórios em que a change foi encontrada ("7 de 12 tarefas");
+- em cada card, o progresso daquele repositório ("4 de 6");
+- "arquivada" quando só existe `openspec\changes\archive\AAAA-MM-DD-<change>` (a mais recente; a change ativa tem prioridade);
+- "change não encontrada nos repositórios", "sem tarefas" (nenhuma linha `- [ ]`/`- [x]`) e "progresso indisponível" (arquivo recusado, acima de 256 KB ou com UTF-8 inválido; esse repositório fica fora da soma).
+
+São contadas as linhas `- [ ]`, `- [x]` e `- [X]` (com indentação). O progresso é relido a cada atualização da tela (até 5 segundos) e ao trocar de demanda; as pastas do `ia` não são vigiadas. O `tasks.md` é só lido, nunca gravado, e o painel recusa atalhos e junções em qualquer trecho do caminho. Para usar outra raiz de fontes, sem tocar em `C:\Fontes`:
+
+```bash
+dotnet run --project src/DataPilot.Wpf -- --raiz-fontes "$TEMP/datapilot-exemplo-fontes"
+```
+
+#### Roteiro do progresso (Etapa 5a)
+
+1. Gere os exemplos: `./scripts/exemplos/gerar-sessoes-exemplo.ps1`. Ele cria a raiz `datapilot-exemplo-fontes` (com uma change ativa, uma arquivada e uma junção) e o arquivo `datapilot-exemplo-progresso.json`.
+2. Abra o painel:
+
+```bash
+dotnet run --project src/DataPilot.Wpf -- --pasta-status "$TEMP/datapilot-exemplo" --dados "$TEMP/datapilot-exemplo-progresso.json" --raiz-fontes "$TEMP/datapilot-exemplo-fontes"
+```
+
+3. **CHG-142**: a barra mostra "7 de 12 tarefas"; **Faturamento** mostra "4 de 6" e **Estoque** "3 de 6".
+4. **CHG-150**: a barra mostra "2 de 2 tarefas · arquivada"; **Faturamento** mostra "2 de 2 · arquivada", **Compras** "progresso indisponível" (a pasta da change é uma junção), **Portal** "sem tarefas" e **Estoque** nada.
+5. **CHG-160**: a área mostra "change não encontrada nos repositórios" e nenhum card mostra progresso.
+6. Com **CHG-142** selecionada, troque um `- [ ]` por `- [x]` em `datapilot-exemplo-fontes\Faturamento\openspec\changes\ajuste-nfe\tasks.md`: em até 5 segundos a barra passa a "8 de 12 tarefas" e o card a "5 de 6", sem mudar a demanda selecionada.
+
+Verificação com a conta `ia` (junção, arquivamento e privilégio de link simbólico): tarefas 3.1 a 3.4 de `openspec/changes/etapa-5a-progresso-openspec/tasks.md`.
+
 ### Arquivo de dados
 
 O painel guarda demandas, repositórios e sessões abertas por ele em `%APPDATA%\Painel\demandas.json`. O arquivo só é criado na primeira alteração. O arquivo gravado pela Etapa 3 (só com `sem-demanda`) é lido sem conversão; recomenda-se copiá-lo antes do primeiro uso da versão nova. Se existir e não puder ser lido, o painel mostra um aviso com o caminho, não grava nada e desabilita criar e alterar demandas, abrir e retomar (a lista continua funcionando). Para usar outro arquivo, sem tocar nos dados reais:

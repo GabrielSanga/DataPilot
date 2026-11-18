@@ -15,7 +15,9 @@ public partial class App : Application
         var dados = new DadosPainel(LerParametro(e.Args, "--dados") ?? DadosPainel.CaminhoPadrao);
         var abertura = new AberturaSessao(dados, new DisparadorProcesso(), TimeProvider.System);
 
-        _vm = new MainViewModel(pasta, TimeProvider.System, Dispatcher, dados, abertura, new InteracaoJanelas());
+        var leitorTasks = new LeitorTasks(LerParametro(e.Args, "--raiz-fontes") ?? Constantes.RaizFontesPadrao);
+
+        _vm = new MainViewModel(pasta, TimeProvider.System, Dispatcher, dados, abertura, new InteracaoJanelas(), leitorTasks);
         var janela = new MainWindow { DataContext = _vm };
         MainWindow = janela;
         janela.Show();
@@ -28,7 +30,7 @@ public partial class App : Application
         base.OnExit(e);
     }
 
-    /// <summary>Valor de um parâmetro como <c>--pasta-status</c> ou <c>--dados</c>, informado por quem inicia o painel.</summary>
+    /// <summary>Valor de um parâmetro como <c>--pasta-status</c>, <c>--dados</c> ou <c>--raiz-fontes</c>, informado por quem inicia o painel.</summary>
     private static string? LerParametro(string[] args, string nome)
     {
         for (var i = 0; i < args.Length - 1; i++)

@@ -92,6 +92,8 @@ Copy-Item scripts\testes\verificar.ps1 C:\Painel\testes\ -Force
 
 A raiz dos fontes do `ia` é a constante `$RaizFontes` no topo do `abrir.ps1` (`C:\Fontes`).
 
+**Modo de desenvolvedor do Windows:** mantenha-o desligado. O painel lê o `tasks.md` das changes em `C:\Fontes`, pasta que o `ia` controla, e recusa atalhos e junções. Sem o modo de desenvolvedor, o `ia` não tem o privilégio de criar links simbólicos (`SeCreateSymbolicLinkPrivilege`), que poderiam apontar para um caminho de rede; junções só apontam para pastas locais. Para conferir, rode `whoami /priv` como `ia`: o privilégio não deve aparecer.
+
 ## Passo 3: verificação automatizada como ia
 
 Num PowerShell comum (sem elevação):
