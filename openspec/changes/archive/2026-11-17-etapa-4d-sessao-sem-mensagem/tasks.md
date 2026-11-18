@@ -30,12 +30,12 @@ Tarefas marcadas com **[manual]** são executadas pelo usuário, porque exigem a
 
 ## 5. Verificação integrada
 
-- [ ] 5.1 **[manual]** Copiar o `abrir.ps1` e o `verificar.ps1` novos para `C:\Painel` como administrador e rodar a verificação como `ia`; verificar que todos os casos passam
-- [ ] 5.2 **[manual]** Abrir uma sessão nova do Claude pelo card, fechar a aba sem enviar mensagem e acionar "Retomar"; verificar que o Claude abre, que o status volta a "ativa" e que a mesma linha do card continua valendo
-- [ ] 5.3 **[manual]** Numa sessão do Claude com mensagens, fechar a aba e acionar "Retomar"; verificar que a conversa volta com o histórico
-- [ ] 5.4 **[manual]** Abrir uma sessão nova do Codex pelo card; verificar que a linha "aguardando a primeira mensagem" aparece em seguida e que, ao enviar a primeira mensagem, ela é substituída pela sessão, com a demanda selecionada mantida
-- [ ] 5.5 **[manual]** Abrir uma sessão nova do Codex, fechar a aba sem mensagem e acionar "Cancelar"; verificar que a linha some e que um Codex aberto depois à mão na mesma pasta aparece em "Não vinculadas"
-- [ ] 5.6 **[manual]** Abrir uma sessão nova do Codex, fechar a aba sem mensagem e acionar "Abrir" na linha; verificar que o Codex abre no mesmo repositório, que o card continua com uma linha só e que, ao enviar a primeira mensagem, a sessão entra no card com o rótulo
+- [x] 5.1 **[manual]** Copiar o `abrir.ps1` e o `verificar.ps1` novos para `C:\Painel` como administrador e rodar a verificação como `ia`; verificar que todos os casos passam
+- [x] 5.2 **[manual]** Abrir uma sessão nova do Claude pelo card, fechar a aba sem enviar mensagem e acionar "Retomar"; verificar que o Claude abre, que o status volta a "ativa" e que a mesma linha do card continua valendo
+- [x] 5.3 **[manual]** Numa sessão do Claude com mensagens, fechar a aba e acionar "Retomar"; verificar que a conversa volta com o histórico
+- [x] 5.4 **[manual]** Abrir uma sessão nova do Codex pelo card; verificar que a linha "aguardando a primeira mensagem" aparece em seguida e que, ao enviar a primeira mensagem, ela é substituída pela sessão, com a demanda selecionada mantida
+- [x] 5.5 **[manual]** Abrir uma sessão nova do Codex, fechar a aba sem mensagem e acionar "Cancelar"; verificar que a linha some e que um Codex aberto depois à mão na mesma pasta aparece em "Não vinculadas"
+- [x] 5.6 **[manual]** Abrir uma sessão nova do Codex, fechar a aba sem mensagem e acionar "Abrir" na linha; verificar que o Codex abre no mesmo repositório, que o card continua com uma linha só e que, ao enviar a primeira mensagem, a sessão entra no card com o rótulo
 
 ## Workflow follow-up
 
