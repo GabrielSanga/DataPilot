@@ -10,9 +10,9 @@ public partial class VincularRepositorioWindow : Window
     {
         _aplicar = aplicar;
         InitializeComponent();
-        Destino.Text = $"Demanda: {demandaTitulo}";
+        Destino.Text = $"Demanda {demandaTitulo}";
         CampoPasta.ItemsSource = sugestoes;
-        CampoPasta.Focus();
+        Loaded += (_, _) => CampoPasta.Focus();
     }
 
     private void Ok_Click(object sender, RoutedEventArgs e)

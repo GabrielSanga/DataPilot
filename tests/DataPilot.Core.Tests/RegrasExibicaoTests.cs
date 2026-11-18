@@ -73,14 +73,14 @@ public class RegrasExibicaoTests
             Fabrica.Sessao(StatusGravado.Executando, TimeSpan.FromMinutes(1), "b"),
             Fabrica.Sessao(StatusGravado.Executando, TimeSpan.FromMinutes(2), "c"),
         ], false, Relogio);
-        Assert.Equal("1 precisa de atenção · 2 executando", RegrasExibicao.Resumo(v));
+        Assert.Equal("1 precisa de atenção, 2 executando", RegrasExibicao.Resumo(v).Texto);
     }
 
     [Fact]
     public void Resumo_IncluiAguardando()
     {
         var v = RegrasExibicao.Montar([Fabrica.Sessao(StatusGravado.Aguardando, TimeSpan.FromMinutes(1))], false, Relogio);
-        Assert.Equal("1 aguardando você", RegrasExibicao.Resumo(v));
+        Assert.Equal("1 aguardando você", RegrasExibicao.Resumo(v).Texto);
     }
 
     [Fact]
@@ -91,8 +91,8 @@ public class RegrasExibicaoTests
             Fabrica.Sessao(StatusGravado.Ativa, TimeSpan.FromMinutes(1), "a"),
             Fabrica.Sessao(StatusGravado.Encerrada, TimeSpan.FromHours(1), "b"),
         ], false, Relogio);
-        Assert.Equal("Nada precisa de você", RegrasExibicao.Resumo(v));
-        Assert.Equal("Nada precisa de você", RegrasExibicao.Resumo([]));
+        Assert.Equal("Nada precisa de você agora", RegrasExibicao.Resumo(v).Texto);
+        Assert.Equal("Nada precisa de você agora", RegrasExibicao.Resumo([]).Texto);
     }
 
     [Fact]
@@ -130,7 +130,7 @@ public class RegrasExibicaoTests
     public void SessoesOcultasNaoEntramNoResumo()
     {
         var v = RegrasExibicao.Montar([Fabrica.Sessao(StatusGravado.Executando, TimeSpan.FromDays(5))], false, Relogio);
-        Assert.Equal("Nada precisa de você", RegrasExibicao.Resumo(v));
+        Assert.Equal("Nada precisa de você agora", RegrasExibicao.Resumo(v).Texto);
     }
 
     [Theory]

@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DataPilot.Core;
@@ -52,6 +51,8 @@ public sealed partial class LancamentoItem : ObservableObject
 
     [ObservableProperty] private string _agente = "";
     [ObservableProperty] private string _rotulo = "";
+    [ObservableProperty] private string _textoPrincipal = "";
+    [ObservableProperty] private bool _principalEhVazio;
     [ObservableProperty] private string _tempo = "";
 
     public IRelayCommand AbrirCommand { get; }
@@ -69,6 +70,8 @@ public sealed partial class LancamentoItem : ObservableObject
         var l = v.Lancamento;
         Agente = l.Agente == DataPilot.Core.Agente.Claude ? "Claude" : "Codex";
         Rotulo = l.Rotulo is null ? "" : TextoExibicao.Limpar(l.Rotulo);
+        PrincipalEhVazio = Rotulo.Length == 0;
+        TextoPrincipal = PrincipalEhVazio ? "sem rótulo" : Rotulo;
         Tempo = v.Tempo.Length == 0 ? "—" : v.Tempo;
     }
 }
@@ -129,15 +132,25 @@ public sealed partial class DemandaItem : ObservableObject
     public ObservableCollection<CardItem> Cards { get; } = [];
     public ObservableCollection<SessaoItem> NaoVinculadas { get; } = [];
 
+    /// <summary>Identificador e título juntos, para os textos dos diálogos.</summary>
     [ObservableProperty] private string _cabecalho = "";
+    /// <summary>Identificador da demanda (em Bahnschrift na tela), ou "Não vinculadas".</summary>
+    [ObservableProperty] private string _identificador = "";
+    [ObservableProperty] private string _titulo = "";
+    /// <summary>Nome da change do OpenSpec; vazio quando a demanda não tem.</summary>
     [ObservableProperty] private string _openspec = "";
+    [ObservableProperty] private bool _temOpenspec;
+    /// <summary>Contagens em frase, como "2 repositórios, 3 sessões".</summary>
     [ObservableProperty] private string _resumo = "";
+    /// <summary>Nome do status mais urgente, só quando ele acende (precisa de atenção ou aguardando você).</summary>
+    [ObservableProperty] private string _destaqueTexto = "";
+    [ObservableProperty] private bool _temDestaque;
     /// <summary>Texto da barra de progresso da change ("7 de 12 tarefas") ou o aviso que a substitui.</summary>
     [ObservableProperty] private string _progressoTexto = "";
     [ObservableProperty] private bool _temProgresso;
     [ObservableProperty] private bool _temBarra;
     [ObservableProperty] private double _progressoFracao;
-    [ObservableProperty] private Brush _corStatus = Cores.Cinza;
+    [ObservableProperty] private NivelSinal _nivel;
     [ObservableProperty] private bool _arquivada;
     [ObservableProperty] private bool _semRepositorios;
     [ObservableProperty] private bool _semNaoVinculadas;
@@ -168,10 +181,13 @@ public sealed partial class DemandaItem : ObservableObject
         var d = v.Demanda;
         Demanda = d;
         TemSessaoEmAndamento = v.TemSessaoEmAndamento;
-        Cabecalho = $"{TextoExibicao.Limpar(d.Id)} · {TextoExibicao.Limpar(d.Titulo)}";
-        Openspec = d.OpenspecChange is null ? "" : $"OpenSpec: {TextoExibicao.Limpar(d.OpenspecChange)}";
-        Resumo = v.Resumo + (d.Arquivada ? " · arquivada" : "");
-        CorStatus = v.MaisUrgente is { } s ? Cores.Fundo(s) : Cores.Cinza;
+        Identificador = TextoExibicao.Limpar(d.Id);
+        Titulo = TextoExibicao.Limpar(d.Titulo);
+        Cabecalho = $"{Identificador} — {Titulo}";
+        Openspec = d.OpenspecChange is null ? "" : TextoExibicao.Limpar(d.OpenspecChange);
+        TemOpenspec = Openspec.Length > 0;
+        Resumo = v.Resumo + (d.Arquivada ? ", arquivada" : "");
+        AplicarSinal(v.MaisUrgente);
         Arquivada = d.Arquivada;
         SemRepositorios = v.Cards.Count == 0;
         PodeEditar = RegrasDemanda.PodeEditar(d);
@@ -196,10 +212,21 @@ public sealed partial class DemandaItem : ObservableObject
             card.Progresso = p.Repositorios.FirstOrDefault(r => r.Pasta == card.Pasta)?.Texto ?? "";
     }
 
+    /// <summary>Faixa e nome do status só quando o mais urgente é um dos dois que precisam do usuário.</summary>
+    private void AplicarSinal(StatusExibido? maisUrgente)
+    {
+        Nivel = Sinal.De(maisUrgente);
+        TemDestaque = Sinal.Acende(maisUrgente);
+        DestaqueTexto = TemDestaque ? RegrasExibicao.Texto(maisUrgente!.Value) : "";
+    }
+
     public void AtualizarNaoVinculadas(IReadOnlyList<SessaoExibida> sessoes, Func<string, SessaoItem> criarSessao)
     {
+        Identificador = "Não vinculadas";
+        Titulo = "";
         Cabecalho = "Não vinculadas";
-        Resumo = $"{sessoes.Count} {(sessoes.Count == 1 ? "sessão" : "sessões")}";
+        Resumo = sessoes.Count switch { 0 => "nenhuma sessão", 1 => "1 sessão", var n => $"{n} sessões" };
+        AplicarSinal(sessoes.Count == 0 ? null : sessoes.Min(s => s.Status));
         SemNaoVinculadas = sessoes.Count == 0;
         SincronizacaoColecao.Sincronizar(NaoVinculadas, sessoes,
             s => s.SessionId, s => s.Sessao.SessionId,

@@ -1,21 +1,33 @@
 <Window x:Class="DataPilot.Wpf.VincularSessaoWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Vincular sessão" SizeToContent="Height" Width="440" ResizeMode="NoResize"
-        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
-    <StackPanel Margin="12">
-        <TextBlock x:Name="Descricao" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,8"/>
-        <TextBlock Text="Demanda" Margin="0,0,0,2"/>
-        <ComboBox x:Name="CampoDemanda" DisplayMemberPath="Texto" Margin="0,0,0,8"
+        Style="{StaticResource EstiloDialogo}" ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
+        Title="Vincular sessão" SizeToContent="Height" Width="480" ResizeMode="NoResize">
+    <StackPanel Margin="24,22,24,20">
+        <TextBlock Text="Vincular sessão" FontSize="{StaticResource TamTitulo}" FontWeight="SemiBold"/>
+        <TextBlock x:Name="Descricao" Style="{StaticResource TextoSecundario}" Margin="0,4,0,16"/>
+
+        <TextBlock Text="Demanda" Style="{StaticResource TextoCampo}"/>
+        <ComboBox x:Name="CampoDemanda" DisplayMemberPath="Texto" AutomationProperties.Name="Demanda"
                   SelectionChanged="Demanda_SelectionChanged"/>
-        <TextBlock Text="Repositório (da demanda ou um novo: apenas letras, dígitos, &quot;_&quot;, &quot;.&quot; e &quot;-&quot;)" TextWrapping="Wrap" Margin="0,0,0,2"/>
-        <ComboBox x:Name="CampoRepositorio" IsEditable="True" Margin="0,0,0,8"/>
-        <TextBlock Text="Rótulo (opcional, até 40 caracteres, sem &quot;;&quot;)" Margin="0,0,0,2"/>
-        <TextBox x:Name="CampoRotulo" MaxLength="40" Margin="0,0,0,4"/>
-        <TextBlock x:Name="Mensagem" Foreground="#C62828" TextWrapping="Wrap" Margin="0,0,0,8"/>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="Vincular" Padding="14,3" Margin="0,0,6,0" IsDefault="True" Click="Ok_Click"/>
-            <Button Content="Cancelar" Padding="14,3" IsCancel="True"/>
+
+        <TextBlock Text="Repositório" Style="{StaticResource TextoCampo}" Margin="0,14,0,4"/>
+        <ComboBox x:Name="CampoRepositorio" IsEditable="True" AutomationProperties.Name="Repositório"/>
+        <TextBlock Style="{StaticResource TextoMeta}" Margin="0,4,0,0"
+                   Text="Um da demanda ou um novo: letras, dígitos, &quot;_&quot;, &quot;.&quot; e &quot;-&quot;."/>
+        <TextBlock x:Name="ErroRepositorio" Style="{StaticResource TextoErro}"/>
+
+        <TextBlock Text="Rótulo (opcional)" Style="{StaticResource TextoCampo}" Margin="0,14,0,4"/>
+        <TextBox x:Name="CampoRotulo" MaxLength="40" AutomationProperties.Name="Rótulo"/>
+        <TextBlock Text="Até 40 caracteres, sem &quot;;&quot;." Style="{StaticResource TextoMeta}" Margin="0,4,0,0"/>
+        <TextBlock x:Name="ErroRotulo" Style="{StaticResource TextoErro}"/>
+
+        <TextBlock x:Name="ErroGeral" Style="{StaticResource TextoErro}"/>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+            <Button Content="Vincular" Style="{StaticResource BotaoPrincipal}" Margin="0,0,8,0" MinWidth="96"
+                    IsDefault="True" Click="Ok_Click"/>
+            <Button Content="Cancelar" IsCancel="True" MinWidth="86"/>
         </StackPanel>
     </StackPanel>
 </Window>

@@ -1,6 +1,9 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Windows.Data;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using DataPilot.Core;
 
 namespace DataPilot.Wpf;
@@ -15,14 +18,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly IInteracao _interacao;
     private readonly LeitorTasks _leitorTasks;
     private RetratoPasta? _retrato;
+    private Visao? _visao;
     private EstadoDados _estadoDados = EstadoDados.Vazio;
     private readonly DemandaItem _naoVinculadas;
+    private readonly ICollectionView _vista;
 
-    /// <summary>Lista da esquerda: demandas na ordem de urgência e, no fim, "Não vinculadas".</summary>
+    /// <summary>Todas as entradas da lista: demandas na ordem de urgência e, no fim, "Não vinculadas".</summary>
     public ObservableCollection<DemandaItem> Demandas { get; } = [];
 
+    /// <summary>A lista como a tela a mostra: <see cref="Demandas"/> depois do filtro.</summary>
+    public ICollectionView DemandasFiltradas => _vista;
+
     [ObservableProperty] private DemandaItem? _demandaSelecionada;
-    [ObservableProperty] private string _resumo = "Carregando…";
+    [ObservableProperty] private string _filtroTexto = "";
     [ObservableProperty] private bool _pastaIndisponivel;
     [ObservableProperty] private string _aviso = "";
     [ObservableProperty] private bool _mostrarAntigas;
@@ -30,6 +38,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _semDemandas;
     [ObservableProperty] private bool _dadosDisponiveis = true;
     [ObservableProperty] private string _avisoDados = "";
+
+    // Alerta do topo (decisão 5 do design).
+    [ObservableProperty] private NivelSinal _alertaNivel = NivelSinal.Neutro;
+    [ObservableProperty] private string _alertaTexto = "Carregando…";
+    [ObservableProperty, NotifyCanExecuteChangedFor(nameof(IrParaProximaCommand))] private bool _podeIrParaProxima;
+    /// <summary>"4 aguardando você" ao lado do alerta vermelho; vazio quando não há ou quando o alerta já é esse status.</summary>
+    [ObservableProperty] private string _contagemAguardando = "";
+    [ObservableProperty] private string _contagemExecutando = "";
+
+    // Faixa de erros e mensagens, dentro da janela.
+    [ObservableProperty] private string _mensagem = "";
+    [ObservableProperty] private bool _mensagemEhErro;
+    [ObservableProperty] private bool _temMensagem;
 
     public MainViewModel(string pasta, TimeProvider relogio, Dispatcher dispatcher,
         DadosPainel dados, AberturaSessao abertura, IInteracao interacao, LeitorTasks leitorTasks)
@@ -41,6 +62,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _abertura = abertura;
         _interacao = interacao;
         _naoVinculadas = NovoDemandaItem(DemandaItem.ChaveNaoVinculadas, true);
+        _vista = CollectionViewSource.GetDefaultView(Demandas);
+        _vista.Filter = CasaComFiltro;
         _monitor = new MonitorPasta(pasta);
         Aviso = $"Pasta de status indisponível: {TextoExibicao.Limpar(pasta)}";
         _monitor.RetratoAtualizado += r => _dispatcher.BeginInvoke(() => Receber(r));
@@ -65,6 +88,46 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     partial void OnMostrarAntigasChanged(bool value) => Aplicar();
     partial void OnMostrarArquivadasChanged(bool value) => Aplicar();
+
+    // ---------- filtro de demandas ----------
+
+    private bool CasaComFiltro(object o)
+        => o is not DemandaItem item || FiltroDemandas.Filtrar(new[] { item }, FiltroTexto, i => i.Demanda).Count == 1;
+
+    partial void OnFiltroTextoChanged(string value) => AtualizarFiltro();
+
+    /// <summary>
+    /// Reaplica o filtro. Filtrar não muda a demanda selecionada: o aviso de que ela mudou só serve para a lista
+    /// destacá-la de novo quando ela volta a aparecer.
+    /// </summary>
+    private void AtualizarFiltro()
+    {
+        _vista.Refresh();
+        OnPropertyChanged(nameof(DemandaSelecionada));
+    }
+
+    // ---------- faixa de erros e mensagens ----------
+
+    private void MostrarErro(string mensagem)
+    {
+        Mensagem = mensagem;
+        MensagemEhErro = true;
+        TemMensagem = true;
+    }
+
+    private void MostrarInformacao(string mensagem)
+    {
+        Mensagem = mensagem;
+        MensagemEhErro = false;
+        TemMensagem = true;
+    }
+
+    [RelayCommand]
+    private void FecharMensagem()
+    {
+        TemMensagem = false;
+        Mensagem = "";
+    }
 
     // ---------- fábricas dos itens (ligam as ações da tela às operações) ----------
 
@@ -98,6 +161,24 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         => DemandaSelecionada = Demandas.FirstOrDefault(d => d.Chave == chave);
 
     private static string Chave(string demandaId) => demandaId.ToLowerInvariant();
+
+    // ---------- ir para a próxima sessão que precisa do usuário ----------
+
+    /// <summary>"Ir para a próxima" e F8: seleciona a próxima demanda com sessão no status destacado no topo.</summary>
+    [RelayCommand(CanExecute = nameof(PodeIrParaProxima))]
+    private void IrParaProxima()
+    {
+        if (_visao is null) return;
+        var destino = ProximaSessao.Escolher(_visao, DemandaSelecionada?.Demanda?.Id, DemandaSelecionada?.EhNaoVinculadas == true);
+        if (destino is null) return;
+
+        var chave = destino.EhNaoVinculadas ? DemandaItem.ChaveNaoVinculadas : Chave(destino.DemandaId!);
+        var item = Demandas.FirstOrDefault(d => d.Chave == chave);
+        if (item is null) return;
+        // Se o filtro esconde o destino, ele é limpo: levar o usuário a algo que não aparece não ajuda.
+        if (!CasaComFiltro(item)) FiltroTexto = "";
+        DemandaSelecionada = item;
+    }
 
     // ---------- demandas ----------
 
@@ -138,16 +219,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (!DadosDisponiveis || item.Demanda is not { } demanda) return;
         if (!RegrasDemanda.PodeArquivar(demanda))
         {
-            _interacao.Erro(RegrasDemanda.EhImplicita(demanda.Id)
+            MostrarErro(RegrasDemanda.EhImplicita(demanda.Id)
                 ? "A demanda \"Sem demanda\" não pode ser arquivada." : "A demanda já está arquivada.");
             return;
         }
         if (item.TemSessaoEmAndamento
-            && !_interacao.Confirmar("Esta demanda tem sessões em andamento. Arquivar mesmo assim?"))
+            && !_interacao.Confirmar("Arquivar a demanda?", "Esta demanda tem sessões em andamento.", "Arquivar"))
             return;
         var r = _dados.ArquivarDemanda(demanda.Id);
         RecarregarEAplicar();
-        if (!r.Ok) _interacao.Erro(r.Mensagem ?? "Não foi possível arquivar a demanda.");
+        if (!r.Ok) MostrarErro(r.Mensagem ?? "Não foi possível arquivar a demanda.");
     }
 
     private void DesarquivarDemanda(DemandaItem item)
@@ -155,7 +236,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (!DadosDisponiveis || item.Demanda is not { } demanda) return;
         var r = _dados.DesarquivarDemanda(demanda.Id);
         RecarregarEAplicar();
-        if (!r.Ok) _interacao.Erro(r.Mensagem ?? "Não foi possível desarquivar a demanda.");
+        if (!r.Ok) MostrarErro(r.Mensagem ?? "Não foi possível desarquivar a demanda.");
     }
 
     // ---------- repositórios ----------
@@ -187,12 +268,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (card.Sessoes.Count > 0)
         {
             var n = card.Sessoes.Count;
-            var msg = $"O repositório {card.Pasta} tem {n} {(n == 1 ? "sessão registrada que deixará" : "sessões registradas que deixarão")} de poder ser retomada{(n == 1 ? "" : "s")} nesta demanda. Remover mesmo assim?";
-            if (!_interacao.Confirmar(msg)) return;
+            var msg = n == 1
+                ? "A sessão registrada neste repositório deixará de poder ser retomada nesta demanda."
+                : $"As {n} sessões registradas neste repositório deixarão de poder ser retomadas nesta demanda.";
+            if (!_interacao.Confirmar($"Remover o repositório {card.Pasta}?", msg, "Remover repositório")) return;
         }
         var r = _dados.RemoverRepositorio(card.DemandaId, card.Pasta);
         RecarregarEAplicar();
-        if (!r.Ok) _interacao.Erro(r.Mensagem ?? "Não foi possível remover o repositório.");
+        if (!r.Ok) MostrarErro(r.Mensagem ?? "Não foi possível remover o repositório.");
     }
 
     // ---------- abrir, retomar, mover e remover sessões ----------
@@ -208,7 +291,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         var r = _abertura.Nova(card.DemandaId, card.Pasta, escolha.Agente, escolha.Rotulo);
         RecarregarEAplicar();
-        if (!r.Ok) _interacao.Erro(r.Mensagem ?? "Não foi possível abrir a sessão.");
+        if (!r.Ok) MostrarErro(r.Mensagem ?? "Não foi possível abrir a sessão.");
     }
 
     private void Retomar(SessaoItem item)
@@ -216,11 +299,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (!DadosDisponiveis || item.Registrada is not { } registrada) return;
 
         if (Correspondencia.ExigeConfirmacao(item.Status)
-            && !_interacao.Confirmar($"Esta sessão aparece como \"{item.StatusTexto}\" e pode já estar aberta no terminal. Abrir outra aba mesmo assim?"))
+            && !_interacao.Confirmar("Abrir outra aba desta sessão?",
+                $"Esta sessão aparece como \"{item.StatusTexto}\" e pode já estar aberta no terminal.", "Abrir outra aba"))
             return;
 
         var r = _abertura.Retomar(registrada);
-        if (!r.Ok) _interacao.Erro(r.Mensagem ?? "Não foi possível retomar a sessão.");
+        if (!r.Ok) MostrarErro(r.Mensagem ?? "Não foi possível retomar a sessão.");
     }
 
     private void MoverSessao(SessaoItem item)
@@ -229,11 +313,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         var destinos = _estadoDados.Demandas
             .Where(d => !d.Arquivada && !string.Equals(d.Id, registrada.DemandaId, StringComparison.OrdinalIgnoreCase))
-            .Select(d => new DestinoDemanda(d.Id, $"{TextoExibicao.Limpar(d.Id)} · {TextoExibicao.Limpar(d.Titulo)}"))
+            .Select(d => new DestinoDemanda(d.Id, $"{TextoExibicao.Limpar(d.Id)} — {TextoExibicao.Limpar(d.Titulo)}"))
             .ToList();
         if (destinos.Count == 0)
         {
-            _interacao.Informar("Não há outra demanda para receber a sessão. Crie uma demanda primeiro.");
+            MostrarInformacao("Não há outra demanda para receber a sessão. Crie uma demanda primeiro.");
             return;
         }
 
@@ -242,18 +326,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         var r = _dados.MoverSessao(registrada.SessionId, destino);
         RecarregarEAplicar();
-        if (!r.Ok) _interacao.Erro(r.Mensagem ?? "Não foi possível mover a sessão.");
+        if (!r.Ok) MostrarErro(r.Mensagem ?? "Não foi possível mover a sessão.");
     }
 
     private void RemoverSessao(SessaoItem item)
     {
         if (!DadosDisponiveis || item.Registrada is not { } registrada) return;
-        if (!_interacao.Confirmar("Remover o registro desta sessão? A conversa não é apagada, mas a sessão deixará de poder ser retomada pelo painel."))
+        if (!_interacao.Confirmar("Remover o registro desta sessão?",
+                "A conversa não é apagada, mas a sessão deixa de poder ser retomada pelo painel.", "Remover registro"))
             return;
 
         var r = _dados.RemoverSessao(registrada.SessionId);
         RecarregarEAplicar();
-        if (!r.Ok) _interacao.Erro(r.Mensagem ?? "Não foi possível remover o registro da sessão.");
+        if (!r.Ok) MostrarErro(r.Mensagem ?? "Não foi possível remover o registro da sessão.");
     }
 
     /// <summary>
@@ -269,7 +354,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         // Só é erro se o lançamento continua no arquivo, ou seja, se a falha foi ao gravar ou ao iniciar o terminal.
         var continua = _estadoDados.Demandas.SelectMany(d => d.Repositorios).SelectMany(x => x.Lancamentos)
             .Any(l => string.Equals(l.Id, item.Id, StringComparison.OrdinalIgnoreCase));
-        if (!r.Ok && continua) _interacao.Erro(r.Mensagem ?? "Não foi possível abrir a sessão.");
+        if (!r.Ok && continua) MostrarErro(r.Mensagem ?? "Não foi possível abrir a sessão.");
     }
 
     /// <summary>
@@ -285,7 +370,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         // Só é erro se o lançamento continua no arquivo, ou seja, se a gravação falhou.
         var continua = _estadoDados.Demandas.SelectMany(d => d.Repositorios).SelectMany(x => x.Lancamentos)
             .Any(l => string.Equals(l.Id, item.Id, StringComparison.OrdinalIgnoreCase));
-        if (!r.Ok && continua) _interacao.Erro(r.Mensagem ?? "Não foi possível cancelar o lançamento.");
+        if (!r.Ok && continua) MostrarErro(r.Mensagem ?? "Não foi possível cancelar o lançamento.");
     }
 
     // ---------- vínculo de sessões não vinculadas ----------
@@ -298,7 +383,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var pedido = PedidoVinculo.Criar(lida);
         if (pedido is null)
         {
-            _interacao.Erro(RegrasVinculo.PodeVincularSessao(lida).Motivo ?? "Esta sessão não pode ser vinculada.");
+            MostrarErro(RegrasVinculo.PodeVincularSessao(lida).Motivo ?? "Esta sessão não pode ser vinculada.");
             return;
         }
 
@@ -306,17 +391,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             .Where(d => !d.Arquivada)
             .Select(d => new OpcaoDemandaVinculo(
                 d.Id,
-                $"{TextoExibicao.Limpar(d.Id)} · {TextoExibicao.Limpar(d.Titulo)}",
+                $"{TextoExibicao.Limpar(d.Id)} — {TextoExibicao.Limpar(d.Titulo)}",
                 d.Repositorios.Select(r => r.Pasta).ToList(),
                 d.Repositorios.Select(r => r.Pasta).FirstOrDefault(p => RegrasVinculo.PastaCoincide(lida, p))))
             .ToList();
         if (opcoes.Count == 0)
         {
-            _interacao.Informar("Não há demanda para receber a sessão. Crie uma demanda primeiro.");
+            MostrarInformacao("Não há demanda para receber a sessão. Crie uma demanda primeiro.");
             return;
         }
 
-        var descricao = $"{(lida.Agente == Agente.Claude ? "Claude" : "Codex")} · pasta {TextoExibicao.NomePasta(lida.Cwd)} · sessão {TextoExibicao.Limpar(lida.SessionId)}";
+        var descricao = $"{(lida.Agente == Agente.Claude ? "Claude" : "Codex")}, pasta {TextoExibicao.NomePasta(lida.Cwd)}, sessão {TextoExibicao.Limpar(lida.SessionId)}";
         var vinculou = _interacao.DialogoVincularSessao(descricao, opcoes, escolha =>
         {
             if (!ValidadorEntrada.PastaValida(escolha.Repositorio))
@@ -325,8 +410,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 return "Rótulo inválido: use até 40 caracteres, sem \";\" nem caracteres de controle.";
 
             if (RegrasVinculo.AvisarPastaDivergente(lida, escolha.Repositorio)
-                && !_interacao.Confirmar($"A pasta de trabalho desta sessão termina em \"{TextoExibicao.NomePasta(lida.Cwd)}\", mas o repositório escolhido é \"{escolha.Repositorio}\". "
-                    + "Ao retomar, o agente pode não encontrar a conversa. Vincular mesmo assim?"))
+                && !_interacao.Confirmar("Vincular mesmo assim?",
+                    $"A pasta de trabalho desta sessão termina em \"{TextoExibicao.NomePasta(lida.Cwd)}\", mas o repositório escolhido é \"{escolha.Repositorio}\". "
+                    + "Ao retomar, o agente pode não encontrar a conversa.", "Vincular"))
                 return ""; // não confirmou: o diálogo continua aberto
 
             var r = _dados.VincularSessao(pedido, escolha.DemandaId, escolha.Repositorio, escolha.Rotulo, _relogio.GetUtcNow());
@@ -353,7 +439,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         PastaIndisponivel = !_retrato.Disponivel;
 
         var visao = VisaoAgrupada.Montar(_estadoDados.Demandas, _retrato.Sessoes, MostrarArquivadas, MostrarAntigas, _relogio);
-        Resumo = _retrato.Disponivel ? visao.ResumoCabecalho : "";
+        _visao = _retrato.Disponivel ? visao : null;
+        AplicarAlerta(visao.ResumoCabecalho, _retrato.Disponivel);
         SemDemandas = visao.Demandas.Count == 0;
 
         // Tudo é atualizado no lugar, por chave: a demanda selecionada e a rolagem não se perdem
@@ -371,6 +458,28 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             });
 
         AtualizarProgresso();
+        // Com filtro ativo, o texto das demandas pode ter mudado o que casa; a seleção é reafirmada na lista.
+        if (FiltroTexto.Length > 0) _vista.Refresh();
+        OnPropertyChanged(nameof(DemandaSelecionada));
+    }
+
+    private void AplicarAlerta(ResumoCabecalho resumo, bool disponivel)
+    {
+        if (!disponivel)
+        {
+            AlertaNivel = NivelSinal.Neutro;
+            AlertaTexto = "";
+            PodeIrParaProxima = false;
+            ContagemAguardando = "";
+            ContagemExecutando = "";
+            return;
+        }
+        AlertaNivel = Sinal.De(resumo.StatusDestacado);
+        AlertaTexto = resumo.TextoAlerta;
+        PodeIrParaProxima = resumo.StatusDestacado is not null;
+        // "aguardando você" aparece ao lado só quando o alerta é outro status (senão repetiria o alerta).
+        ContagemAguardando = resumo.StatusDestacado == StatusExibido.PrecisaAtencao && resumo.Aguardando > 0 ? resumo.TextoAguardando : "";
+        ContagemExecutando = resumo.Executando > 0 ? resumo.TextoExecutando : "";
     }
 
     public void Dispose() => _monitor.Dispose();

@@ -1,0 +1,40 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Mesclado depois do Tema.xaml quando o alto contraste do Windows está ligado: os mesmos nomes passam a apontar
+         para as cores do sistema. Os estilos continuam os do Tema; só os pincéis mudam. O nome de cada status
+         continua em texto, então a informação não depende de cor. -->
+
+    <SolidColorBrush x:Key="Nevoa" Color="{x:Static SystemColors.WindowColor}"/>
+    <SolidColorBrush x:Key="Papel" Color="{x:Static SystemColors.WindowColor}"/>
+    <SolidColorBrush x:Key="Trilho" Color="{x:Static SystemColors.WindowColor}"/>
+    <SolidColorBrush x:Key="Grafite" Color="{x:Static SystemColors.WindowTextColor}"/>
+    <SolidColorBrush x:Key="GrafiteClaro" Color="{x:Static SystemColors.WindowTextColor}"/>
+    <SolidColorBrush x:Key="Linha" Color="{x:Static SystemColors.WindowTextColor}"/>
+    <SolidColorBrush x:Key="SobreGrafite" Color="{x:Static SystemColors.WindowColor}"/>
+    <SolidColorBrush x:Key="Realce" Color="{x:Static SystemColors.WindowColor}"/>
+    <SolidColorBrush x:Key="Desabilitado" Color="{x:Static SystemColors.GrayTextColor}"/>
+    <SolidColorBrush x:Key="SelecaoBorda" Color="{x:Static SystemColors.WindowTextColor}"/>
+    <SolidColorBrush x:Key="Veu" Color="Transparent"/>
+
+    <SolidColorBrush x:Key="SinalAtencao" Color="{x:Static SystemColors.HotTrackColor}"/>
+    <SolidColorBrush x:Key="TextoAtencao" Color="{x:Static SystemColors.HotTrackColor}"/>
+    <SolidColorBrush x:Key="SinalAguardando" Color="{x:Static SystemColors.HighlightColor}"/>
+    <SolidColorBrush x:Key="TextoAguardando" Color="{x:Static SystemColors.HighlightColor}"/>
+    <SolidColorBrush x:Key="SinalExecutando" Color="{x:Static SystemColors.WindowTextColor}"/>
+    <SolidColorBrush x:Key="SinalAtiva" Color="{x:Static SystemColors.WindowTextColor}"/>
+    <SolidColorBrush x:Key="SinalNeutro" Color="{x:Static SystemColors.GrayTextColor}"/>
+    <SolidColorBrush x:Key="TextoNeutro" Color="{x:Static SystemColors.WindowTextColor}"/>
+
+    <SolidColorBrush x:Key="AlertaVermelhoFundo" Color="{x:Static SystemColors.HighlightColor}"/>
+    <SolidColorBrush x:Key="AlertaVermelhoTexto" Color="{x:Static SystemColors.HighlightTextColor}"/>
+    <SolidColorBrush x:Key="AlertaAmareloFundo" Color="{x:Static SystemColors.HighlightColor}"/>
+    <SolidColorBrush x:Key="AlertaAmareloTexto" Color="{x:Static SystemColors.HighlightTextColor}"/>
+
+    <SolidColorBrush x:Key="ErroFundo" Color="{x:Static SystemColors.WindowColor}"/>
+    <SolidColorBrush x:Key="ErroBorda" Color="{x:Static SystemColors.WindowTextColor}"/>
+    <SolidColorBrush x:Key="ErroTexto" Color="{x:Static SystemColors.WindowTextColor}"/>
+    <SolidColorBrush x:Key="AvisoFundo" Color="{x:Static SystemColors.WindowColor}"/>
+    <SolidColorBrush x:Key="AvisoBorda" Color="{x:Static SystemColors.WindowTextColor}"/>
+    <SolidColorBrush x:Key="AvisoTexto" Color="{x:Static SystemColors.WindowTextColor}"/>
+</ResourceDictionary>

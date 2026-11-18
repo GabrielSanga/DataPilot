@@ -69,7 +69,7 @@ public class VisaoAgrupadaTests
         var v = Montar([], []);
         Assert.Empty(v.Demandas);
         Assert.Empty(v.NaoVinculadas);
-        Assert.Equal("Nada precisa de você", v.ResumoCabecalho);
+        Assert.Equal("Nada precisa de você agora", v.ResumoCabecalho.Texto);
     }
 
     [Fact]
@@ -186,7 +186,7 @@ public class VisaoAgrupadaTests
         Assert.Equal(StatusExibido.PrecisaAtencao, item.MaisUrgente);
         Assert.Equal(2, item.QuantidadeRepositorios);
         Assert.Equal(2, item.QuantidadeSessoes);
-        Assert.Equal("2 repositórios · 2 sessões · precisa de atenção", item.Resumo);
+        Assert.Equal("2 repositórios, 2 sessões", item.Resumo);
     }
 
     [Fact]
@@ -194,7 +194,7 @@ public class VisaoAgrupadaTests
     {
         var item = Montar([Dem("a", false, Repo("X"))], []).Demandas.Single();
         Assert.Null(item.MaisUrgente);
-        Assert.Equal("1 repositório · 0 sessões · sem status", item.Resumo);
+        Assert.Equal("1 repositório, nenhuma sessão", item.Resumo);
     }
 
     [Fact]
@@ -202,7 +202,7 @@ public class VisaoAgrupadaTests
     {
         var item = Montar([Dem("a", false, Repo("X", Reg(IdA, "X", "a")))], []).Demandas.Single();
         Assert.Null(item.MaisUrgente);
-        Assert.Equal("1 repositório · 1 sessão · sem status", item.Resumo);
+        Assert.Equal("1 repositório, 1 sessão", item.Resumo);
     }
 
     [Fact]
@@ -320,14 +320,14 @@ public class VisaoAgrupadaTests
             Lida(IdC, StatusGravado.Executando, TimeSpan.FromMinutes(1)),
             Lida(IdD, StatusGravado.Executando, TimeSpan.FromDays(5)),
         ]);
-        Assert.Equal("1 precisa de atenção · 2 executando", v.ResumoCabecalho);
+        Assert.Equal("1 precisa de atenção, 2 executando", v.ResumoCabecalho.Texto);
     }
 
     [Fact]
     public void Sem_status_nao_entra_no_resumo_do_cabecalho()
     {
         var d = Dem("a", false, Repo("X", Reg(IdA, "X", "a")));
-        Assert.Equal("Nada precisa de você", Montar([d], []).ResumoCabecalho);
+        Assert.Equal("Nada precisa de você agora", Montar([d], []).ResumoCabecalho.Texto);
     }
 
     [Fact]
@@ -335,8 +335,8 @@ public class VisaoAgrupadaTests
     {
         var d = Dem("a", true, Repo("X", Reg(IdA, "X", "a")));
         var lidas = new[] { Lida(IdA, StatusGravado.Atencao, TimeSpan.FromMinutes(1)) };
-        Assert.Equal("Nada precisa de você", Montar([d], lidas).ResumoCabecalho);
-        Assert.Equal("1 precisa de atenção", Montar([d], lidas, arquivadas: true).ResumoCabecalho);
+        Assert.Equal("Nada precisa de você agora", Montar([d], lidas).ResumoCabecalho.Texto);
+        Assert.Equal("1 precisa de atenção", Montar([d], lidas, arquivadas: true).ResumoCabecalho.Texto);
     }
 
     // ---------- Sessão em andamento (aviso ao arquivar) ----------
