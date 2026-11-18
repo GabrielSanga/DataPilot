@@ -11,7 +11,8 @@ public partial class NovaSessaoWindow : Window
     public NovaSessaoWindow(string demandaTitulo, string pasta)
     {
         InitializeComponent();
-        Destino.Text = $"Repositório {pasta} na demanda {demandaTitulo}";
+        Destino.Text = $"Repositório {pasta}, demanda {demandaTitulo}";
+        Loaded += (_, _) => CampoRotulo.Focus();
     }
 
     private void Abrir_Click(object sender, RoutedEventArgs e)
@@ -20,10 +21,11 @@ public partial class NovaSessaoWindow : Window
         if (rotulo.Length > 0 && !ValidadorEntrada.RotuloValido(rotulo))
         {
             Mensagem.Text = "Rótulo inválido: use até 40 caracteres, sem \";\" nem caracteres de controle.";
+            CampoRotulo.Focus();
             return;
         }
 
-        AgenteEscolhido = CampoAgente.SelectedIndex == 1 ? Agente.Codex : Agente.Claude;
+        AgenteEscolhido = EscolhaCodex.IsChecked == true ? Agente.Codex : Agente.Claude;
         Rotulo = rotulo.Length == 0 ? null : rotulo;
         DialogResult = true;
     }

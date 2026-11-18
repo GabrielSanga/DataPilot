@@ -29,29 +29,58 @@ dotnet run --project src/DataPilot.Wpf -- --pasta-status "$TEMP/datapilot-exempl
 
 Logo após gerar, a janela deve mostrar:
 
-- Cabeçalho: `2 precisa de atenção · 4 aguardando você · 4 executando`.
+- Barra superior: o alerta vermelho `2 precisam de atenção` com **Ir para a próxima**, e ao lado, em texto, `4 aguardando você` e `4 executando`.
 - Em **Não vinculadas**: a ordem é precisa de atenção (vermelho), aguardando você (amarelo), executando (azul), ativa (verde), inativa e encerrada (cinza); dentro de cada status, a mais recente primeiro.
 - `ex-cwd-longo` com a pasta cortada em 260 caracteres (indicação `…`) e `ex-cwd-controle` sem quebras de linha.
 - Não aparecem: os arquivos inválidos (`ex-json-ruim`, `ex-status-ruim`, `ex-id-diferente`, `ex-sem-fuso`, `ex-grande`, `.tmp`).
-- Ocultas até marcar "Mostrar antigas (não vinculadas)": `ex-antiga-encerrada` (7 dias) e `ex-antiga-inativa` (4 dias).
+- Ocultas até marcar **Mostrar antigas** (dentro de **Não vinculadas**): `ex-antiga-encerrada` (7 dias) e `ex-antiga-inativa` (4 dias).
 - Passar o mouse sobre uma linha mostra a pasta completa e o identificador.
 
 ## Demandas, abrir e retomar sessões (Etapas 3, 4a e 4b)
 
-A janela tem duas áreas. À esquerda, a lista de demandas; cada uma mostra a quantidade de repositórios e de sessões e o status mais urgente entre as sessões. A lista é ordenada pelo status mais urgente e, em empate, pela atualização mais recente; demandas sem sessões com status vêm depois, e as arquivadas por último. No fim da lista fica a entrada **Não vinculadas**. À direita, a demanda selecionada: `id`, título, change do OpenSpec (quando houver) e um card por repositório, com as sessões registradas nele.
+### Organização da tela
 
-A demanda e a rolagem escolhidas não mudam sozinhas quando um status muda ou a ordem das demandas muda.
+A janela segue a ideia do "cockpit escuro": fica calma por padrão e só acende o que precisa de você. Tem três regiões.
+
+- **Barra superior:** o nome do produto e o **alerta**. Com sessões em "precisa de atenção", o alerta é uma faixa vermelha (`2 precisam de atenção`); sem nenhuma e com sessões em "aguardando você", é amarela (`1 aguardando você`); sem nenhuma das duas, mostra só o texto `Nada precisa de você agora`. Ao lado, em texto, as contagens de "aguardando você" e "executando". O alerta conta as sessões das demandas listadas e as não vinculadas visíveis; "sem status" não conta. Ele acende com um esmaecimento de 150 ms, uma vez (sem animação se as animações do Windows estiverem desligadas).
+- **Trilho de demandas (à esquerda):** **Nova demanda**, o filtro, a lista e, no pé, **Mostrar arquivadas**. Cada item mostra o identificador, o título e as contagens em frase (`2 repositórios, 3 sessões`). A demanda com sessão que precisa de você ganha uma faixa de 4 px na cor do status mais urgente e o nome dele. A lista é ordenada pelo status mais urgente e, em empate, pela atualização mais recente; demandas sem sessões com status vêm depois, e as arquivadas por último. **Não vinculadas** fica separada por uma linha, no fim.
+- **Demanda selecionada (à direita):** o `id`, o título, a change do OpenSpec com a barra de progresso (quando houver) e **Vincular repositório**. Cada repositório é uma baia: cabeçalho com o nome, o progresso, **Nova sessão** e o menu, sobre uma linha grafite, e abaixo as faixas das sessões. Com nenhuma demanda selecionada, só aparece a orientação. Erros e mensagens de operação aparecem numa faixa no topo desta área, com um botão para fechá-la.
+
+Só as sessões em "precisa de atenção" e "aguardando você" ganham a faixa colorida à esquerda e o nome do status em destaque; as demais mostram um indicador pequeno e o nome do status em tom baixo.
+
+A demanda e a rolagem escolhidas não mudam sozinhas quando um status muda ou a ordem das demandas muda, nem quando você filtra.
+
+### Alerta, "Ir para a próxima" e filtro
+
+- **Ir para a próxima** (botão do alerta, tecla **F8**) seleciona a próxima demanda da lista, depois da selecionada e voltando ao início, que tenha sessão no status destacado no topo (atenção antes de aguardando). Uma sessão não vinculada nesse status leva a **Não vinculadas**. Sem nada a destacar, a ação não fica disponível. Se o filtro esconde o destino, ele é limpo.
+- **Filtro** (**Ctrl+F** leva o foco ao campo; **Esc** limpa o texto): compara com o identificador, o título, a change do OpenSpec e os nomes dos repositórios, sem diferenciar maiúsculas nem acentos (`relatorio` acha "Relatório mensal"). **Não vinculadas** sempre continua na lista, e filtrar não muda a demanda selecionada.
+
+### Menus "Mais ações" e atalhos
+
+Cada linha e cada bloco mostra só a ação principal; o resto fica no menu "Mais ações" (botão `…`, o botão direito, a tecla de menu ou **Shift+F10** sobre a linha).
+
+| Onde | Ação visível | No menu |
+|---|---|---|
+| Sessão registrada | Retomar | Mover para outra demanda, Remover registro |
+| Lançamento pendente | Abrir | Cancelar |
+| Sessão não vinculada | Vincular | (sem menu) |
+| Repositório | Nova sessão | Remover repositório |
+| Demanda | Vincular repositório | Editar, Arquivar ou Desarquivar |
+
+Atalhos: **Ctrl+N** (nova demanda), **Ctrl+F** (filtro), **F8** (ir para a próxima). O foco do teclado sempre aparece como um contorno grafite de 2 px. Nos diálogos, **Enter** aciona o botão principal (que leva o nome da ação) e **Esc** cancela; erros de validação aparecem junto do campo, sem fechar o diálogo nem apagar o que foi digitado. As confirmações (remover registro, remover repositório, arquivar com sessão em andamento, abrir outra aba de uma sessão possivelmente aberta) são do próprio painel, têm o botão nomeado pela ação e **Cancelar** como padrão, então Enter não confirma uma remoção.
+
+Com o **alto contraste** do Windows ligado, a janela e os diálogos passam a usar as cores do sistema; o nome de cada status continua em texto, então nada depende só de cor. Os identificadores e as contagens usam a fonte Bahnschrift (que acompanha o Windows 10); sem ela, o texto cai para a Segoe UI.
 
 ### Ações
 
-- **Nova demanda** (lista): `id` (1 a 30 caracteres de `[A-Za-z0-9_.-]`, nunca só pontos, único sem diferenciar maiúsculas), título (1 a 80 caracteres) e, opcionalmente, a change do OpenSpec (mesma regra de caracteres do `id`). O `id` `sem-demanda` é reservado.
-- **Editar**, **Arquivar** e **Desarquivar** (topo da demanda). Arquivar uma demanda com sessão em andamento pede confirmação. **Mostrar arquivadas** (cabeçalho) exibe as arquivadas; elas não oferecem "Nova sessão" nem "Vincular repositório", mas "Retomar" continua disponível.
+- **Nova demanda** (lista, **Ctrl+N**): `id` (1 a 30 caracteres de `[A-Za-z0-9_.-]`, nunca só pontos, único sem diferenciar maiúsculas), título (1 a 80 caracteres) e, opcionalmente, a change do OpenSpec (mesma regra de caracteres do `id`). O `id` `sem-demanda` é reservado.
+- **Editar**, **Arquivar** e **Desarquivar** (menu da demanda). Arquivar uma demanda com sessão em andamento pede confirmação. **Mostrar arquivadas** (pé do trilho) exibe as arquivadas; elas não oferecem "Nova sessão" nem "Vincular repositório", mas "Retomar" continua disponível.
 - A demanda **Sem demanda** guarda os repositórios e as sessões criados antes das demandas: aparece enquanto tiver repositórios e não pode ser editada nem arquivada.
-- **Vincular repositório** (topo da demanda): nome da pasta dentro de `C:\Fontes` (só `[A-Za-z0-9_.-]`, nunca só pontos). As pastas já usadas em outras demandas aparecem como sugestão. O mesmo repositório pode estar em várias demandas, cada uma com as próprias sessões. **Remover** (no card) pede confirmação quando há sessões registradas na demanda e não afeta o mesmo repositório em outras demandas.
-- **Nova sessão** (no card): escolhe o agente (Claude ou Codex) e um rótulo opcional (até 40 caracteres, sem `;`) e abre uma aba do Windows Terminal que chama o `abrir.ps1` como o usuário `ia`, pelo SSH local. Todas as abas ficam na janela `painel`. O título da aba é `id · repositório [· rótulo]`; para sessões de **Sem demanda**, o nome do agente ocupa o lugar do `id`. A sessão nova do Claude fica registrada no repositório dessa demanda.
-- **Retomar**, **Mover** e **Remover** (na linha da sessão registrada). Retomar pede confirmação se a sessão não estiver encerrada, inativa nem sem status. **Mover** leva a sessão para outra demanda, no repositório de mesma pasta (vinculado ao destino se faltar). **Remover** só apaga o registro no painel, depois de confirmar: a conversa e a pasta de status não são tocadas.
+- **Vincular repositório** (topo da demanda): nome da pasta dentro de `C:\Fontes` (só `[A-Za-z0-9_.-]`, nunca só pontos). As pastas já usadas em outras demandas aparecem como sugestão. O mesmo repositório pode estar em várias demandas, cada uma com as próprias sessões. **Remover repositório** (menu do repositório) pede confirmação quando há sessões registradas na demanda e não afeta o mesmo repositório em outras demandas.
+- **Nova sessão** (cabeçalho do repositório): escolhe o agente (Claude ou Codex, em dois botões de escolha) e um rótulo opcional (até 40 caracteres, sem `;`) e abre uma aba do Windows Terminal que chama o `abrir.ps1` como o usuário `ia`, pelo SSH local. Todas as abas ficam na janela `painel`. O título da aba é `id · repositório [· rótulo]`; para sessões de **Sem demanda**, o nome do agente ocupa o lugar do `id`. A sessão nova do Claude fica registrada no repositório dessa demanda.
+- **Retomar** (na linha da sessão registrada), **Mover para outra demanda** e **Remover registro** (menu da linha). Retomar pede confirmação se a sessão não estiver encerrada, inativa nem sem status. **Mover** leva a sessão para outra demanda, no repositório de mesma pasta (vinculado ao destino se faltar). **Remover registro** só apaga o registro no painel, depois de confirmar: a conversa e a pasta de status não são tocadas.
 
-Sessões registradas aparecem sempre na sua demanda, sem esconder as antigas; as que não têm arquivo de status aparecem como **sem status** (cinza, por último, e fora do resumo do cabeçalho). As sessões da pasta de status que o painel não registrou (as do Codex e a sessão nova que o Claude cria depois de um `/clear`) ficam em **Não vinculadas**, onde a única ação é **Vincular** (ver abaixo); a opção **Mostrar antigas** vale só para elas (encerradas ou inativas há mais de 3 dias ficam ocultas por padrão).
+Sessões registradas aparecem sempre na sua demanda, sem esconder as antigas; as que não têm arquivo de status aparecem como **sem status** (cinza, por último, e fora do alerta do topo). As sessões da pasta de status que o painel não registrou (as do Codex e a sessão nova que o Claude cria depois de um `/clear`) ficam em **Não vinculadas**, onde a única ação é **Vincular** (ver abaixo); a opção **Mostrar antigas** fica dentro de **Não vinculadas** e vale só para elas (encerradas ou inativas há mais de 3 dias ficam ocultas por padrão).
 
 O comando é montado só com dados do arquivo de dados ou da escolha na tela, nunca com valores lidos de arquivos de status, com uma única exceção: o identificador e o agente de uma sessão que você vincula (ver "Vincular sessões"). O comando é iniciado como lista de argumentos, sem shell. Requer o Windows Terminal (`wt.exe`) e o SSH local da Etapa 1.
 
@@ -64,7 +93,7 @@ As sessões que o painel não abriu (a sessão nova que o Claude cria depois de 
 - Só identificadores no formato GUID (8-4-4-4-12) podem ser vinculados; para os demais o botão fica desabilitado, com a dica do motivo.
 - Do arquivo de status cruzam para `demandas.json` apenas o **identificador** e o **agente**. A pasta de trabalho, o status, o evento e a data do arquivo de status nunca são gravados. A sessão vinculada ganha o campo `vinculadaEm` (a data do vínculo, que também vale como `criadaEm`); as abertas pelo painel não têm esse campo.
 - Vincular de novo uma sessão já registrada (por exemplo, por outra janela do painel) é recusado com uma mensagem.
-- **Remover** o registro de uma sessão vinculada a devolve a **Não vinculadas**, enquanto existir arquivo de status para ela.
+- **Remover registro** (menu da sessão) de uma sessão vinculada a devolve a **Não vinculadas**, enquanto existir arquivo de status para ela.
 
 ### Vínculo automático do Codex
 
@@ -78,7 +107,7 @@ Limites:
 - Um lançamento não usado vale por **24 horas** (e é removido ao gravar outro no mesmo repositório). Demanda arquivada ou repositório removido não vinculam.
 - Havendo vários lançamentos pendentes para a mesma pasta, vale o **mais recente** anterior à criação da sessão. Com o mesmo repositório em duas demandas e dois cliques sem mensagem entre eles, as sessões podem cair na demanda trocada; **Mover** corrige.
 - Uma sessão antiga do Codex na mesma pasta, criada antes do clique, continua em **Não vinculadas**.
-- Uma sessão do Codex aberta à mão na mesma pasta, depois do clique e antes da sessão do painel, pode ocupar o lançamento; **Remover** e o vínculo manual corrigem.
+- Uma sessão do Codex aberta à mão na mesma pasta, depois do clique e antes da sessão do painel, pode ocupar o lançamento; **Remover registro** e o vínculo manual corrigem.
 - Continuam manuais: sessões abertas fora do painel, a criada por `/clear` no Claude e a segunda conversa no mesmo terminal do Codex.
 - Do arquivo de status só o identificador e o agente são gravados; o nome da pasta e a data de criação do arquivo apenas são comparados com o lançamento, nunca gravados nem usados em comandos.
 
@@ -94,7 +123,7 @@ dotnet run --project src/DataPilot.Wpf -- --pasta-status "$TEMP/datapilot-exempl
 
 - Selecione `CHG-142`: a sessão do Codex aparece direto no card `Faturamento`, com o rótulo `ajuste automatico` e o status, e não aparece em **Não vinculadas**. A demanda selecionada não muda.
 - No arquivo copiado, o lançamento sumiu e a sessão tem `agente`, `sessionId`, `rotulo`, `criadaEm` e `vinculadaEm`, sem a pasta de trabalho.
-- **Remover** a sessão (confirmando): ela volta a **Não vinculadas** e não é vinculada de novo.
+- **Remover registro** da sessão (pelo menu da linha, confirmando): ela volta a **Não vinculadas** e não é vinculada de novo.
 - Com `datapilot-exemplo-varias-demandas.json` (sem lançamento) a mesma sessão fica em **Não vinculadas**, como no roteiro da Etapa 4b.
 
 ### Sessão ainda sem mensagem (Etapa 4d)
@@ -103,7 +132,7 @@ Uma sessão que ainda não recebeu a primeira mensagem se comporta de um jeito d
 
 **Codex: a linha "aguardando a primeira mensagem".** Entre o clique em **Nova sessão** e a primeira mensagem, o Codex não cria arquivo de status. Nesse intervalo o card mostra uma linha para o lançamento pendente, depois das sessões registradas, com o agente, o rótulo (quando houver), o texto "aguardando a primeira mensagem" e o tempo decorrido. Com vários lançamentos, o mais recente vem primeiro.
 
-- A linha não é uma sessão: só tem **Abrir** e **Cancelar** (sem **Retomar**, **Mover** nem **Remover**). Ela não entra na quantidade de sessões da demanda, no status mais urgente, na ordem da lista nem no resumo do cabeçalho.
+- A linha não é uma sessão: só tem **Abrir** e, no menu "Mais ações", **Cancelar** (sem **Retomar**, **Mover** nem **Remover registro**). Ela não entra na quantidade de sessões da demanda, no status mais urgente, na ordem da lista nem no alerta do topo.
 - Quando a primeira mensagem chega e o vínculo automático acontece, a linha dá lugar à sessão na mesma atualização da tela.
 - Lançamentos vencidos (mais de 24 horas) e os de demanda arquivada não são mostrados.
 - **Abrir** abre o Codex de novo no mesmo repositório, com o rótulo do lançamento. Serve para a aba fechada antes da primeira mensagem: como ainda não existe conversa, é o equivalente a retomar. O lançamento é reaproveitado, então o card continua com uma linha só, e a data dele passa a ser a desse clique (as 24 horas recomeçam). Se a aba anterior ainda estiver aberta, a primeira das duas a receber mensagem fica no card e a outra vai para **Não vinculadas**.
@@ -121,8 +150,8 @@ cp "$TEMP/datapilot-exemplo-aguardando.json" "$TEMP/datapilot-aguardando.json"
 dotnet run --project src/DataPilot.Wpf -- --pasta-status "$TEMP/datapilot-exemplo" --dados "$TEMP/datapilot-aguardando.json"
 ```
 
-- Selecione `CHG-142`: o card `Estoque` mostra as duas sessões e, depois delas, duas linhas do Codex "aguardando a primeira mensagem" (`5 min` com o rótulo `aguardando exemplo`, depois `3 h`), cada uma com **Abrir** e **Cancelar**. O resumo da demanda continua `2 repositórios · 3 sessões · precisa de atenção` e o do cabeçalho não muda.
-- **Cancelar** a linha de `5 min`: só ela some, a de `3 h` continua, `CHG-142` continua selecionada e o arquivo copiado perde só aquele lançamento.
+- Selecione `CHG-142`: o card `Estoque` mostra as duas sessões e, depois delas, duas linhas do Codex "aguardando a primeira mensagem" (`5 min` com o rótulo `aguardando exemplo`, depois `3 h`), cada uma com **Abrir** e, no menu "Mais ações", **Cancelar**. O resumo da demanda continua `2 repositórios, 3 sessões` e o alerta do topo não muda.
+- **Cancelar** (menu da linha) a linha de `5 min`: só ela some, a de `3 h` continua, `CHG-142` continua selecionada e o arquivo copiado perde só aquele lançamento.
 - Para ver a substituição pela sessão, com o painel aberto crie na pasta de status um arquivo de uma sessão do Codex com `cwd` `C:\Fontes\Estoque` (GUID novo, `status` `ativa`, `atualizado` agora): a linha restante é substituída pela sessão, sem o lançamento no arquivo, e a demanda selecionada não muda.
 - Com `datapilot-exemplo-varias-demandas.json` (sem lançamento) o card `Estoque` não mostra nenhuma linha de lançamento.
 
@@ -181,7 +210,7 @@ Com os dois arquivos gerados pelo script (`datapilot-exemplo` e `datapilot-exemp
 dotnet run --project src/DataPilot.Wpf -- --pasta-status "$TEMP/datapilot-exemplo" --dados "$TEMP/datapilot-exemplo-varias-demandas.json"
 ```
 
-- O cabeçalho mostra `2 precisa de atenção · 4 aguardando você · 4 executando` (as sessões registradas e as não vinculadas contam juntas; "sem status" não conta). A lista mostra, nesta ordem: `CHG-142` (precisa de atenção), `CHG-150` (aguardando você), **Sem demanda** (ativa), `CHG-200` (0 repositórios, sem status) e **Não vinculadas**. `CHG-099` só aparece com **Mostrar arquivadas**, por último e marcada como arquivada.
+- A barra superior mostra o alerta `2 precisam de atenção` e, ao lado, `4 aguardando você` e `4 executando` (as sessões registradas e as não vinculadas contam juntas; "sem status" não conta). A lista mostra, nesta ordem: `CHG-142` (precisa de atenção), `CHG-150` (aguardando você), **Sem demanda** (ativa), `CHG-200` (nenhum repositório, nenhuma sessão) e **Não vinculadas**. `CHG-099` só aparece com **Mostrar arquivadas**, por último e marcada como arquivada.
 - Em `CHG-142`: dois cards, `Faturamento` e `Estoque`; em `Estoque`, a sessão "ajuste de saldo" (executando) vem antes da "sem arquivo de status" (**sem status**, cinza, com **Retomar**).
 - `Faturamento` aparece em `CHG-142`, `CHG-150` e **Sem demanda**, cada um com a própria sessão.
 - Em **Sem demanda**, a sessão encerrada tem **Retomar**, e a linha mostra a pasta `C:\Windows` do arquivo de status, mas o repositório de abertura é `Faturamento` (vale o registrado).
@@ -203,7 +232,7 @@ dotnet run --project src/DataPilot.Wpf -- --pasta-status "$TEMP/datapilot-exempl
 - Em **Não vinculadas**, use **Vincular** na sessão do Codex: o diálogo já vem com uma demanda que tem `Faturamento` e com esse repositório. Escolha `CHG-142` e confirme: a sessão passa a aparecer no card `Faturamento` de `CHG-142`, com o status, e some de **Não vinculadas**. No arquivo, o registro tem `agente`, `sessionId`, `criadaEm` e `vinculadaEm`, e nada da pasta de trabalho.
 - Em **Não vinculadas**, **Vincular** nas sessões de exemplo cujo identificador não é GUID (`ex-atencao`, `ex-aguardando-1`, ...) está desabilitado, com a dica do motivo.
 - Em **Não vinculadas**, use **Vincular** numa sessão com GUID (por exemplo `22222222-3333-4444-5555-666666666666`, do Claude em `Estoque`): o diálogo já vem com `CHG-142` e `Estoque`. Escolha `Faturamento`: o painel avisa; cancele no aviso e o diálogo continua aberto sem gravar nada.
-- **Remover** a sessão vinculada (confirmando): ela volta a **Não vinculadas**.
+- **Remover registro** da sessão vinculada (pelo menu da linha, confirmando): ela volta a **Não vinculadas**.
 - Sem nenhuma demanda não arquivada (use `--dados` com um arquivo inexistente), **Vincular** orienta a criar uma demanda e não grava nada.
 
 O primeiro arquivo de exemplo (`datapilot-exemplo-demandas.json`, no formato da Etapa 3, só com **Sem demanda**) serve para conferir que o arquivo antigo continua sendo lido.
@@ -216,3 +245,29 @@ Verificação manual com a conta `ia` (grupo 6 de `openspec/changes/etapa-4a-dem
 4. Execute `/clear` numa sessão do Claude e abra uma sessão do Codex à mão, fora do painel: as duas sessões novas aparecem em **Não vinculadas**, com a ação **Vincular**. (O Codex aberto pelo card entra sozinho: veja **Vínculo automático do Codex**.)
 5. Com uma demanda selecionada e sessões em andamento, use o painel por alguns minutos: a seleção e a rolagem não mudam sozinhas. Depois arquive e desarquive a demanda.
 6. Confirme que o `ia` não lê o arquivo de dados (deve ser negado), executando como usuário principal: `ssh ia@localhost powershell -NoProfile -Command Get-Content $env:APPDATA\Painel\demandas.json`.
+
+### Roteiro do design e da usabilidade
+
+Abra o painel com os exemplos (o arquivo de dados é uma cópia, porque ações como remover e arquivar gravam nele):
+
+```bash
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/exemplos/gerar-sessoes-exemplo.ps1
+cp "$TEMP/datapilot-exemplo-aguardando.json" "$TEMP/datapilot-design.json"
+dotnet run --project src/DataPilot.Wpf -- --pasta-status "$TEMP/datapilot-exemplo" --dados "$TEMP/datapilot-design.json" --raiz-fontes "$TEMP/datapilot-exemplo-fontes"
+```
+
+- **Sem seleção:** a área da direita mostra só a orientação, sem botões, barra de progresso nem texto de demanda.
+- **Alerta e F8:** o alerta vermelho mostra `2 precisam de atenção`. Com `CHG-142` selecionada, **F8** leva a **Não vinculadas** (a outra sessão em atenção) e outro **F8** volta a `CHG-142`.
+- **Filtro:** **Ctrl+F** leva ao campo; `estoque` mostra `CHG-142`, **Sem demanda** e **Não vinculadas**; `relatorio` acha `CHG-150` ("Relatório mensal") e a área continua em `CHG-142`; **Esc** limpa o filtro.
+- **Faixas:** só as sessões em atenção (faixa vermelha) e aguardando (faixa amarela) são destacadas; a linha `aguardando a primeira mensagem` mostra **Abrir** e o menu com **Cancelar**.
+- **Menus:** com o foco numa linha de sessão, **Shift+F10** abre "Mais ações" (Mover para outra demanda, Remover registro).
+- **Diálogos:** **Ctrl+N** abre a nova demanda; um `id` com espaço mostra o erro abaixo do campo, sem fechar o diálogo nem apagar o texto; **Esc** cancela.
+- **Confirmação:** **Remover registro** abre a confirmação com os botões "Remover registro" e "Cancelar"; **Enter** cancela.
+- **Faixa de erro:** com `--dados` apontando para um arquivo somente leitura, arquivar `CHG-150` mostra a faixa de erro no topo da área da demanda, com o botão de fechar, e o resto da janela segue utilizável.
+
+Conferência manual (grupo 6 de `openspec/changes/design-e-usabilidade/tasks.md`):
+
+1. Use o painel com sessões reais por um dia: as sessões que precisam de você são a primeira coisa que se vê e **Ir para a próxima** leva a elas.
+2. Percorra a janela e todos os diálogos só com o teclado: o foco é sempre visível e os atalhos e menus funcionam.
+3. Ligue o alto contraste do Windows com o painel aberto: a janela e os diálogos passam a usar as cores do sistema e os status continuam legíveis.
+4. Remova o registro de uma sessão de teste pelo menu: **Enter** na confirmação não remove e **Remover registro** remove.

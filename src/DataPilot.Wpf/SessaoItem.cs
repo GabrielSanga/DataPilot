@@ -1,4 +1,3 @@
-using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DataPilot.Core;
@@ -6,8 +5,30 @@ using DataPilot.Core;
 namespace DataPilot.Wpf;
 
 /// <summary>
+/// Nível visual de um status. Só "precisa de atenção" e "aguardando você" acendem (faixa e texto em destaque);
+/// os demais ficam em tom baixo. O tema transforma o nível em cor, o que permite trocar as cores no alto contraste.
+/// </summary>
+public enum NivelSinal { Neutro, Atencao, Aguardando, Executando, Ativa }
+
+public static class Sinal
+{
+    public static NivelSinal De(StatusExibido? status) => status switch
+    {
+        StatusExibido.PrecisaAtencao => NivelSinal.Atencao,
+        StatusExibido.Aguardando => NivelSinal.Aguardando,
+        StatusExibido.Executando => NivelSinal.Executando,
+        StatusExibido.Ativa => NivelSinal.Ativa,
+        _ => NivelSinal.Neutro,
+    };
+
+    /// <summary>O status acende a faixa da linha: só os dois que precisam do usuário.</summary>
+    public static bool Acende(StatusExibido? status) => status is StatusExibido.PrecisaAtencao or StatusExibido.Aguardando;
+}
+
+/// <summary>
 /// Linha de sessão. Todo texto vem limpo e cortado pelo Core; é exibido só como texto simples.
-/// Sessões registradas (no card de um repositório) têm Retomar, Mover e Remover; as não vinculadas só têm "Vincular".
+/// Sessões registradas (no repositório) têm "Retomar" e o menu de mais ações (Mover, Remover); as não vinculadas
+/// só têm "Vincular".
 /// </summary>
 public sealed partial class SessaoItem : ObservableObject
 {
@@ -16,11 +37,13 @@ public sealed partial class SessaoItem : ObservableObject
     [ObservableProperty] private string _agente = "";
     [ObservableProperty] private string _pasta = "";
     [ObservableProperty] private string _rotulo = "";
+    /// <summary>Texto principal da linha: o rótulo (ou "sem rótulo") nas registradas; a pasta nas não vinculadas.</summary>
+    [ObservableProperty] private string _textoPrincipal = "";
+    [ObservableProperty] private bool _principalEhVazio;
     [ObservableProperty] private string _dica = "";
     [ObservableProperty] private string _statusTexto = "";
     [ObservableProperty] private string _tempo = "";
-    [ObservableProperty] private Brush _corFundo = Cores.Cinza;
-    [ObservableProperty] private Brush _corTexto = Brushes.White;
+    [ObservableProperty] private NivelSinal _nivel;
 
     // Só as sessões registradas no arquivo de dados oferecem ações.
     [ObservableProperty] private bool _temAcoes;
@@ -36,6 +59,8 @@ public sealed partial class SessaoItem : ObservableObject
     [ObservableProperty] private bool _temVincular;
     [ObservableProperty] private bool _podeVincular;
     [ObservableProperty] private string _motivoVincular = "";
+    /// <summary>O motivo de "Vincular" indisponível, mostrado na própria linha.</summary>
+    [ObservableProperty] private bool _mostrarMotivo;
 
     /// <summary>Sessão lida da pasta de status (só para sessões não vinculadas); nunca vai a um comando.</summary>
     public Sessao? Lida { get; private set; }
@@ -58,8 +83,11 @@ public sealed partial class SessaoItem : ObservableObject
         Lida = null;
         TemAcoes = true;
         TemVincular = false;
+        MostrarMotivo = false;
         Aplicar(v.Status, v.Tempo, v.Lida is null ? r.Pasta : TextoExibicao.NomePasta(v.Lida.Cwd), r.Agente);
         Rotulo = r.Rotulo is null ? "" : TextoExibicao.Limpar(r.Rotulo);
+        PrincipalEhVazio = Rotulo.Length == 0;
+        TextoPrincipal = PrincipalEhVazio ? "sem rótulo" : Rotulo;
         Dica = (v.Lida is null ? "" : $"{TextoExibicao.Limpar(v.Lida.Cwd)}\n")
             + $"Sessão: {TextoExibicao.Limpar(r.SessionId)}\nRetomar abre em: {r.Pasta}";
     }
@@ -75,8 +103,11 @@ public sealed partial class SessaoItem : ObservableObject
         var pode = RegrasVinculo.PodeVincularSessao(s);
         PodeVincular = pode.Sim;
         MotivoVincular = pode.Motivo ?? "";
+        MostrarMotivo = !pode.Sim && MotivoVincular.Length > 0;
         Aplicar(e.Status, e.Tempo, TextoExibicao.NomePasta(s.Cwd), s.Agente);
         Rotulo = "";
+        PrincipalEhVazio = false;
+        TextoPrincipal = Pasta;
         Dica = $"{TextoExibicao.Limpar(s.Cwd)}\nSessão: {TextoExibicao.Limpar(s.SessionId)}"
             + (pode.Sim ? "" : $"\n{pode.Motivo}");
     }
@@ -88,35 +119,6 @@ public sealed partial class SessaoItem : ObservableObject
         Pasta = pasta;
         StatusTexto = RegrasExibicao.Texto(status);
         Tempo = tempo.Length == 0 ? "—" : tempo;
-        CorFundo = Cores.Fundo(status);
-        CorTexto = Cores.Texto(status);
+        Nivel = Sinal.De(status);
     }
-}
-
-public static class Cores
-{
-    private static SolidColorBrush Congelado(byte r, byte g, byte b)
-    {
-        var br = new SolidColorBrush(Color.FromRgb(r, g, b));
-        br.Freeze();
-        return br;
-    }
-
-    public static readonly Brush Vermelho = Congelado(0xC6, 0x28, 0x28);
-    public static readonly Brush Azul = Congelado(0x15, 0x65, 0xC0);
-    public static readonly Brush Amarelo = Congelado(0xF9, 0xA8, 0x25);
-    public static readonly Brush Verde = Congelado(0x2E, 0x7D, 0x32);
-    public static readonly Brush Cinza = Congelado(0x75, 0x75, 0x75);
-    public static readonly Brush TextoEscuro = Congelado(0x21, 0x21, 0x21);
-
-    public static Brush Fundo(StatusExibido s) => s switch
-    {
-        StatusExibido.PrecisaAtencao => Vermelho,
-        StatusExibido.Executando => Azul,
-        StatusExibido.Aguardando => Amarelo,
-        StatusExibido.Ativa => Verde,
-        _ => Cinza,
-    };
-
-    public static Brush Texto(StatusExibido s) => s == StatusExibido.Aguardando ? TextoEscuro : Brushes.White;
 }

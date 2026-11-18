@@ -1,17 +1,22 @@
 <Window x:Class="DataPilot.Wpf.VincularRepositorioWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Vincular repositório" SizeToContent="Height" Width="400" ResizeMode="NoResize"
-        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
-    <StackPanel Margin="12">
-        <TextBlock x:Name="Destino" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,8"/>
-        <TextBlock TextWrapping="Wrap" Margin="0,0,0,2"
-                   Text="Nome da pasta dentro da raiz dos fontes do usuário ia. Apenas letras, dígitos, &quot;_&quot;, &quot;.&quot; e &quot;-&quot;. As pastas já usadas em outras demandas aparecem na lista."/>
-        <ComboBox x:Name="CampoPasta" IsEditable="True" Margin="0,0,0,4"/>
-        <TextBlock x:Name="Mensagem" Foreground="#C62828" TextWrapping="Wrap" Margin="0,0,0,8"/>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="Vincular" Padding="14,3" Margin="0,0,6,0" IsDefault="True" Click="Ok_Click"/>
-            <Button Content="Cancelar" Padding="14,3" IsCancel="True"/>
+        Style="{StaticResource EstiloDialogo}" ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
+        Title="Vincular repositório" SizeToContent="Height" Width="460" ResizeMode="NoResize">
+    <StackPanel Margin="24,22,24,20">
+        <TextBlock Text="Vincular repositório" FontSize="{StaticResource TamTitulo}" FontWeight="SemiBold"/>
+        <TextBlock x:Name="Destino" Style="{StaticResource TextoSecundario}" Margin="0,4,0,16"/>
+
+        <TextBlock Text="Pasta do repositório" Style="{StaticResource TextoCampo}"/>
+        <ComboBox x:Name="CampoPasta" IsEditable="True" AutomationProperties.Name="Pasta do repositório"/>
+        <TextBlock Style="{StaticResource TextoMeta}" Margin="0,4,0,0"
+                   Text="Nome da pasta dentro da raiz dos fontes do usuário ia: letras, dígitos, &quot;_&quot;, &quot;.&quot; e &quot;-&quot;. As pastas já usadas em outras demandas aparecem na lista."/>
+        <TextBlock x:Name="Mensagem" Style="{StaticResource TextoErro}"/>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+            <Button Content="Vincular" Style="{StaticResource BotaoPrincipal}" Margin="0,0,8,0" MinWidth="96"
+                    IsDefault="True" Click="Ok_Click"/>
+            <Button Content="Cancelar" IsCancel="True" MinWidth="86"/>
         </StackPanel>
     </StackPanel>
 </Window>

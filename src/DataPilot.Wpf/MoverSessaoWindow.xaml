@@ -1,15 +1,18 @@
 <Window x:Class="DataPilot.Wpf.MoverSessaoWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Mover sessão" Height="320" Width="400" MinHeight="220" MinWidth="320"
-        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
-    <DockPanel Margin="12">
-        <TextBlock DockPanel.Dock="Top" TextWrapping="Wrap" Margin="0,0,0,8"
-                   Text="Demanda de destino. O repositório da sessão é vinculado ao destino se ainda não estiver."/>
-        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
-            <Button Content="Mover" Padding="14,3" Margin="0,0,6,0" IsDefault="True" Click="Ok_Click"/>
-            <Button Content="Cancelar" Padding="14,3" IsCancel="True"/>
+        Style="{StaticResource EstiloDialogo}" ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
+        Title="Mover sessão" Height="360" Width="440" MinHeight="260" MinWidth="340">
+    <DockPanel Margin="24,22,24,20">
+        <TextBlock DockPanel.Dock="Top" Text="Mover sessão" FontSize="{StaticResource TamTitulo}" FontWeight="SemiBold"/>
+        <TextBlock DockPanel.Dock="Top" Style="{StaticResource TextoSecundario}" Margin="0,4,0,12"
+                   Text="Escolha a demanda de destino. O repositório da sessão é vinculado ao destino se ainda não estiver."/>
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="Mover" Style="{StaticResource BotaoPrincipal}" Margin="0,0,8,0" MinWidth="96"
+                    IsDefault="True" Click="Ok_Click"/>
+            <Button Content="Cancelar" IsCancel="True" MinWidth="86"/>
         </StackPanel>
-        <ListBox x:Name="Lista" DisplayMemberPath="Texto" MouseDoubleClick="Lista_DoubleClick"/>
+        <ListBox x:Name="Lista" Style="{StaticResource ListaSimples}" DisplayMemberPath="Texto"
+                 AutomationProperties.Name="Demanda de destino" MouseDoubleClick="Lista_DoubleClick"/>
     </DockPanel>
 </Window>

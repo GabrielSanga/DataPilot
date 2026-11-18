@@ -103,9 +103,9 @@ public class LancamentoNaVisaoTests
         Assert.Equal(1, d.QuantidadeRepositorios);
         Assert.Equal(0, d.QuantidadeSessoes);
         Assert.Null(d.MaisUrgente);
-        Assert.Equal("1 repositório · 0 sessões · sem status", d.Resumo);
+        Assert.Equal("1 repositório, nenhuma sessão", d.Resumo);
         Assert.False(d.TemSessaoEmAndamento);
-        Assert.Equal("Nada precisa de você", v.ResumoCabecalho);
+        Assert.Equal("Nada precisa de você agora", v.ResumoCabecalho.Texto);
     }
 
     [Fact]

@@ -43,7 +43,7 @@ public sealed record DemandaNaVisao(
 public sealed record Visao(
     IReadOnlyList<DemandaNaVisao> Demandas,
     IReadOnlyList<SessaoExibida> NaoVinculadas,
-    string ResumoCabecalho);
+    ResumoCabecalho ResumoCabecalho);
 
 /// <summary>Monta a visão agrupada por demanda como função pura; o relógio entra por <see cref="TimeProvider"/>.</summary>
 public static class VisaoAgrupada
@@ -110,7 +110,7 @@ public static class VisaoAgrupada
         var todas = cards.SelectMany(c => c.Sessoes).ToList();
         var comStatus = todas.Where(s => s.Status != StatusExibido.SemStatus).ToList();
         StatusExibido? urgente = comStatus.Count == 0 ? null : comStatus.Min(s => s.Status);
-        return new DemandaNaVisao(d, cards, cards.Count, todas.Count, urgente, TextoResumo(cards.Count, todas.Count, urgente));
+        return new DemandaNaVisao(d, cards, cards.Count, todas.Count, urgente, TextoResumo(cards.Count, todas.Count));
     }
 
     /// <summary>
@@ -129,11 +129,12 @@ public static class VisaoAgrupada
             .ToList();
     }
 
-    private static string TextoResumo(int repositorios, int sessoes, StatusExibido? urgente)
+    /// <summary>"2 repositórios, 3 sessões"; zero vira "nenhum repositório" e "nenhuma sessão".</summary>
+    public static string TextoResumo(int repositorios, int sessoes)
     {
-        var r = $"{repositorios} {(repositorios == 1 ? "repositório" : "repositórios")}";
-        var s = $"{sessoes} {(sessoes == 1 ? "sessão" : "sessões")}";
-        return urgente is null ? $"{r} · {s} · sem status" : $"{r} · {s} · {RegrasExibicao.Texto(urgente.Value)}";
+        var r = repositorios switch { 0 => "nenhum repositório", 1 => "1 repositório", _ => $"{repositorios} repositórios" };
+        var s = sessoes switch { 0 => "nenhuma sessão", 1 => "1 sessão", _ => $"{sessoes} sessões" };
+        return $"{r}, {s}";
     }
 
     /// <summary>Status exibido; no mesmo status, atualização mais recente primeiro (sem status: registro mais recente).</summary>

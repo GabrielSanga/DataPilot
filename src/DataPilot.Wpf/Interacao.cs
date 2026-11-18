@@ -21,9 +21,11 @@ public sealed record EscolhaVinculo(string DemandaId, string Repositorio, string
 /// </summary>
 public interface IInteracao
 {
-    bool Confirmar(string mensagem);
-    void Erro(string mensagem);
-    void Informar(string mensagem);
+    /// <summary>
+    /// Confirmação do próprio painel: <c>titulo</c> diz o que vai acontecer, <c>mensagem</c> explica e o botão de
+    /// confirmação leva o nome da ação. "Cancelar" é o botão padrão, então Enter não confirma.
+    /// </summary>
+    bool Confirmar(string titulo, string mensagem, string acao);
 
     bool DialogoDemanda(Demanda? existente, Func<DadosDemanda, string?> aplicar);
     bool DialogoVincularRepositorio(string demandaTitulo, IReadOnlyList<string> sugestoes, Func<string, string?> aplicar);
@@ -35,16 +37,12 @@ public interface IInteracao
 
 public sealed class InteracaoJanelas : IInteracao
 {
-    private const string Titulo = "DataPilot";
+    /// <summary>A janela ativa (um diálogo aberto, se houver) ou a janela principal.</summary>
+    private static Window? Dono
+        => Application.Current?.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive) ?? Application.Current?.MainWindow;
 
-    private static Window? Dono => Application.Current?.MainWindow;
-
-    public bool Confirmar(string mensagem)
-        => MessageBox.Show(mensagem, Titulo, MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
-
-    public void Erro(string mensagem) => MessageBox.Show(mensagem, Titulo, MessageBoxButton.OK, MessageBoxImage.Error);
-
-    public void Informar(string mensagem) => MessageBox.Show(mensagem, Titulo, MessageBoxButton.OK, MessageBoxImage.Information);
+    public bool Confirmar(string titulo, string mensagem, string acao)
+        => new ConfirmacaoWindow(titulo, mensagem, acao) { Owner = Dono }.ShowDialog() == true;
 
     public bool DialogoDemanda(Demanda? existente, Func<DadosDemanda, string?> aplicar)
         => new DemandaWindow(existente, aplicar) { Owner = Dono }.ShowDialog() == true;

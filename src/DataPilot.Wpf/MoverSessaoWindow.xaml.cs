@@ -12,6 +12,7 @@ public partial class MoverSessaoWindow : Window
         InitializeComponent();
         Lista.ItemsSource = destinos;
         Lista.SelectedIndex = 0;
+        Loaded += (_, _) => (Lista.ItemContainerGenerator.ContainerFromIndex(0) as System.Windows.Controls.ListBoxItem)?.Focus();
     }
 
     private void Ok_Click(object sender, RoutedEventArgs e) => Confirmar();
