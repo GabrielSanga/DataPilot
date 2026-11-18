@@ -104,6 +104,8 @@
                         </StackPanel>
                         <TextBlock Text="{Binding Pasta}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
                                    TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="{Binding Progresso}" Foreground="#424242" VerticalAlignment="Center" Margin="12,0,8,0"
+                                   TextTrimming="CharacterEllipsis"/>
                     </DockPanel>
                     <ItemsControl ItemsSource="{Binding Sessoes}" ItemTemplate="{StaticResource LinhaSessao}"/>
                     <ItemsControl ItemsSource="{Binding Lancamentos}" ItemTemplate="{StaticResource LinhaLancamento}"/>
@@ -140,6 +142,12 @@
                             </Style>
                         </TextBlock.Style>
                     </TextBlock>
+                    <StackPanel Margin="0,4,0,0"
+                                Visibility="{Binding TemProgresso, Converter={StaticResource BoolParaVisibilidade}}">
+                        <ProgressBar Height="8" Minimum="0" Maximum="1" Value="{Binding ProgressoFracao, Mode=OneWay}"
+                                     Visibility="{Binding TemBarra, Converter={StaticResource BoolParaVisibilidade}}"/>
+                        <TextBlock Text="{Binding ProgressoTexto}" Foreground="#424242" Margin="0,2,0,0" TextWrapping="Wrap"/>
+                    </StackPanel>
                     <TextBlock Text="{Binding Resumo}" Foreground="#616161" Margin="0,2,0,6"/>
                     <StackPanel Orientation="Horizontal"
                                 IsEnabled="{Binding DataContext.DadosDisponiveis, RelativeSource={RelativeSource AncestorType=Window}}">

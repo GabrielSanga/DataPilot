@@ -15,7 +15,9 @@ param(
     [string]$Dados = (Join-Path $env:TEMP 'datapilot-exemplo-demandas.json'),
     [string]$DadosVarias = (Join-Path $env:TEMP 'datapilot-exemplo-varias-demandas.json'),
     [string]$DadosLancamento = (Join-Path $env:TEMP 'datapilot-exemplo-lancamento.json'),
-    [string]$DadosAguardando = (Join-Path $env:TEMP 'datapilot-exemplo-aguardando.json')
+    [string]$DadosAguardando = (Join-Path $env:TEMP 'datapilot-exemplo-aguardando.json'),
+    [string]$RaizFontes = (Join-Path $env:TEMP 'datapilot-exemplo-fontes'),
+    [string]$DadosProgresso = (Join-Path $env:TEMP 'datapilot-exemplo-progresso.json')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -247,6 +249,82 @@ $aguardandoJson = '"lancamentos": [ ' +
 [System.IO.File]::WriteAllText($DadosAguardando,
     $variasJson.Replace('@@LANCAMENTOS@@', '').Replace('@@LANCAMENTOS_ESTOQUE@@', $aguardandoJson), $utf8)
 
+# Raiz de fontes de exemplo e arquivo de dados para o progresso do OpenSpec (Etapa 5a). Uso:
+#   dotnet run --project src/DataPilot.Wpf -- --pasta-status "$env:TEMP\datapilot-exemplo" `
+#       --dados "$env:TEMP\datapilot-exemplo-progresso.json" --raiz-fontes "$env:TEMP\datapilot-exemplo-fontes"
+# Cada demanda mostra uma indicacao diferente:
+#  - CHG-142 (ajuste-nfe): Faturamento ativa 4 de 6 + Estoque ativa 3 de 6 = "7 de 12 tarefas";
+#  - CHG-150 (relatorio-mensal): Faturamento arquivada 2 de 2, Compras com a pasta da change trocada por juncao
+#    ("progresso indisponivel"), Portal com a change ativa sem tarefas ("sem tarefas") e Estoque sem a change (sem indicacao);
+#  - CHG-160 (change-fantasma): nenhum repositorio tem a change ("change nao encontrada nos repositorios").
+# Para ver a atualizacao: marque uma tarefa em Faturamento\openspec\changes\ajuste-nfe\tasks.md e espere ate 5 segundos.
+function Remover-RaizExemplo([string]$raiz) {
+    if (-not (Test-Path -LiteralPath $raiz)) { return }
+    if ((Split-Path -Leaf $raiz) -notlike 'datapilot-exemplo*') {
+        throw "Recusado: a raiz de exemplo '$raiz' deve ter nome iniciado por 'datapilot-exemplo'."
+    }
+    # Juncoes saem primeiro, so o atalho, para nunca apagar o conteudo do destino.
+    Get-ChildItem -LiteralPath $raiz -Recurse -Force -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint } |
+        ForEach-Object { [System.IO.Directory]::Delete($_.FullName) }
+    Remove-Item -LiteralPath $raiz -Recurse -Force
+}
+
+function Gravar-Tasks([string]$repo, [string]$caminhoChange, [int]$marcadas, [int]$pendentes) {
+    $dir = Join-Path $RaizFontes "$repo\openspec\changes\$caminhoChange"
+    New-Item -ItemType Directory -Force -Path $dir | Out-Null
+    $linhas = @('# Tasks', '')
+    # 1..0 contaria de tras para frente em PowerShell; por isso os lacos com contagem explicita.
+    for ($i = 1; $i -le $marcadas; $i++) { $linhas += "- [x] 1.$i Tarefa concluida $i" }
+    for ($i = 1; $i -le $pendentes; $i++) { $linhas += "- [ ] 2.$i Tarefa pendente $i" }
+    [System.IO.File]::WriteAllText((Join-Path $dir 'tasks.md'), (($linhas -join "`n") + "`n"), $utf8)
+}
+
+Remover-RaizExemplo $RaizFontes
+New-Item -ItemType Directory -Force -Path $RaizFontes | Out-Null
+Gravar-Tasks 'Faturamento' 'ajuste-nfe' 4 2
+Gravar-Tasks 'Estoque' 'ajuste-nfe' 3 3
+Gravar-Tasks 'Faturamento' 'archive\2026-11-20-relatorio-mensal' 2 0
+Gravar-Tasks 'Compras' '_destino-da-juncao' 5 5
+New-Item -ItemType Junction -Path (Join-Path $RaizFontes 'Compras\openspec\changes\relatorio-mensal') `
+    -Target (Join-Path $RaizFontes 'Compras\openspec\changes\_destino-da-juncao') | Out-Null
+$portal = Join-Path $RaizFontes 'Portal\openspec\changes\relatorio-mensal'
+New-Item -ItemType Directory -Force -Path $portal | Out-Null
+[System.IO.File]::WriteAllText((Join-Path $portal 'tasks.md'), "# Tasks`n`nsem caixas de selecao`n", $utf8)
+New-Item -ItemType Directory -Force -Path (Join-Path $RaizFontes 'Estoque\openspec\changes') | Out-Null
+
+$progressoJson = @"
+{
+  "demandas": [
+    {
+      "id": "CHG-142", "titulo": "Ajuste NF-e", "openspecChange": "ajuste-nfe", "criadaEm": "$criada", "arquivada": false,
+      "repositorios": [
+        { "nome": "Faturamento", "pasta": "Faturamento", "sessoes": [] },
+        { "nome": "Estoque", "pasta": "Estoque", "sessoes": [] }
+      ]
+    },
+    {
+      "id": "CHG-150", "titulo": "Relatorio mensal", "openspecChange": "relatorio-mensal", "criadaEm": "$criada", "arquivada": false,
+      "repositorios": [
+        { "nome": "Faturamento", "pasta": "Faturamento", "sessoes": [] },
+        { "nome": "Compras", "pasta": "Compras", "sessoes": [] },
+        { "nome": "Portal", "pasta": "Portal", "sessoes": [] },
+        { "nome": "Estoque", "pasta": "Estoque", "sessoes": [] }
+      ]
+    },
+    {
+      "id": "CHG-160", "titulo": "Change que nao existe", "openspecChange": "change-fantasma", "criadaEm": "$criada", "arquivada": false,
+      "repositorios": [
+        { "nome": "Faturamento", "pasta": "Faturamento", "sessoes": [] }
+      ]
+    }
+  ]
+}
+"@
+[System.IO.File]::WriteAllText($DadosProgresso, $progressoJson, $utf8)
+
+Write-Output "Raiz de fontes de exemplo (progresso do OpenSpec) criada em: $RaizFontes"
+Write-Output "Arquivo de dados do progresso do OpenSpec criado em: $DadosProgresso"
 Write-Output "Pasta de exemplo criada em: $Pasta"
 Write-Output "Arquivo de dados de exemplo criado em: $Dados"
 Write-Output "Arquivo de dados de varias demandas criado em: $DadosVarias"

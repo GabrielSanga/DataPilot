@@ -35,6 +35,8 @@ public sealed record Sessao(
 public static class Constantes
 {
     public const string PastaStatusPadrao = @"C:\ProgramData\Painel\sessoes";
+    /// <summary>Raiz dos repositórios do usuário <c>ia</c>, a mesma do <c>abrir.ps1</c>.</summary>
+    public const string RaizFontesPadrao = @"C:\Fontes";
     public const string ExecutavelTerminal = "wt.exe";
     public const string JanelaTerminal = "painel";
     public const string DestinoSsh = "ia@localhost";
