@@ -5,7 +5,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Resource Include="../../assets/aviao.png" Link="Imagens/aviao.png" />
+    <Resource Include="../../assets/aviao.png" Link="Assets/aviao.png" />
   </ItemGroup>
 
   <ItemGroup>
