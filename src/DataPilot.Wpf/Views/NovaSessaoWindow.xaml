@@ -1,0 +1,27 @@
+<Window x:Class="DataPilot.Wpf.Views.NovaSessaoWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Style="{StaticResource EstiloDialogo}" ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
+        Title="Nova sessão" SizeToContent="Height" Width="400" ResizeMode="NoResize">
+    <StackPanel Margin="24,22,24,20">
+        <TextBlock Text="Nova sessão" FontSize="{StaticResource TamTitulo}" FontWeight="SemiBold" Margin="0,0,0,16"/>
+
+        <TextBlock Text="Agente" Style="{StaticResource TextoCampo}"/>
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+            <RadioButton x:Name="EscolhaClaude" Content="Claude" GroupName="Agente" IsChecked="True" Margin="0,0,8,0"
+                         Style="{StaticResource EscolhaBotao}" AutomationProperties.Name="Agente Claude"/>
+            <RadioButton x:Name="EscolhaCodex" Content="Codex" GroupName="Agente"
+                         Style="{StaticResource EscolhaBotao}" AutomationProperties.Name="Agente Codex"/>
+        </StackPanel>
+
+        <TextBlock Text="Rótulo (opcional)" Style="{StaticResource TextoCampo}"/>
+        <TextBox x:Name="CampoRotulo" MaxLength="40" AutomationProperties.Name="Rótulo"/>
+        <TextBlock x:Name="Mensagem" Style="{StaticResource TextoErro}"/>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+            <Button Content="Abrir sessão" Style="{StaticResource BotaoPrincipal}" Margin="0,0,8,0" MinWidth="110"
+                    IsDefault="True" Click="Abrir_Click"/>
+            <Button Content="Cancelar" IsCancel="True" MinWidth="86"/>
+        </StackPanel>
+    </StackPanel>
+</Window>

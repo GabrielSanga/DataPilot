@@ -1,0 +1,16 @@
+<Window x:Class="DataPilot.Wpf.Views.ConfirmacaoWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Style="{StaticResource EstiloDialogo}" ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
+        Title="Confirmar" SizeToContent="Height" Width="440" ResizeMode="NoResize">
+    <StackPanel Margin="24,22,24,20">
+        <TextBlock x:Name="Titulo" FontSize="{StaticResource TamTitulo}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+        <TextBlock x:Name="Mensagem" Foreground="{DynamicResource GrafiteClaro}" TextWrapping="Wrap" Margin="0,8,0,20"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <!-- O botão padrão é "Cancelar": Enter não confirma a remoção. -->
+            <Button x:Name="Confirmar" Margin="0,0,8,0" MinWidth="96" Click="Confirmar_Click"/>
+            <Button x:Name="Cancelar" Content="Cancelar" Style="{StaticResource BotaoPrincipal}" MinWidth="96"
+                    IsDefault="True" IsCancel="True"/>
+        </StackPanel>
+    </StackPanel>
+</Window>

@@ -1,0 +1,30 @@
+<Window x:Class="DataPilot.Wpf.Views.VincularSessaoWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Style="{StaticResource EstiloDialogo}" ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
+        Title="Vincular a um trabalho" SizeToContent="Height" Width="460" ResizeMode="NoResize">
+    <StackPanel Margin="24,22,24,20">
+        <TextBlock Text="Vincular a um trabalho" FontSize="{StaticResource TamTitulo}" FontWeight="SemiBold"/>
+        <TextBlock x:Name="Descricao" Style="{StaticResource TextoSecundario}" Margin="0,4,0,16"/>
+
+        <TextBlock Text="Trabalho" Style="{StaticResource TextoCampo}"/>
+        <ComboBox x:Name="CampoDemanda" DisplayMemberPath="Texto" AutomationProperties.Name="Trabalho"
+                  SelectionChanged="Demanda_SelectionChanged"/>
+
+        <TextBlock Text="Repositório" Style="{StaticResource TextoCampo}" Margin="0,14,0,4"/>
+        <ComboBox x:Name="CampoRepositorio" IsEditable="True" AutomationProperties.Name="Repositório"/>
+        <TextBlock x:Name="ErroRepositorio" Style="{StaticResource TextoErro}"/>
+
+        <TextBlock Text="Rótulo (opcional)" Style="{StaticResource TextoCampo}" Margin="0,14,0,4"/>
+        <TextBox x:Name="CampoRotulo" MaxLength="40" AutomationProperties.Name="Rótulo"/>
+        <TextBlock x:Name="ErroRotulo" Style="{StaticResource TextoErro}"/>
+
+        <TextBlock x:Name="ErroGeral" Style="{StaticResource TextoErro}"/>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+            <Button Content="Vincular" Style="{StaticResource BotaoPrincipal}" Margin="0,0,8,0" MinWidth="96"
+                    IsDefault="True" Click="Ok_Click"/>
+            <Button Content="Cancelar" IsCancel="True" MinWidth="86"/>
+        </StackPanel>
+    </StackPanel>
+</Window>

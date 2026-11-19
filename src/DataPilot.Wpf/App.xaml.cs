@@ -1,5 +1,11 @@
 ﻿using System.Windows;
-using DataPilot.Core;
+using DataPilot.Core.Models;
+using DataPilot.Core.OpenSpec;
+using DataPilot.Core.Persistence;
+using DataPilot.Core.Sessions;
+using DataPilot.Wpf.Services;
+using DataPilot.Wpf.ViewModels;
+using DataPilot.Wpf.Views;
 
 namespace DataPilot.Wpf;
 
@@ -50,7 +56,7 @@ public partial class App : Application
         {
             _altoContraste = new ResourceDictionary
             {
-                Source = new Uri("/DataPilot.Wpf;component/TemaAltoContraste.xaml", UriKind.Relative),
+                Source = new Uri("/DataPilot.Wpf;component/Themes/TemaAltoContraste.xaml", UriKind.Relative),
             };
             mesclados.Add(_altoContraste);
         }
