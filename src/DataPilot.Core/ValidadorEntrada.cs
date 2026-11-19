@@ -37,6 +37,22 @@ public static partial class ValidadorEntrada
     public static bool TituloValido(string? titulo)
         => TextoSimplesValido(titulo, TamanhoMaximoTitulo, permitirPontoEVirgula: true);
 
+    [GeneratedRegex(@"\A[A-Za-z0-9_-]{1,100}\z")]
+    private static partial Regex PadraoIdentificadorHook();
+
+    /// <summary>
+    /// Regra do identificador que o hook aceita (1 a 100 caracteres de <c>[A-Za-z0-9_-]</c>). Vale para as sessões
+    /// excluídas: o valor só é comparado, nunca entra em comando nem em caminho.
+    /// </summary>
+    public static bool IdentificadorExclusaoValido(string? id)
+        => id is not null && PadraoIdentificadorHook().IsMatch(id);
+
+    [GeneratedRegex(@"\At[0-9a-f]{8}\z", RegexOptions.IgnoreCase)]
+    private static partial Regex PadraoIdTrabalho();
+
+    /// <summary>Identificador gerado pelo painel: <c>t</c> e 8 dígitos hexadecimais.</summary>
+    public static bool IdTrabalhoGeradoValido(string? id) => id is not null && PadraoIdTrabalho().IsMatch(id);
+
     /// <summary>GUID na forma canônica 8-4-4-4-12.</summary>
     public static bool IdentificadorValido(string? id)
         => id is not null && PadraoGuid().IsMatch(id);

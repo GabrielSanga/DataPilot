@@ -16,6 +16,7 @@
     <SolidColorBrush x:Key="Desabilitado" Color="{x:Static SystemColors.GrayTextColor}"/>
     <SolidColorBrush x:Key="SelecaoBorda" Color="{x:Static SystemColors.WindowTextColor}"/>
     <SolidColorBrush x:Key="Veu" Color="Transparent"/>
+    <Visibility x:Key="MostrarStatusEmTexto">Visible</Visibility>
 
     <SolidColorBrush x:Key="SinalAtencao" Color="{x:Static SystemColors.HotTrackColor}"/>
     <SolidColorBrush x:Key="TextoAtencao" Color="{x:Static SystemColors.HotTrackColor}"/>

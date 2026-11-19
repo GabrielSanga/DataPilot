@@ -51,8 +51,9 @@ public sealed partial class LancamentoItem : ObservableObject
 
     [ObservableProperty] private string _agente = "";
     [ObservableProperty] private string _rotulo = "";
-    [ObservableProperty] private string _textoPrincipal = "";
-    [ObservableProperty] private bool _principalEhVazio;
+    /// <summary>Repositório do lançamento, mostrado só em "Sessões".</summary>
+    [ObservableProperty] private string _pasta = "";
+    [ObservableProperty] private bool _emSessoes;
     [ObservableProperty] private string _tempo = "";
 
     public IRelayCommand AbrirCommand { get; }
@@ -65,18 +66,18 @@ public sealed partial class LancamentoItem : ObservableObject
         CancelarCommand = new RelayCommand(() => cancelar(this));
     }
 
-    public void Atualizar(LancamentoNaVisao v)
+    public void Atualizar(LancamentoNaVisao v, string pasta, bool emSessoes)
     {
         var l = v.Lancamento;
         Agente = l.Agente == DataPilot.Core.Agente.Claude ? "Claude" : "Codex";
         Rotulo = l.Rotulo is null ? "" : TextoExibicao.Limpar(l.Rotulo);
-        PrincipalEhVazio = Rotulo.Length == 0;
-        TextoPrincipal = PrincipalEhVazio ? "sem rótulo" : Rotulo;
+        Pasta = TextoExibicao.Limpar(pasta);
+        EmSessoes = emSessoes;
         Tempo = v.Tempo.Length == 0 ? "—" : v.Tempo;
     }
 }
 
-/// <summary>Card de um repositório dentro de uma demanda. Chave: a pasta (única dentro da demanda).</summary>
+/// <summary>Card de um repositório dentro de um trabalho. Chave: a pasta (única dentro do trabalho).</summary>
 public sealed partial class CardItem : ObservableObject
 {
     public string Pasta { get; }
@@ -85,17 +86,26 @@ public sealed partial class CardItem : ObservableObject
     public ObservableCollection<LancamentoItem> Lancamentos { get; } = [];
 
     [ObservableProperty] private bool _vazio;
-    /// <summary>Progresso da change neste repositório ("4 de 6"); vazio quando não há o que mostrar.</summary>
-    [ObservableProperty] private string _progresso = "";
+
+    /// <summary>Change do OpenSpec deste repositório, própria ou herdada; vazio quando não há.</summary>
+    [ObservableProperty] private string _change = "";
+    [ObservableProperty] private bool _temChange;
+    /// <summary>Progresso da change ("4 de 6") ou a indicação que o substitui; vazio quando não há o que mostrar.</summary>
+    [ObservableProperty] private string _progressoTexto = "";
+    [ObservableProperty] private bool _temProgresso;
+    [ObservableProperty] private bool _temBarra;
+    [ObservableProperty] private double _progressoFracao;
 
     [ObservableProperty] private bool _podeNovaSessao;
     public IRelayCommand NovaSessaoCommand { get; }
+    public IRelayCommand TrocarChangeCommand { get; }
     public IRelayCommand RemoverRepositorioCommand { get; }
 
-    public CardItem(string pasta, Action<CardItem> novaSessao, Action<CardItem> remover)
+    public CardItem(string pasta, Action<CardItem> novaSessao, Action<CardItem> trocarChange, Action<CardItem> remover)
     {
         Pasta = pasta;
         NovaSessaoCommand = new RelayCommand(() => novaSessao(this));
+        TrocarChangeCommand = new RelayCommand(() => trocarChange(this));
         RemoverRepositorioCommand = new RelayCommand(() => remover(this));
     }
 
@@ -105,55 +115,59 @@ public sealed partial class CardItem : ObservableObject
         DemandaId = demanda.Id;
         PodeNovaSessao = !demanda.Arquivada;
         Vazio = card.Sessoes.Count == 0 && card.Lancamentos.Count == 0;
+        var repo = demanda.Repositorios.FirstOrDefault(r => string.Equals(r.Pasta, card.Pasta, StringComparison.OrdinalIgnoreCase));
+        Change = repo?.OpenspecChange is null ? "" : TextoExibicao.Limpar(repo.OpenspecChange);
+        TemChange = Change.Length > 0;
+        if (!TemChange) AplicarProgresso(null);
         SincronizacaoColecao.Sincronizar(Sessoes, card.Sessoes,
             s => s.SessionId, s => s.Registrada.SessionId,
             s => criarSessao(s.Registrada.SessionId),
-            (item, dado) => item.Atualizar(dado));
+            (item, dado) => item.Atualizar(dado, emSessoes: false));
         SincronizacaoColecao.Sincronizar(Lancamentos, card.Lancamentos,
             l => l.Id, l => l.Lancamento.Id,
             l => criarLancamento(l.Lancamento.Id),
-            (item, dado) => item.Atualizar(dado));
+            (item, dado) => item.Atualizar(dado, card.Pasta, emSessoes: false));
+    }
+
+    /// <summary>Mostra o progresso da change deste repositório. Texto vem do Core, exibido como texto simples.</summary>
+    public void AplicarProgresso(ProgressoRepositorio? p)
+    {
+        ProgressoTexto = p?.Texto ?? "";
+        TemProgresso = ProgressoTexto.Length > 0;
+        TemBarra = p?.Estado == EstadoRepositorio.Lido;
+        ProgressoFracao = p?.Fracao ?? 0;
     }
 }
 
 /// <summary>
-/// Entrada da lista de demandas, também usada para "Não vinculadas" (<see cref="EhNaoVinculadas"/>).
-/// Chave: o <c>id</c> da demanda; a da entrada especial é fixa.
+/// Entrada da lista de trabalhos, também usada para "Sessões" (<see cref="EhSessoes"/>).
+/// Chave: o <c>id</c> do trabalho (que nunca é exibido); a da entrada especial é fixa.
 /// </summary>
 public sealed partial class DemandaItem : ObservableObject
 {
-    public const string ChaveNaoVinculadas = "\u0001nao-vinculadas";
+    public const string ChaveSessoes = "\u0001sessoes";
 
     public string Chave { get; }
-    public bool EhNaoVinculadas { get; }
+    public bool EhSessoes { get; }
     public Demanda? Demanda { get; private set; }
     public bool TemSessaoEmAndamento { get; private set; }
 
     public ObservableCollection<CardItem> Cards { get; } = [];
-    public ObservableCollection<SessaoItem> NaoVinculadas { get; } = [];
+    /// <summary>Sessões da entrada "Sessões": registradas e não registradas, na ordem de urgência.</summary>
+    public ObservableCollection<SessaoItem> Sessoes { get; } = [];
+    public ObservableCollection<LancamentoItem> LancamentosSessoes { get; } = [];
 
-    /// <summary>Identificador e título juntos, para os textos dos diálogos.</summary>
-    [ObservableProperty] private string _cabecalho = "";
-    /// <summary>Identificador da demanda (em Bahnschrift na tela), ou "Não vinculadas".</summary>
-    [ObservableProperty] private string _identificador = "";
+    /// <summary>Título do trabalho (ou "Sessões"), para a lista, a área e os textos dos diálogos.</summary>
     [ObservableProperty] private string _titulo = "";
-    /// <summary>Nome da change do OpenSpec; vazio quando a demanda não tem.</summary>
-    [ObservableProperty] private string _openspec = "";
-    [ObservableProperty] private bool _temOpenspec;
     /// <summary>Contagens em frase, como "2 repositórios, 3 sessões".</summary>
     [ObservableProperty] private string _resumo = "";
     /// <summary>Nome do status mais urgente, só quando ele acende (precisa de atenção ou aguardando você).</summary>
     [ObservableProperty] private string _destaqueTexto = "";
     [ObservableProperty] private bool _temDestaque;
-    /// <summary>Texto da barra de progresso da change ("7 de 12 tarefas") ou o aviso que a substitui.</summary>
-    [ObservableProperty] private string _progressoTexto = "";
-    [ObservableProperty] private bool _temProgresso;
-    [ObservableProperty] private bool _temBarra;
-    [ObservableProperty] private double _progressoFracao;
     [ObservableProperty] private NivelSinal _nivel;
     [ObservableProperty] private bool _arquivada;
     [ObservableProperty] private bool _semRepositorios;
-    [ObservableProperty] private bool _semNaoVinculadas;
+    [ObservableProperty] private bool _semSessoes;
     [ObservableProperty] private bool _podeEditar;
     [ObservableProperty] private bool _podeArquivar;
     [ObservableProperty] private bool _podeDesarquivar;
@@ -163,16 +177,19 @@ public sealed partial class DemandaItem : ObservableObject
     public IRelayCommand ArquivarCommand { get; }
     public IRelayCommand DesarquivarCommand { get; }
     public IRelayCommand VincularCommand { get; }
+    public IRelayCommand NovaSessaoCommand { get; }
 
-    public DemandaItem(string chave, bool naoVinculadas,
-        Action<DemandaItem> editar, Action<DemandaItem> arquivar, Action<DemandaItem> desarquivar, Action<DemandaItem> vincular)
+    public DemandaItem(string chave, bool sessoes,
+        Action<DemandaItem> editar, Action<DemandaItem> arquivar, Action<DemandaItem> desarquivar, Action<DemandaItem> vincular,
+        Action<DemandaItem> novaSessao)
     {
         Chave = chave;
-        EhNaoVinculadas = naoVinculadas;
+        EhSessoes = sessoes;
         EditarCommand = new RelayCommand(() => editar(this));
         ArquivarCommand = new RelayCommand(() => arquivar(this));
         DesarquivarCommand = new RelayCommand(() => desarquivar(this));
         VincularCommand = new RelayCommand(() => vincular(this));
+        NovaSessaoCommand = new RelayCommand(() => novaSessao(this));
     }
 
     public void Atualizar(DemandaNaVisao v, Func<string, CardItem> criarCard, Func<string, SessaoItem> criarSessao,
@@ -181,12 +198,8 @@ public sealed partial class DemandaItem : ObservableObject
         var d = v.Demanda;
         Demanda = d;
         TemSessaoEmAndamento = v.TemSessaoEmAndamento;
-        Identificador = TextoExibicao.Limpar(d.Id);
         Titulo = TextoExibicao.Limpar(d.Titulo);
-        Cabecalho = $"{Identificador} — {Titulo}";
-        Openspec = d.OpenspecChange is null ? "" : TextoExibicao.Limpar(d.OpenspecChange);
-        TemOpenspec = Openspec.Length > 0;
-        Resumo = v.Resumo + (d.Arquivada ? ", arquivada" : "");
+        Resumo = v.Resumo + (d.Arquivada ? ", arquivado" : "");
         AplicarSinal(v.MaisUrgente);
         Arquivada = d.Arquivada;
         SemRepositorios = v.Cards.Count == 0;
@@ -201,15 +214,11 @@ public sealed partial class DemandaItem : ObservableObject
             (item, dado) => item.Atualizar(dado, d, criarSessao, criarLancamento));
     }
 
-    /// <summary>Mostra o progresso da change na área da demanda e em cada card. Texto vem do Core, exibido como texto simples.</summary>
-    public void AplicarProgresso(ProgressoDemanda p)
+    /// <summary>Mostra o progresso da change em cada card. Não há soma no topo do trabalho.</summary>
+    public void AplicarProgresso(IReadOnlyDictionary<string, ProgressoRepositorio> progresso)
     {
-        ProgressoTexto = p.Texto;
-        TemProgresso = p.Texto.Length > 0;
-        TemBarra = p.TemSoma;
-        ProgressoFracao = p.Fracao;
         foreach (var card in Cards)
-            card.Progresso = p.Repositorios.FirstOrDefault(r => r.Pasta == card.Pasta)?.Texto ?? "";
+            card.AplicarProgresso(progresso.TryGetValue(card.Pasta, out var p) ? p : null);
     }
 
     /// <summary>Faixa e nome do status só quando o mais urgente é um dos dois que precisam do usuário.</summary>
@@ -220,17 +229,37 @@ public sealed partial class DemandaItem : ObservableObject
         DestaqueTexto = TemDestaque ? RegrasExibicao.Texto(maisUrgente!.Value) : "";
     }
 
-    public void AtualizarNaoVinculadas(IReadOnlyList<SessaoExibida> sessoes, Func<string, SessaoItem> criarSessao)
+    /// <summary>Uma linha da entrada "Sessões": registrada na <c>sem-demanda</c> ou ainda não registrada.</summary>
+    private sealed record LinhaSessoes(string Id, SessaoNaVisao? Registrada, SessaoExibida? NaoRegistrada)
     {
-        Identificador = "Não vinculadas";
-        Titulo = "";
-        Cabecalho = "Não vinculadas";
-        Resumo = sessoes.Count switch { 0 => "nenhuma sessão", 1 => "1 sessão", var n => $"{n} sessões" };
-        AplicarSinal(sessoes.Count == 0 ? null : sessoes.Min(s => s.Status));
-        SemNaoVinculadas = sessoes.Count == 0;
-        SincronizacaoColecao.Sincronizar(NaoVinculadas, sessoes,
-            s => s.SessionId, s => s.Sessao.SessionId,
-            s => criarSessao(s.Sessao.SessionId),
-            (item, dado) => item.AtualizarNaoVinculada(dado));
+        public StatusExibido Status => Registrada?.Status ?? NaoRegistrada!.Status;
+        public DateTimeOffset Data => Registrada is { } r ? r.Lida?.Atualizado ?? r.Registrada.CriadaEm : NaoRegistrada!.Sessao.Atualizado;
+    }
+
+    public void AtualizarSessoes(EntradaSessoes e, Func<string, SessaoItem> criarSessao, Func<string, LancamentoItem> criarLancamento)
+    {
+        Titulo = "Sessões";
+        Resumo = e.Quantidade switch { 0 => "nenhuma sessão", 1 => "1 sessão", var n => $"{n} sessões" };
+        AplicarSinal(e.MaisUrgente);
+        SemSessoes = e.Quantidade == 0 && e.Lancamentos.Count == 0;
+
+        var linhas = e.Registradas.Select(r => new LinhaSessoes(r.Registrada.SessionId, r, null))
+            .Concat(e.NaoRegistradas.Select(n => new LinhaSessoes(n.Sessao.SessionId, null, n)))
+            .OrderBy(l => l.Status)
+            .ThenByDescending(l => l.Data)
+            .ThenBy(l => l.Id, StringComparer.Ordinal)
+            .ToList();
+        SincronizacaoColecao.Sincronizar(Sessoes, linhas,
+            s => s.SessionId, l => l.Id,
+            l => criarSessao(l.Id),
+            (item, l) =>
+            {
+                if (l.Registrada is { } r) item.Atualizar(r, emSessoes: true);
+                else item.AtualizarNaoRegistrada(l.NaoRegistrada!);
+            });
+        SincronizacaoColecao.Sincronizar(LancamentosSessoes, e.Lancamentos,
+            l => l.Id, l => l.Lancamento.Lancamento.Id,
+            l => criarLancamento(l.Lancamento.Lancamento.Id),
+            (item, l) => item.Atualizar(l.Lancamento, l.Pasta, emSessoes: true));
     }
 }

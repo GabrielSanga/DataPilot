@@ -63,55 +63,55 @@ public class ResumoEstruturadoTests
 
 public class FiltroDemandasTests
 {
-    private static Demanda Dem(string id, string titulo, string? change = null, params string[] repos)
-        => new(id, titulo, change, null, false, repos.Select(p => new RepositorioCadastrado(p, [])).ToList());
+    private static Demanda Dem(string id, string titulo, params (string Pasta, string? Change)[] repos)
+        => new(id, titulo, null, null, false, repos.Select(r => new RepositorioCadastrado(r.Pasta, [], [], r.Change)).ToList());
 
-    private static readonly Demanda Chg142 = Dem("CHG-142", "Ajuste NF-e", "ajuste-nfe", "Faturamento", "Estoque");
-    private static readonly Demanda Chg150 = Dem("CHG-150", "Relatório mensal", null, "Relatorios");
-    private static readonly Demanda Chg160 = Dem("CHG-160", "Migração", null, "Faturamento");
+    private static readonly Demanda Chg142 = Dem("CHG-142", "Ajuste NF-e", ("Faturamento", "ajuste-nfe"), ("Estoque", null));
+    private static readonly Demanda Chg150 = Dem("CHG-150", "Relatório mensal", ("Relatorios", null));
+    private static readonly Demanda Chg160 = Dem("CHG-160", "Migração", ("Faturamento", null));
 
     private static string[] Ids(string filtro)
     {
-        // null representa "Não vinculadas".
+        // null representa "Sessões".
         Demanda?[] itens = [Chg142, Chg150, Chg160, null];
-        return FiltroDemandas.Filtrar(itens, filtro, d => d).Select(d => d?.Id ?? "nao-vinculadas").ToArray();
+        return FiltroDemandas.Filtrar(itens, filtro, d => d).Select(d => d?.Id ?? "sessoes").ToArray();
     }
 
     [Fact]
-    public void PeloRepositorio_MostraSoQuemTemEleENaoVinculadas()
-        => Assert.Equal(["CHG-142", "nao-vinculadas"], Ids("estoque"));
+    public void PeloRepositorio_MostraSoQuemTemEleESessoes()
+        => Assert.Equal(["CHG-142", "sessoes"], Ids("estoque"));
 
     [Fact]
-    public void RepositorioEmDuasDemandas() => Assert.Equal(["CHG-142", "CHG-160", "nao-vinculadas"], Ids("faturamento"));
+    public void RepositorioEmDoisTrabalhos() => Assert.Equal(["CHG-142", "CHG-160", "sessoes"], Ids("faturamento"));
 
     [Fact]
-    public void SemAcentoNemMaiusculas() => Assert.Equal(["CHG-150", "nao-vinculadas"], Ids("RELATORIO MENSAL"));
+    public void SemAcentoNemMaiusculas() => Assert.Equal(["CHG-150", "sessoes"], Ids("RELATORIO MENSAL"));
 
     [Fact]
-    public void ComAcentoNoFiltro_CasaSemAcentoNoTexto() => Assert.Equal(["CHG-160", "nao-vinculadas"], Ids("migracao"));
+    public void ComAcentoNoFiltro_CasaSemAcentoNoTexto() => Assert.Equal(["CHG-160", "sessoes"], Ids("migracao"));
 
     [Fact]
-    public void PeloIdentificador() => Assert.Equal(["CHG-150", "nao-vinculadas"], Ids("chg-150"));
+    public void NaoCasaPeloIdentificador() => Assert.Equal(["sessoes"], Ids("chg-150"));
 
     [Fact]
-    public void PelaChange() => Assert.Equal(["CHG-142", "nao-vinculadas"], Ids("ajuste-nfe"));
+    public void PelaChangeDeUmRepositorio() => Assert.Equal(["CHG-142", "sessoes"], Ids("ajuste-nfe"));
 
     [Fact]
-    public void PeloTitulo() => Assert.Equal(["CHG-142", "nao-vinculadas"], Ids("nf-e"));
+    public void PeloTitulo() => Assert.Equal(["CHG-142", "sessoes"], Ids("nf-e"));
 
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
     [InlineData(null)]
     public void FiltroVazio_MostraTudo(string? filtro)
-        => Assert.Equal(["CHG-142", "CHG-150", "CHG-160", "nao-vinculadas"], FiltroDemandas.Filtrar<Demanda?>([Chg142, Chg150, Chg160, null], filtro, d => d)
-            .Select(d => d?.Id ?? "nao-vinculadas").ToArray());
+        => Assert.Equal(["CHG-142", "CHG-150", "CHG-160", "sessoes"], FiltroDemandas.Filtrar<Demanda?>([Chg142, Chg150, Chg160, null], filtro, d => d)
+            .Select(d => d?.Id ?? "sessoes").ToArray());
 
     [Fact]
-    public void SemResultado_AindaTemNaoVinculadas() => Assert.Equal(["nao-vinculadas"], Ids("nada-disso"));
+    public void SemResultado_AindaTemSessoes() => Assert.Equal(["sessoes"], Ids("nada-disso"));
 
     [Fact]
-    public void MantemAOrdemOriginal() => Assert.Equal(["CHG-142", "CHG-150", "CHG-160", "nao-vinculadas"], Ids("c"));
+    public void MantemAOrdemOriginal() => Assert.Equal(["CHG-142", "sessoes"], Ids("ajuste"));
 }
 
 public class ProximaSessaoTests
@@ -194,7 +194,7 @@ public class ProximaSessaoTests
         var v = Montar([Dem("a", Reg(1, "X", "a"))], Lida(1, StatusGravado.Executando), Lida(9, StatusGravado.Atencao));
         var destino = ProximaSessao.Escolher(v, "a", false);
         Assert.NotNull(destino);
-        Assert.True(destino!.EhNaoVinculadas);
+        Assert.True(destino!.EhSessoes);
     }
 
     [Fact]

@@ -230,195 +230,125 @@ public class DadosPainelTests
         Assert.Equal([Id1], dados.Carregar().Demandas.Single().Repositorios.Single().Sessoes.Select(s => s.SessionId));
     }
 
-    // ---------- Criar demanda ----------
+    // ---------- Criar e editar trabalho (só pelo título) ----------
 
     [Fact]
-    public void Cria_demanda_valida_com_data_e_campos_iniciais()
+    public void Cria_trabalho_so_com_titulo_e_gera_o_identificador()
     {
         var (dados, pasta, caminho) = Novo();
         using var _p = pasta;
-        Assert.True(dados.CriarDemanda("CHG-142", "Ajuste NF-e", null, Fabrica.Agora).Ok);
+        var r = dados.CriarDemanda("Ajuste NF-e", Fabrica.Agora);
+        Assert.True(r.Ok);
+        Assert.Matches(@"\At[0-9a-f]{8}\z", r.Id!);
 
         var no = JsonNode.Parse(Texto(caminho))!["demandas"]!.AsArray().Single()!;
-        Assert.Equal("CHG-142", (string?)no["id"]);
+        Assert.Equal(r.Id, (string?)no["id"]);
         Assert.Equal("Ajuste NF-e", (string?)no["titulo"]);
         Assert.Equal(Fabrica.Agora, DateTimeOffset.Parse((string)no["criadaEm"]!));
         Assert.False((bool)no["arquivada"]!);
         Assert.Empty(no["repositorios"]!.AsArray());
         Assert.Null(no["openspecChange"]);
-
-        var d = Demanda(dados, "CHG-142");
-        Assert.Equal(Fabrica.Agora, d.CriadaEm);
+        Assert.Equal(Fabrica.Agora, Demanda(dados, r.Id!).CriadaEm);
     }
 
     [Fact]
-    public void Cria_demanda_com_openspec_change()
+    public void Identificador_gerado_nao_colide_com_os_existentes()
     {
         var (dados, pasta, _) = Novo();
         using var _p = pasta;
-        Assert.True(dados.CriarDemanda("CHG-1", "X", "minha-change", Fabrica.Agora).Ok);
-        Assert.Equal("minha-change", Demanda(dados, "CHG-1").OpenspecChange);
+        var primeiro = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000000");
+        var segundo = Guid.Parse("bbbbbbbb-0000-0000-0000-000000000000");
+        Assert.Equal("taaaaaaaa", dados.CriarDemanda("A", Fabrica.Agora, () => primeiro).Id);
+
+        // O gerador repete o primeiro valor (também em maiúsculas no arquivo): o painel tenta outro.
+        var guids = new Queue<Guid>([primeiro, primeiro, segundo]);
+        var r = dados.CriarDemanda("B", Fabrica.Agora, guids.Dequeue);
+        Assert.True(r.Ok);
+        Assert.Equal("tbbbbbbbb", r.Id);
+        Assert.Equal(2, dados.Carregar().Demandas.Count);
     }
 
     [Fact]
-    public void Aceita_limites_de_30_e_80_caracteres()
+    public void Aceita_titulo_de_80_caracteres()
     {
         var (dados, pasta, _) = Novo();
         using var _p = pasta;
-        Assert.True(dados.CriarDemanda(new string('a', 30), new string('t', 80), null, Fabrica.Agora).Ok);
+        Assert.True(dados.CriarDemanda(new string('t', 80), Fabrica.Agora).Ok);
     }
 
     [Theory]
-    [InlineData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "T")]       // 31 caracteres no id
-    [InlineData("CHG-1", "ttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt")] // 81 no título
-    [InlineData("..", "T")]
-    [InlineData("a;b", "T")]
-    [InlineData("com espaço", "T")]
-    [InlineData("", "T")]
-    [InlineData("CHG-1", "")]
-    [InlineData("CHG-1", "a\nb")]
-    [InlineData("sem-demanda", "Sem demanda")]
-    public void Criacao_invalida_e_recusada_sem_alterar_o_arquivo(string id, string titulo)
+    [InlineData("")]
+    [InlineData("a\nb")]
+    [InlineData("tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt")] // 81
+    public void Criacao_com_titulo_invalido_e_recusada_sem_alterar_o_arquivo(string titulo)
     {
         var original = """{"demandas":[]}""";
         var (dados, pasta, caminho) = Novo(original);
         using var _p = pasta;
-        var r = dados.CriarDemanda(id, titulo, null, Fabrica.Agora);
+        var r = dados.CriarDemanda(titulo, Fabrica.Agora);
         Assert.False(r.Ok);
         Assert.NotNull(r.Mensagem);
         Assert.Equal(original, Texto(caminho));
     }
 
     [Fact]
-    public void Openspec_change_invalido_na_criacao_e_recusado()
+    public void Criar_trabalho_nao_cria_a_entrada_sessoes()
     {
         var (dados, pasta, caminho) = Novo();
         using var _p = pasta;
-        Assert.False(dados.CriarDemanda("CHG-1", "X", "a b", Fabrica.Agora).Ok);
-        Assert.False(File.Exists(caminho));
-    }
-
-    [Fact]
-    public void Identificador_repetido_sem_diferenciar_caixa_e_recusado()
-    {
-        var (dados, pasta, caminho) = Novo();
-        using var _p = pasta;
-        Assert.True(dados.CriarDemanda("CHG-142", "A", null, Fabrica.Agora).Ok);
-        var antes = Texto(caminho);
-        var r = dados.CriarDemanda("chg-142", "B", null, Fabrica.Agora);
-        Assert.False(r.Ok);
-        Assert.Equal(antes, Texto(caminho));
-    }
-
-    [Fact]
-    public void Primeira_demanda_nao_cria_a_demanda_implicita()
-    {
-        var (dados, pasta, caminho) = Novo();
-        using var _p = pasta;
-        dados.CriarDemanda("CHG-1", "X", null, Fabrica.Agora);
-        dados.VincularRepositorio("CHG-1", "Faturamento");
+        var id = dados.CriarDemanda("X", Fabrica.Agora).Id!;
+        dados.VincularRepositorio(id, "Faturamento");
         var demandas = JsonNode.Parse(Texto(caminho))!["demandas"]!.AsArray();
-        Assert.Equal("CHG-1", (string?)Assert.Single(demandas)!["id"]);
+        Assert.Equal(id, (string?)Assert.Single(demandas)!["id"]);
     }
 
-    // ---------- Editar demanda ----------
-
     [Fact]
-    public void Editar_o_titulo_mantem_repositorios_e_sessoes()
+    public void Editar_o_titulo_mantem_id_repositorios_e_sessoes()
     {
         var (dados, pasta, _) = Novo();
         using var _p = pasta;
-        dados.CriarDemanda("CHG-1", "Antigo", null, Fabrica.Agora);
-        dados.VincularRepositorio("CHG-1", "A");
-        dados.RegistrarSessao("CHG-1", "A", Agente.Claude, Id1, null, Fabrica.Agora);
+        var id = dados.CriarDemanda("Antigo", Fabrica.Agora).Id!;
+        dados.VincularRepositorio(id, "A");
+        dados.RegistrarSessao(id, "A", Agente.Claude, Id1, null, Fabrica.Agora);
 
-        Assert.True(dados.EditarDemanda("CHG-1", "CHG-1", "Novo", null).Ok);
-        var d = Demanda(dados, "CHG-1");
+        Assert.True(dados.EditarDemanda(id, "Novo").Ok);
+        var d = Demanda(dados, id);
         Assert.Equal("Novo", d.Titulo);
         Assert.Equal([Id1], d.Repositorios.Single().Sessoes.Select(s => s.SessionId));
     }
 
     [Fact]
-    public void Editar_o_identificador_move_a_demanda_inteira_para_o_novo_id()
-    {
-        var (dados, pasta, _) = Novo();
-        using var _p = pasta;
-        dados.CriarDemanda("CHG-1", "X", null, Fabrica.Agora);
-        dados.VincularRepositorio("CHG-1", "A");
-        dados.RegistrarSessao("CHG-1", "A", Agente.Claude, Id1, null, Fabrica.Agora);
-
-        Assert.True(dados.EditarDemanda("CHG-1", "CHG-9", "X", "chg-nove").Ok);
-        var d = Assert.Single(dados.Carregar().Demandas);
-        Assert.Equal("CHG-9", d.Id);
-        Assert.Equal("chg-nove", d.OpenspecChange);
-        Assert.Equal("CHG-9", d.Repositorios.Single().Sessoes.Single().DemandaId);
-    }
-
-    [Fact]
-    public void Editar_pode_remover_o_openspec_change()
+    public void Editar_com_titulo_invalido_ou_trabalho_inexistente_e_recusado()
     {
         var (dados, pasta, caminho) = Novo();
         using var _p = pasta;
-        dados.CriarDemanda("CHG-1", "X", "abc", Fabrica.Agora);
-        Assert.True(dados.EditarDemanda("CHG-1", "CHG-1", "X", null).Ok);
-        Assert.Null(Demanda(dados, "CHG-1").OpenspecChange);
-        Assert.Null(JsonNode.Parse(Texto(caminho))!["demandas"]![0]!["openspecChange"]);
-    }
-
-    [Fact]
-    public void Editar_o_id_para_o_de_outra_demanda_e_recusado()
-    {
-        var (dados, pasta, caminho) = Novo();
-        using var _p = pasta;
-        dados.CriarDemanda("A", "A", null, Fabrica.Agora);
-        dados.CriarDemanda("B", "B", null, Fabrica.Agora);
+        var id = dados.CriarDemanda("A", Fabrica.Agora).Id!;
         var antes = Texto(caminho);
-        Assert.False(dados.EditarDemanda("A", "b", "A", null).Ok);
+        Assert.False(dados.EditarDemanda(id, "").Ok);
+        Assert.False(dados.EditarDemanda(id, "a\nb").Ok);
+        Assert.False(dados.EditarDemanda("inexistente", "X").Ok);
         Assert.Equal(antes, Texto(caminho));
     }
 
     [Fact]
-    public void Editar_mudando_so_a_caixa_do_proprio_id_e_aceito()
+    public void Editar_preserva_o_openspec_change_antigo_da_demanda()
     {
-        var (dados, pasta, _) = Novo();
+        var json = """{"demandas":[{"id":"CHG-1","titulo":"A","openspecChange":"antiga","repositorios":[]}]}""";
+        var (dados, pasta, caminho) = Novo(json);
         using var _p = pasta;
-        dados.CriarDemanda("chg-1", "A", null, Fabrica.Agora);
-        Assert.True(dados.EditarDemanda("chg-1", "CHG-1", "A", null).Ok);
-        Assert.Equal("CHG-1", Assert.Single(dados.Carregar().Demandas).Id);
+        Assert.True(dados.EditarDemanda("CHG-1", "B").Ok);
+        Assert.Equal("antiga", (string?)JsonNode.Parse(Texto(caminho))!["demandas"]![0]!["openspecChange"]);
     }
 
     [Fact]
-    public void Editar_com_dados_invalidos_e_recusado()
-    {
-        var (dados, pasta, caminho) = Novo();
-        using var _p = pasta;
-        dados.CriarDemanda("A", "A", null, Fabrica.Agora);
-        var antes = Texto(caminho);
-        Assert.False(dados.EditarDemanda("A", "a;b", "A", null).Ok);
-        Assert.False(dados.EditarDemanda("A", "A", "", null).Ok);
-        Assert.False(dados.EditarDemanda("A", "A", "A", "a b").Ok);
-        Assert.False(dados.EditarDemanda("inexistente", "X", "X", null).Ok);
-        Assert.Equal(antes, Texto(caminho));
-    }
-
-    [Fact]
-    public void Sem_demanda_nao_pode_ser_editada_nem_arquivada()
+    public void Sessoes_nao_pode_ser_editada_nem_arquivada()
     {
         var (dados, pasta, caminho) = Novo(ArquivoDaEtapa3());
         using var _p = pasta;
         var antes = Texto(caminho);
-        Assert.False(dados.EditarDemanda("sem-demanda", "outro", "Outro", null).Ok);
+        Assert.False(dados.EditarDemanda("sem-demanda", "Outro").Ok);
         Assert.False(dados.ArquivarDemanda("sem-demanda").Ok);
         Assert.Equal(antes, Texto(caminho));
-    }
-
-    [Fact]
-    public void Nenhuma_demanda_pode_receber_o_id_reservado_por_edicao()
-    {
-        var (dados, pasta, _) = Novo();
-        using var _p = pasta;
-        dados.CriarDemanda("A", "A", null, Fabrica.Agora);
-        Assert.False(dados.EditarDemanda("A", "sem-demanda", "A", null).Ok);
     }
 
     // ---------- Arquivar e desarquivar ----------
@@ -656,7 +586,7 @@ public class DadosPainelTests
         Assert.Equal([Id2], Demanda(dados, "A").Repositorios.Single().Sessoes.Select(s => s.SessionId));
     }
 
-    // ---------- Mover sessão ----------
+    // ---------- Vincular a um trabalho a partir de "Sessões" ----------
 
     private static (DadosPainel Dados, PastaTemporaria Pasta, string Caminho) ComSessaoEmSemDemanda()
     {
@@ -665,72 +595,120 @@ public class DadosPainelTests
         return r;
     }
 
+    private static PedidoVinculo Pedido(string id, Agente agente = Agente.Claude)
+        => PedidoVinculo.Criar(new Sessao(agente, id, @"C:\Fontes\Faturamento", StatusGravado.Ativa, Fabrica.Agora))!;
+
     [Fact]
-    public void Move_de_sem_demanda_para_uma_demanda_sem_o_repositorio_e_vincula_o_repositorio()
+    public void Vincular_sessao_registrada_em_sessoes_move_para_o_trabalho_e_vincula_o_repositorio()
     {
         var (dados, pasta, _) = ComSessaoEmSemDemanda();
         using var _p = pasta;
-        Assert.True(dados.MoverSessao(Id1, "CHG-142").Ok);
+        Assert.True(dados.VincularSessao(Pedido(Id1), "CHG-142", "Faturamento", null, Fabrica.Agora).Ok);
 
         var semDemanda = Demanda(dados, "sem-demanda");
         Assert.Empty(semDemanda.Repositorios.Single(r => r.Pasta == "Faturamento").Sessoes);
 
-        var destino = Demanda(dados, "CHG-142");
-        var repo = Assert.Single(destino.Repositorios);
+        var repo = Assert.Single(Demanda(dados, "CHG-142").Repositorios);
         Assert.Equal("Faturamento", repo.Pasta);
         var s = Assert.Single(repo.Sessoes);
         Assert.Equal(Id1, s.SessionId);
         Assert.Equal("CHG-142", s.DemandaId);
-        Assert.Equal("implementação", s.Rotulo);
+        Assert.Equal("implementação", s.Rotulo); // sem rótulo escolhido, mantém o que tinha
     }
 
     [Fact]
-    public void Move_para_o_repositorio_de_mesma_pasta_que_a_demanda_ja_tem()
+    public void Vincular_sessao_movida_usa_o_repositorio_e_o_rotulo_escolhidos()
     {
         var (dados, pasta, _) = ComSessaoEmSemDemanda();
         using var _p = pasta;
-        dados.VincularRepositorio("CHG-142", "faturamento");
-        dados.RegistrarSessao("CHG-142", "faturamento", Agente.Codex, Id2, null, Fabrica.Agora);
-
-        Assert.True(dados.MoverSessao(Id1, "CHG-142").Ok);
-        var repo = Assert.Single(Demanda(dados, "CHG-142").Repositorios);
-        Assert.Equal("faturamento", repo.Pasta);
-        Assert.Equal([Id2, Id1], repo.Sessoes.Select(s => s.SessionId));
+        dados.VincularRepositorio("CHG-142", "Estoque");
+        Assert.True(dados.VincularSessao(Pedido(Id1), "CHG-142", "Estoque", "novo", Fabrica.Agora).Ok);
+        var s = Assert.Single(Demanda(dados, "CHG-142").Repositorios.Single().Sessoes);
+        Assert.Equal("Estoque", s.Pasta);
+        Assert.Equal("novo", s.Rotulo);
     }
 
     [Fact]
-    public void Apos_mover_o_identificador_consta_so_na_demanda_de_destino()
+    public void Apos_vincular_o_identificador_consta_so_no_trabalho_de_destino()
     {
         var (dados, pasta, caminho) = ComSessaoEmSemDemanda();
         using var _p = pasta;
-        dados.MoverSessao(Id1, "CHG-142");
+        dados.VincularSessao(Pedido(Id1), "CHG-142", "Faturamento", null, Fabrica.Agora);
         Assert.Single(System.Text.RegularExpressions.Regex.Matches(Texto(caminho), Id1));
     }
 
     [Fact]
-    public void Mover_preserva_campos_desconhecidos_da_sessao()
+    public void Vincular_preserva_campos_desconhecidos_da_sessao_movida()
     {
         var json = $$"""
         {"demandas":[
-          {"id":"A","titulo":"A","repositorios":[{"pasta":"X","sessoes":[{"agente":"claude","sessionId":"{{Id1}}","nota":"guardar"}]}]},
+          {"id":"sem-demanda","titulo":"Sem demanda","repositorios":[{"pasta":"X","sessoes":[{"agente":"claude","sessionId":"{{Id1}}","nota":"guardar"}]}]},
           {"id":"B","titulo":"B","repositorios":[]}]}
         """;
         var (dados, pasta, caminho) = Novo(json);
         using var _p = pasta;
-        Assert.True(dados.MoverSessao(Id1, "B").Ok);
+        Assert.True(dados.VincularSessao(Pedido(Id1), "B", "X", null, Fabrica.Agora).Ok);
         var no = JsonNode.Parse(Texto(caminho))!["demandas"]![1]!["repositorios"]![0]!["sessoes"]![0]!;
         Assert.Equal("guardar", (string?)no["nota"]);
     }
 
     [Fact]
-    public void Mover_com_destino_igual_inexistente_ou_sessao_desconhecida_falha_sem_alterar()
+    public void Sessao_registrada_em_um_trabalho_nao_e_movida_por_vinculo()
     {
         var (dados, pasta, caminho) = ComSessaoEmSemDemanda();
         using var _p = pasta;
+        dados.VincularSessao(Pedido(Id1), "CHG-142", "Faturamento", null, Fabrica.Agora);
+        dados.CriarDemanda("OUTRO", "Outro", null, Fabrica.Agora);
         var antes = Texto(caminho);
-        Assert.False(dados.MoverSessao(Id1, "sem-demanda").Ok);
-        Assert.False(dados.MoverSessao(Id1, "NAO-EXISTE").Ok);
-        Assert.False(dados.MoverSessao(Id3, "CHG-142").Ok);
+        Assert.False(dados.VincularSessao(Pedido(Id1), "OUTRO", "Faturamento", null, Fabrica.Agora).Ok);
+        Assert.Equal(antes, Texto(caminho));
+    }
+
+    [Fact]
+    public void Vincular_a_trabalho_arquivado_ou_inexistente_falha_sem_alterar()
+    {
+        var (dados, pasta, caminho) = ComSessaoEmSemDemanda();
+        using var _p = pasta;
+        dados.ArquivarDemanda("CHG-142");
+        var antes = Texto(caminho);
+        Assert.False(dados.VincularSessao(Pedido(Id1), "CHG-142", "Faturamento", null, Fabrica.Agora).Ok);
+        Assert.False(dados.VincularSessao(Pedido(Id1), "NAO-EXISTE", "Faturamento", null, Fabrica.Agora).Ok);
+        Assert.Equal(antes, Texto(caminho));
+    }
+
+    // ---------- Retomar sessão não registrada ----------
+
+    [Fact]
+    public void Retomada_registra_em_sessoes_no_repositorio_escolhido_com_vinculadaEm()
+    {
+        var (dados, pasta, caminho) = Novo(ArquivoDaEtapa3());
+        using var _p = pasta;
+        Assert.True(dados.RegistrarRetomada(Pedido(Id2, Agente.Codex), "Estoque", Fabrica.Agora).Ok);
+        var s = Assert.Single(Demanda(dados, "sem-demanda").Repositorios.Single(r => r.Pasta == "Estoque").Sessoes);
+        Assert.Equal(Id2, s.SessionId);
+        Assert.Equal(Agente.Codex, s.Agente);
+        var no = JsonNode.Parse(Texto(caminho))!["demandas"]![0]!["repositorios"]![1]!["sessoes"]![0]!;
+        Assert.Equal(Fabrica.Agora, DateTimeOffset.Parse((string)no["vinculadaEm"]!));
+    }
+
+    [Fact]
+    public void Retomada_cria_a_entrada_sessoes_quando_o_arquivo_ainda_nao_a_tem()
+    {
+        var (dados, pasta, _) = Novo();
+        using var _p = pasta;
+        Assert.True(dados.RegistrarRetomada(Pedido(Id2), "Estoque", Fabrica.Agora).Ok);
+        var d = Assert.Single(dados.Carregar().Demandas);
+        Assert.Equal("sem-demanda", d.Id);
+        Assert.Equal(Id2, d.Repositorios.Single().Sessoes.Single().SessionId);
+    }
+
+    [Fact]
+    public void Retomada_de_sessao_ja_registrada_falha()
+    {
+        var (dados, pasta, caminho) = Novo(ArquivoDaEtapa3());
+        using var _p = pasta;
+        var antes = Texto(caminho);
+        Assert.False(dados.RegistrarRetomada(Pedido(Id1), "Faturamento", Fabrica.Agora).Ok);
         Assert.Equal(antes, Texto(caminho));
     }
 
@@ -778,13 +756,13 @@ public class DadosPainelTests
         Assert.Empty(estado.Demandas);
 
         Assert.False(dados.CriarDemanda("A", "A", null, Fabrica.Agora).Ok);
-        Assert.False(dados.EditarDemanda("A", "A", "A", null).Ok);
+        Assert.False(dados.EditarDemanda("A", "A").Ok);
         Assert.False(dados.ArquivarDemanda("A").Ok);
         Assert.False(dados.DesarquivarDemanda("A").Ok);
         Assert.False(dados.VincularRepositorio("A", "X").Ok);
         Assert.False(dados.RemoverRepositorio("A", "X").Ok);
         Assert.False(dados.RegistrarSessao("A", "X", Agente.Claude, Id1, null, Fabrica.Agora).Ok);
-        Assert.False(dados.MoverSessao(Id1, "B").Ok);
+        Assert.False(dados.ExcluirSessao(Agente.Claude, Id1, Fabrica.Agora).Ok);
         Assert.False(dados.RemoverSessao(Id1).Ok);
         Assert.False(dados.DesfazerRegistro(Id1).Ok);
 
@@ -803,7 +781,7 @@ public class DadosPainelTests
         using var _p = pasta;
 
         Assert.True(dados.CriarDemanda("CHG-2", "Y", null, Fabrica.Agora).Ok);
-        Assert.True(dados.EditarDemanda("CHG-1", "CHG-1", "X2", "oc").Ok);
+        Assert.True(dados.EditarDemanda("CHG-1", "X2").Ok);
         Assert.True(dados.VincularRepositorio("CHG-2", "B").Ok);
         Assert.True(dados.ArquivarDemanda("CHG-2").Ok);
         Assert.True(dados.DesarquivarDemanda("CHG-2").Ok);

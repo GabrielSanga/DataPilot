@@ -41,7 +41,7 @@ public class VisaoAgrupadaTests
         Assert.Equal(["Faturamento", "Estoque"], item.Cards.Select(c => c.Pasta));
         Assert.Equal(IdA, Assert.Single(item.Cards[0].Sessoes).Registrada.SessionId);
         Assert.Equal(IdB, Assert.Single(item.Cards[1].Sessoes).Registrada.SessionId);
-        Assert.Empty(v.NaoVinculadas);
+        Assert.Empty(v.Sessoes.NaoRegistradas);
     }
 
     [Fact]
@@ -68,15 +68,18 @@ public class VisaoAgrupadaTests
     {
         var v = Montar([], []);
         Assert.Empty(v.Demandas);
-        Assert.Empty(v.NaoVinculadas);
+        Assert.Empty(v.Sessoes.NaoRegistradas);
         Assert.Equal("Nada precisa de você agora", v.ResumoCabecalho.Texto);
     }
 
     [Fact]
-    public void Sem_demanda_sem_repositorios_fica_oculta_e_com_repositorios_aparece()
+    public void Sem_demanda_nao_aparece_entre_os_trabalhos_e_vira_a_entrada_Sessoes()
     {
-        Assert.Empty(Montar([Dem("sem-demanda")], []).Demandas);
-        Assert.Single(Montar([Dem("sem-demanda", false, Repo("X"))], []).Demandas);
+        var v = Montar([Dem("sem-demanda", false, Repo("X", Reg(IdA, "X", "sem-demanda")))], []);
+        Assert.Empty(v.Demandas);
+        var s = Assert.Single(v.Sessoes.Registradas);
+        Assert.Equal("X", s.Registrada.Pasta);
+        Assert.Equal(StatusExibido.SemStatus, s.Status);
     }
 
     // ---------- Sessões registradas sempre visíveis ----------
@@ -118,7 +121,7 @@ public class VisaoAgrupadaTests
         var d = Dem("a", false, Repo("X", Reg(IdA, "X", "a", Agente.Claude)));
         var v = Montar([d], [Lida(IdA, StatusGravado.Ativa, TimeSpan.Zero, Agente.Codex)]);
         Assert.Equal(StatusExibido.SemStatus, v.Demandas.Single().Cards.Single().Sessoes.Single().Status);
-        Assert.Equal(IdA, Assert.Single(v.NaoVinculadas).Sessao.SessionId);
+        Assert.Equal(IdA, Assert.Single(v.Sessoes.NaoRegistradas).Sessao.SessionId);
     }
 
     [Fact]
@@ -138,7 +141,7 @@ public class VisaoAgrupadaTests
         var d = Dem("a", false, Repo("X", Reg(IdA, "X", "a")));
         var v = Montar([d], [Lida(IdA.ToUpperInvariant(), StatusGravado.Ativa, TimeSpan.Zero)]);
         Assert.Equal(StatusExibido.Ativa, v.Demandas.Single().Cards.Single().Sessoes.Single().Status);
-        Assert.Empty(v.NaoVinculadas);
+        Assert.Empty(v.Sessoes.NaoRegistradas);
     }
 
     // ---------- Entrada "Não vinculadas" ----------
@@ -147,7 +150,7 @@ public class VisaoAgrupadaTests
     public void Sessao_do_codex_nao_registrada_vai_para_nao_vinculadas()
     {
         var v = Montar([Dem("a", false, Repo("X"))], [Lida(IdA, StatusGravado.Ativa, TimeSpan.Zero, Agente.Codex)]);
-        Assert.Equal(IdA, Assert.Single(v.NaoVinculadas).Sessao.SessionId);
+        Assert.Equal(IdA, Assert.Single(v.Sessoes.NaoRegistradas).Sessao.SessionId);
     }
 
     [Fact]
@@ -155,7 +158,7 @@ public class VisaoAgrupadaTests
     {
         var d = Dem("a", false, Repo("X", Reg(IdA, "X", "a")));
         var v = Montar([d], [Lida(IdA, StatusGravado.Encerrada, TimeSpan.FromMinutes(1)), Lida(IdB, StatusGravado.Ativa, TimeSpan.Zero)]);
-        Assert.Equal([IdB], v.NaoVinculadas.Select(s => s.Sessao.SessionId));
+        Assert.Equal([IdB], v.Sessoes.NaoRegistradas.Select(s => s.Sessao.SessionId));
         Assert.Single(v.Demandas.Single().Cards.Single().Sessoes);
     }
 
@@ -163,7 +166,7 @@ public class VisaoAgrupadaTests
     public void Nenhuma_sessao_nao_vinculada_resulta_em_lista_vazia()
     {
         var d = Dem("a", false, Repo("X", Reg(IdA, "X", "a")));
-        Assert.Empty(Montar([d], [Lida(IdA, StatusGravado.Ativa, TimeSpan.Zero)]).NaoVinculadas);
+        Assert.Empty(Montar([d], [Lida(IdA, StatusGravado.Ativa, TimeSpan.Zero)]).Sessoes.NaoRegistradas);
     }
 
     [Fact]
@@ -172,7 +175,7 @@ public class VisaoAgrupadaTests
         var d = Dem("a", true, Repo("X", Reg(IdA, "X", "a")));
         var v = Montar([d], [Lida(IdA, StatusGravado.Ativa, TimeSpan.Zero)], arquivadas: false);
         Assert.Empty(v.Demandas);
-        Assert.Empty(v.NaoVinculadas);
+        Assert.Empty(v.Sessoes.NaoRegistradas);
     }
 
     // ---------- Resumo e ordem das demandas ----------
@@ -277,7 +280,7 @@ public class VisaoAgrupadaTests
     public void Nao_vinculadas_seguem_a_mesma_ordem_de_urgencia()
     {
         var v = Montar([], [Lida(IdA, StatusGravado.Encerrada, TimeSpan.FromHours(1)), Lida(IdB, StatusGravado.Atencao, TimeSpan.FromHours(1))]);
-        Assert.Equal([IdB, IdA], v.NaoVinculadas.Select(s => s.Sessao.SessionId));
+        Assert.Equal([IdB, IdA], v.Sessoes.NaoRegistradas.Select(s => s.Sessao.SessionId));
     }
 
     // ---------- Antigas e resumo do cabeçalho ----------
@@ -295,10 +298,10 @@ public class VisaoAgrupadaTests
 
         var oculta = Montar([d], lidas, antigas: false);
         Assert.Single(oculta.Demandas.Single().Cards.Single().Sessoes);
-        Assert.Equal([IdC], oculta.NaoVinculadas.Select(s => s.Sessao.SessionId));
+        Assert.Equal([IdC], oculta.Sessoes.NaoRegistradas.Select(s => s.Sessao.SessionId));
 
         var todas = Montar([d], lidas, antigas: true);
-        Assert.Equal(2, todas.NaoVinculadas.Count);
+        Assert.Equal(2, todas.Sessoes.NaoRegistradas.Count);
         Assert.Single(todas.Demandas.Single().Cards.Single().Sessoes);
     }
 
@@ -306,7 +309,7 @@ public class VisaoAgrupadaTests
     public void Sessao_executando_parada_ha_4_dias_vira_inativa_antiga_entre_as_nao_vinculadas()
     {
         var v = Montar([], [Lida(IdA, StatusGravado.Executando, TimeSpan.FromDays(4))]);
-        Assert.Empty(v.NaoVinculadas);
+        Assert.Empty(v.Sessoes.NaoRegistradas);
     }
 
     [Fact]

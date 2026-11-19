@@ -17,6 +17,9 @@
     <SolidColorBrush x:Key="SelecaoBorda" Color="Transparent"/>
     <SolidColorBrush x:Key="Veu" Color="#26000000"/>
 
+    <!-- O nome do status só aparece em texto na linha com o alto contraste do Windows ligado (ver TemaAltoContraste). -->
+    <Visibility x:Key="MostrarStatusEmTexto">Collapsed</Visibility>
+
     <!-- Sinais de status: faixa, indicador e texto sobre fundo claro. -->
     <SolidColorBrush x:Key="SinalAtencao" Color="#C8102E"/>
     <SolidColorBrush x:Key="TextoAtencao" Color="#A30D25"/>
@@ -333,6 +336,7 @@
 
     <!-- ===== Item da lista de demandas ===== -->
     <Style x:Key="ItemTrilho" TargetType="ListBoxItem">
+        <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Foreground" Value="{DynamicResource Grafite}"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>

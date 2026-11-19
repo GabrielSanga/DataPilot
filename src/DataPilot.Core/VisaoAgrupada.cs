@@ -18,7 +18,7 @@ public sealed record LancamentoNaVisao(LancamentoPendente Lancamento, string Tem
 
 /// <summary>
 /// Card de um repositório: sessões registradas e, depois delas, os lançamentos pendentes válidos (do mais recente
-/// para o mais antigo). As sessões não vinculadas ficam na entrada "Não vinculadas".
+/// para o mais antigo). As sessões não registradas ficam na entrada "Sessões".
 /// </summary>
 public sealed record CardNaVisao(string Pasta, IReadOnlyList<SessaoNaVisao> Sessoes, IReadOnlyList<LancamentoNaVisao> Lancamentos)
 {
@@ -39,10 +39,43 @@ public sealed record DemandaNaVisao(
         => Cards.SelectMany(c => c.Sessoes).Any(s => Correspondencia.ExigeConfirmacao(s.Status));
 }
 
-/// <summary>Tela inteira: demandas ordenadas, sessões não vinculadas e o resumo do cabeçalho.</summary>
+/// <summary>Lançamento pendente da entrada "Sessões", com o repositório em que foi aberto.</summary>
+public sealed record LancamentoEmSessoes(string Pasta, LancamentoNaVisao Lancamento);
+
+/// <summary>
+/// Entrada "Sessões" (a demanda fixa <c>sem-demanda</c>): sessões registradas nela, com o repositório de cada uma
+/// (<see cref="SessaoRegistrada.Pasta"/>), lançamentos pendentes e sessões lidas da pasta de status que não estão
+/// registradas em nenhuma demanda nem foram excluídas.
+/// </summary>
+public sealed record EntradaSessoes(
+    IReadOnlyList<SessaoNaVisao> Registradas,
+    IReadOnlyList<LancamentoEmSessoes> Lancamentos,
+    IReadOnlyList<SessaoExibida> NaoRegistradas)
+{
+    public static EntradaSessoes Vazia { get; } = new([], [], []);
+
+    public int Quantidade => Registradas.Count + NaoRegistradas.Count;
+
+    /// <summary>Algum status da entrada, para "Ir para a próxima" e para o resumo da lista.</summary>
+    public bool TemStatus(StatusExibido status)
+        => Registradas.Any(s => s.Status == status) || NaoRegistradas.Any(s => s.Status == status);
+
+    /// <summary>Status mais urgente das sessões com status, ou null.</summary>
+    public StatusExibido? MaisUrgente
+    {
+        get
+        {
+            var todos = Registradas.Where(s => s.Status != StatusExibido.SemStatus).Select(s => s.Status)
+                .Concat(NaoRegistradas.Select(s => s.Status)).ToList();
+            return todos.Count == 0 ? null : todos.Min();
+        }
+    }
+}
+
+/// <summary>Tela inteira: trabalhos ordenados, a entrada "Sessões" e o resumo do cabeçalho.</summary>
 public sealed record Visao(
     IReadOnlyList<DemandaNaVisao> Demandas,
-    IReadOnlyList<SessaoExibida> NaoVinculadas,
+    EntradaSessoes Sessoes,
     ResumoCabecalho ResumoCabecalho);
 
 /// <summary>Monta a visão agrupada por demanda como função pura; o relógio entra por <see cref="TimeProvider"/>.</summary>
@@ -53,43 +86,71 @@ public static class VisaoAgrupada
         IEnumerable<Sessao> sessoesLidas,
         bool mostrarArquivadas,
         bool mostrarAntigas,
-        TimeProvider relogio)
+        TimeProvider relogio,
+        IReadOnlyList<SessaoExcluida>? excluidas = null)
     {
+        var excluidasSet = new HashSet<(Agente, string)>(
+            (excluidas ?? []).Select(e => (e.Agente, e.SessionId.ToLowerInvariant())));
+
         var lidas = new Dictionary<(Agente, string), Sessao>();
         foreach (var s in sessoesLidas)
-            lidas.TryAdd((s.Agente, s.SessionId.ToLowerInvariant()), s);
+        {
+            var chave = (s.Agente, s.SessionId.ToLowerInvariant());
+            if (excluidasSet.Contains(chave)) continue;
+            lidas.TryAdd(chave, s);
+        }
 
-        // Toda sessão registrada, de qualquer demanda (inclusive arquivada ou oculta), deixa de ser "não vinculada".
+        // Toda sessão registrada, de qualquer demanda (inclusive arquivada ou oculta), deixa de ser "não registrada".
         var registradas = new HashSet<(Agente, string)>();
         foreach (var d in demandas)
             foreach (var r in d.Repositorios)
                 foreach (var s in r.Sessoes)
                     registradas.Add((s.Agente, s.SessionId.ToLowerInvariant()));
 
-        var naoVinculadas = RegrasExibicao.Montar(
+        var naoRegistradas = RegrasExibicao.Montar(
             lidas.Where(p => !registradas.Contains((p.Key.Item1, p.Key.Item2))).Select(p => p.Value),
             mostrarAntigas, relogio);
 
         var itens = new List<DemandaNaVisao>();
+        var sessoes = EntradaSessoes.Vazia with { NaoRegistradas = naoRegistradas };
         foreach (var d in demandas)
         {
+            if (RegrasDemanda.EhImplicita(d.Id))
+            {
+                sessoes = MontarSessoes(d, lidas, excluidasSet, naoRegistradas, relogio);
+                continue;
+            }
             if (d.Arquivada && !mostrarArquivadas) continue;
-            if (RegrasDemanda.EhImplicita(d.Id) && d.Repositorios.Count == 0) continue;
-            itens.Add(MontarDemanda(d, lidas, relogio));
+            itens.Add(MontarDemanda(d, lidas, excluidasSet, relogio));
         }
         var ordenadas = Ordenar(itens);
 
-        // O cabeçalho conta as sessões das demandas listadas e as não vinculadas visíveis; "sem status" não entra.
+        // O cabeçalho conta as sessões dos trabalhos listados e as de "Sessões"; "sem status" não entra.
         var paraResumo = ordenadas
             .SelectMany(d => d.Cards).SelectMany(c => c.Sessoes)
+            .Concat(sessoes.Registradas)
             .Where(s => s.Lida is not null)
             .Select(s => new SessaoExibida(s.Lida!, s.Status, s.Tempo))
-            .Concat(naoVinculadas);
+            .Concat(naoRegistradas);
 
-        return new Visao(ordenadas, naoVinculadas, RegrasExibicao.Resumo(paraResumo));
+        return new Visao(ordenadas, sessoes, RegrasExibicao.Resumo(paraResumo));
     }
 
-    private static DemandaNaVisao MontarDemanda(Demanda d, Dictionary<(Agente, string), Sessao> lidas, TimeProvider relogio)
+    private static EntradaSessoes MontarSessoes(Demanda d, Dictionary<(Agente, string), Sessao> lidas,
+        HashSet<(Agente, string)> excluidas, IReadOnlyList<SessaoExibida> naoRegistradas, TimeProvider relogio)
+    {
+        var cards = MontarCards(d, lidas, excluidas, relogio);
+        var registradas = cards.SelectMany(c => c.Sessoes).ToList();
+        registradas.Sort(ComparaSessoes);
+        var lancamentos = cards.SelectMany(c => c.Lancamentos.Select(l => new LancamentoEmSessoes(c.Pasta, l)))
+            .OrderByDescending(x => x.Lancamento.Lancamento.CriadoEm)
+            .ThenBy(x => x.Lancamento.Lancamento.Id, StringComparer.Ordinal)
+            .ToList();
+        return new EntradaSessoes(registradas, lancamentos, naoRegistradas);
+    }
+
+    private static List<CardNaVisao> MontarCards(Demanda d, Dictionary<(Agente, string), Sessao> lidas,
+        HashSet<(Agente, string)> excluidas, TimeProvider relogio)
     {
         var cards = new List<CardNaVisao>();
         foreach (var repo in d.Repositorios)
@@ -97,6 +158,7 @@ public static class VisaoAgrupada
             var sessoes = new List<SessaoNaVisao>();
             foreach (var r in repo.Sessoes)
             {
+                if (excluidas.Contains((r.Agente, r.SessionId.ToLowerInvariant()))) continue;
                 if (lidas.TryGetValue((r.Agente, r.SessionId.ToLowerInvariant()), out var lida))
                     sessoes.Add(new SessaoNaVisao(r, lida, RegrasExibicao.StatusExibido(lida, relogio),
                         RegrasExibicao.TempoDecorrido(RegrasExibicao.Idade(lida, relogio))));
@@ -106,6 +168,13 @@ public static class VisaoAgrupada
             sessoes.Sort(ComparaSessoes);
             cards.Add(new CardNaVisao(repo.Pasta, sessoes, MontarLancamentos(d, repo, relogio)));
         }
+        return cards;
+    }
+
+    private static DemandaNaVisao MontarDemanda(Demanda d, Dictionary<(Agente, string), Sessao> lidas,
+        HashSet<(Agente, string)> excluidas, TimeProvider relogio)
+    {
+        var cards = MontarCards(d, lidas, excluidas, relogio);
 
         var todas = cards.SelectMany(c => c.Sessoes).ToList();
         var comStatus = todas.Where(s => s.Status != StatusExibido.SemStatus).ToList();

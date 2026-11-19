@@ -280,79 +280,73 @@ public sealed class LeitorTasksTests : IDisposable
         Assert.Equal(EstadoRepositorio.Ilegivel, leitor.Ler("F", "ajuste").Estado);
     }
 
-    // ---------- soma e exibição ----------
+    // ---------- progresso por repositório e exibição ----------
+
+    private IReadOnlyDictionary<string, ProgressoRepositorio> Montar(params (string Pasta, string? Change)[] repos)
+        => ProgressoDosRepositorios.Montar(
+            repos.Select(r => new RepositorioCadastrado(r.Pasta, [], [], r.Change)), new LeitorTasks(_raiz.Caminho));
 
     [Fact]
-    public void Change_em_dois_repositorios_soma()
+    public void Cada_repositorio_mostra_o_progresso_da_propria_change_sem_soma()
     {
         Tasks("Faturamento", Linhas(4, 2));
-        Tasks("Estoque", Linhas(3, 3));
-        var p = ProgressoDemanda.Montar("ajuste", ["Faturamento", "Estoque"], new LeitorTasks(_raiz.Caminho));
-        Assert.Equal("7 de 12 tarefas", p.Texto);
-        Assert.Equal("4 de 6", p.Repositorios[0].Texto);
-        Assert.Equal("3 de 6", p.Repositorios[1].Texto);
-        Assert.Equal(7.0 / 12, p.Fracao, 6);
+        Tasks("Estoque", Linhas(3, 3), change: "outra");
+        var p = Montar(("Faturamento", "ajuste"), ("Estoque", "outra"));
+        Assert.Equal("4 de 6", p["Faturamento"].Texto);
+        Assert.Equal("3 de 6", p["Estoque"].Texto);
+        Assert.Equal(4.0 / 6, p["Faturamento"].Fracao, 6);
     }
 
     [Fact]
-    public void Change_nao_encontrada()
+    public void Change_nao_encontrada_mostra_a_indicacao_sem_barra()
     {
         Directory.CreateDirectory(Pasta("F"));
-        var p = ProgressoDemanda.Montar("ajuste", ["F", "G"], new LeitorTasks(_raiz.Caminho));
-        Assert.True(p.NaoEncontrada);
-        Assert.Equal("change não encontrada nos repositórios", p.Texto);
-        Assert.All(p.Repositorios, r => Assert.Equal("", r.Texto));
+        var p = Montar(("F", "ajuste"));
+        Assert.Equal(EstadoRepositorio.NaoEncontrada, p["F"].Estado);
+        Assert.Equal("change não encontrada", p["F"].Texto);
+        Assert.Equal(0, p["F"].Fracao);
     }
 
     [Fact]
-    public void Um_repositorio_ilegivel_fica_fora_da_soma()
+    public void Um_repositorio_ilegivel_nao_afeta_o_outro()
     {
         Tasks("Faturamento", Linhas(4, 2));
         Tasks("Estoque", new string('x', LeitorTasks.TamanhoMaximo + 1));
-        var p = ProgressoDemanda.Montar("ajuste", ["Faturamento", "Estoque"], new LeitorTasks(_raiz.Caminho));
-        Assert.Equal("4 de 6 tarefas", p.Texto);
-        Assert.Equal("progresso indisponível", p.Repositorios[1].Texto);
-        Assert.False(p.NaoEncontrada);
+        var p = Montar(("Faturamento", "ajuste"), ("Estoque", "ajuste"));
+        Assert.Equal("4 de 6", p["Faturamento"].Texto);
+        Assert.Equal("progresso indisponível", p["Estoque"].Texto);
     }
 
     [Fact]
-    public void Todos_ilegiveis_mostram_progresso_indisponivel()
-    {
-        Tasks("F", new string('x', LeitorTasks.TamanhoMaximo + 1));
-        var p = ProgressoDemanda.Montar("ajuste", ["F"], new LeitorTasks(_raiz.Caminho));
-        Assert.Equal("progresso indisponível", p.Texto);
-    }
-
-    [Fact]
-    public void Change_arquivada_na_soma_tem_a_indicacao()
+    public void Change_arquivada_tem_a_indicacao()
     {
         Tasks("F", Linhas(3, 0), arquivada: true);
-        var p = ProgressoDemanda.Montar("ajuste", ["F"], new LeitorTasks(_raiz.Caminho));
-        Assert.Equal("3 de 3 tarefas · arquivada", p.Texto);
+        Assert.Equal("3 de 3 · arquivada", Montar(("F", "ajuste"))["F"].Texto);
     }
 
     [Fact]
     public void Sem_tarefas()
     {
         Tasks("F", "# vazio");
-        var p = ProgressoDemanda.Montar("ajuste", ["F"], new LeitorTasks(_raiz.Caminho));
-        Assert.Equal("sem tarefas", p.Texto);
+        Assert.Equal("sem tarefas", Montar(("F", "ajuste"))["F"].Texto);
     }
 
     [Fact]
-    public void Demanda_sem_change_nao_le_nada_nem_mostra_progresso()
+    public void Repositorio_sem_change_nao_le_nada_nem_mostra_progresso()
     {
         Tasks("F", Linhas(1, 1));
-        var p = ProgressoDemanda.Montar(null, ["F"], new LeitorTasks(_raiz.Caminho));
-        Assert.Equal("", p.Texto);
-        Assert.Empty(p.Repositorios);
+        Assert.Empty(Montar(("F", null)));
     }
 
     [Fact]
-    public void Demanda_sem_repositorios_nao_mostra_nada()
+    public void Repositorio_herda_a_change_da_demanda_gravada_por_versao_anterior()
     {
-        var p = ProgressoDemanda.Montar("ajuste", [], new LeitorTasks(_raiz.Caminho));
-        Assert.Equal("", p.Texto);
-        Assert.False(p.NaoEncontrada);
+        Tasks("F", Linhas(2, 1));
+        var (dados, pasta, _) = DadosPainelTests.Novo(
+            """{"demandas":[{"id":"A","titulo":"A","openspecChange":"ajuste","repositorios":[{"pasta":"F"}]}]}""");
+        using var _p = pasta;
+        var repo = dados.Carregar().Demandas.Single().Repositorios.Single();
+        var p = ProgressoDosRepositorios.Montar([repo], new LeitorTasks(_raiz.Caminho));
+        Assert.Equal("2 de 3", p["F"].Texto);
     }
 }

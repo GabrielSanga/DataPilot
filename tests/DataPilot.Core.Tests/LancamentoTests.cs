@@ -29,48 +29,48 @@ public class MontadorComandoTests
     [Fact]
     public void Claude_novo()
     {
-        var c = MontadorComando.Novo("CHG-142", Repo, Agente.Claude, Id, null);
+        var c = MontadorComando.Novo("CHG-142", "Ajuste NF-e", Repo, Agente.Claude, Id, null);
         Assert.Equal("wt.exe", c.Executavel);
-        Assert.Equal([.. Prefixo("CHG-142 · Faturamento"), "-Agente", "claude", "-Repo", "Faturamento", "-Sessao", Id, "-Modo", "novo"], c.Argumentos);
+        Assert.Equal([.. Prefixo("Ajuste NF-e · Faturamento"), "-Agente", "claude", "-Repo", "Faturamento", "-Sessao", Id, "-Modo", "novo"], c.Argumentos);
     }
 
     [Fact]
     public void Codex_novo_sem_sessao()
     {
-        var c = MontadorComando.Novo("CHG-142", Repo, Agente.Codex, null, null);
-        Assert.Equal([.. Prefixo("CHG-142 · Faturamento"), "-Agente", "codex", "-Repo", "Faturamento", "-Modo", "novo"], c.Argumentos);
+        var c = MontadorComando.Novo("CHG-142", "Ajuste NF-e", Repo, Agente.Codex, null, null);
+        Assert.Equal([.. Prefixo("Ajuste NF-e · Faturamento"), "-Agente", "codex", "-Repo", "Faturamento", "-Modo", "novo"], c.Argumentos);
     }
 
     [Fact]
     public void Claude_retomar()
     {
-        var s = new SessaoRegistrada(Agente.Claude, Id, "Faturamento", null, Fabrica.Agora, "CHG-142");
+        var s = new SessaoRegistrada(Agente.Claude, Id, "Faturamento", null, Fabrica.Agora, "CHG-142", "Ajuste NF-e");
         var c = MontadorComando.Retomar(s);
-        Assert.Equal([.. Prefixo("CHG-142 · Faturamento"), "-Agente", "claude", "-Repo", "Faturamento", "-Sessao", Id, "-Modo", "retomar"], c.Argumentos);
+        Assert.Equal([.. Prefixo("Ajuste NF-e · Faturamento"), "-Agente", "claude", "-Repo", "Faturamento", "-Sessao", Id, "-Modo", "retomar"], c.Argumentos);
     }
 
     [Fact]
     public void Codex_retomar()
     {
-        var s = new SessaoRegistrada(Agente.Codex, Id, "Faturamento", null, Fabrica.Agora, "CHG-142");
+        var s = new SessaoRegistrada(Agente.Codex, Id, "Faturamento", null, Fabrica.Agora, "CHG-142", "Ajuste NF-e");
         var c = MontadorComando.Retomar(s);
-        Assert.Equal([.. Prefixo("CHG-142 · Faturamento"), "-Agente", "codex", "-Repo", "Faturamento", "-Sessao", Id, "-Modo", "retomar"], c.Argumentos);
+        Assert.Equal([.. Prefixo("Ajuste NF-e · Faturamento"), "-Agente", "codex", "-Repo", "Faturamento", "-Sessao", Id, "-Modo", "retomar"], c.Argumentos);
     }
 
     [Fact]
-    public void Titulo_sem_rotulo() => Assert.Equal("CHG-142 · Faturamento", MontadorComando.Titulo("CHG-142", Agente.Claude, "Faturamento", null));
+    public void Titulo_sem_rotulo() => Assert.Equal("Ajuste NF-e · Faturamento", MontadorComando.Titulo("CHG-142", "Ajuste NF-e", Agente.Claude, "Faturamento", null));
 
     [Fact]
-    public void Titulo_com_rotulo() => Assert.Equal("CHG-142 · Faturamento · implementação", MontadorComando.Titulo("CHG-142", Agente.Claude, "Faturamento", "implementação"));
+    public void Titulo_com_rotulo() => Assert.Equal("Ajuste NF-e · Faturamento · implementação", MontadorComando.Titulo("CHG-142", "Ajuste NF-e", Agente.Claude, "Faturamento", "implementação"));
 
     [Fact]
-    public void Titulo_de_sem_demanda_usa_o_nome_do_agente() => Assert.Equal("Codex · App", MontadorComando.Titulo("sem-demanda", Agente.Codex, "App", null));
+    public void Titulo_de_sem_demanda_usa_o_nome_do_agente() => Assert.Equal("Codex · App", MontadorComando.Titulo("sem-demanda", null, Agente.Codex, "App", null));
 
     [Fact]
     public void Rotulo_vai_para_o_titulo_como_um_argumento()
     {
-        var c = MontadorComando.Novo("CHG-142", Repo, Agente.Claude, Id, "duas palavras");
-        Assert.Equal("CHG-142 · Faturamento · duas palavras", c.Argumentos[4]);
+        var c = MontadorComando.Novo("CHG-142", "Ajuste NF-e", Repo, Agente.Claude, Id, "duas palavras");
+        Assert.Equal("Ajuste NF-e · Faturamento · duas palavras", c.Argumentos[4]);
     }
 
     [Theory]
@@ -81,8 +81,8 @@ public class MontadorComandoTests
     [InlineData("")]
     public void Pasta_invalida_e_recusada(string pasta)
     {
-        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", new RepositorioCadastrado(pasta, []), Agente.Claude, Id, null));
-        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Retomar(new SessaoRegistrada(Agente.Claude, Id, pasta, null, Fabrica.Agora, "CHG-142")));
+        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", "Ajuste NF-e", new RepositorioCadastrado(pasta, []), Agente.Claude, Id, null));
+        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Retomar(new SessaoRegistrada(Agente.Claude, Id, pasta, null, Fabrica.Agora, "CHG-142", "Ajuste NF-e")));
     }
 
     [Theory]
@@ -91,8 +91,8 @@ public class MontadorComandoTests
     [InlineData("0b6f1c2e-5d1a-4c8e-9f3a-2b7d4e6a8c10; calc")]
     public void Identificador_invalido_e_recusado(string id)
     {
-        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", Repo, Agente.Claude, id, null));
-        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Retomar(new SessaoRegistrada(Agente.Claude, id, "App", null, Fabrica.Agora, "CHG-142")));
+        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", "Ajuste NF-e", Repo, Agente.Claude, id, null));
+        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Retomar(new SessaoRegistrada(Agente.Claude, id, "App", null, Fabrica.Agora, "CHG-142", "Ajuste NF-e")));
     }
 
     [Theory]
@@ -101,21 +101,21 @@ public class MontadorComandoTests
     [InlineData("12345678901234567890123456789012345678901")]
     public void Rotulo_invalido_e_recusado(string rotulo)
     {
-        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", Repo, Agente.Claude, Id, rotulo));
-        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Retomar(new SessaoRegistrada(Agente.Claude, Id, "App", rotulo, Fabrica.Agora, "CHG-142")));
+        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", "Ajuste NF-e", Repo, Agente.Claude, Id, rotulo));
+        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Retomar(new SessaoRegistrada(Agente.Claude, Id, "App", rotulo, Fabrica.Agora, "CHG-142", "Ajuste NF-e")));
     }
 
     [Fact]
     public void Agente_invalido_e_recusado()
-        => Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", Repo, (Agente)7, Id, null));
+        => Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", "Ajuste NF-e", Repo, (Agente)7, Id, null));
 
     [Fact]
     public void Claude_novo_sem_identificador_e_recusado()
-        => Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", Repo, Agente.Claude, null, null));
+        => Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", "Ajuste NF-e", Repo, Agente.Claude, null, null));
 
     [Fact]
     public void Codex_novo_com_identificador_e_recusado()
-        => Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", Repo, Agente.Codex, Id, null));
+        => Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", "Ajuste NF-e", Repo, Agente.Codex, Id, null));
 }
 
 public class DisparadorProcessoTests
@@ -141,17 +141,17 @@ public class MontadorComandoDemandaTests
     }
 
     [Fact]
-    public void Retomar_sessao_de_demanda_com_rotulo_comeca_pelo_id()
+    public void Retomar_sessao_de_trabalho_com_rotulo_comeca_pelo_titulo()
     {
-        var s = new SessaoRegistrada(Agente.Claude, Id, "Faturamento", "implementação", Fabrica.Agora, "CHG-142");
-        Assert.Equal("CHG-142 · Faturamento · implementação", MontadorComando.Retomar(s).Argumentos[4]);
+        var s = new SessaoRegistrada(Agente.Claude, Id, "Faturamento", "implementação", Fabrica.Agora, "CHG-142", "Ajuste NF-e");
+        Assert.Equal("Ajuste NF-e · Faturamento · implementação", MontadorComando.Retomar(s).Argumentos[4]);
     }
 
     [Fact]
-    public void Novo_do_codex_em_demanda_usa_o_id_no_titulo()
+    public void Novo_do_codex_em_trabalho_usa_o_titulo_na_aba()
     {
-        var c = MontadorComando.Novo("CHG-142", new RepositorioCadastrado("Estoque", []), Agente.Codex, null, "teste");
-        Assert.Equal("CHG-142 · Estoque · teste", c.Argumentos[4]);
+        var c = MontadorComando.Novo("CHG-142", "Ajuste NF-e", new RepositorioCadastrado("Estoque", []), Agente.Codex, null, "teste");
+        Assert.Equal("Ajuste NF-e · Estoque · teste", c.Argumentos[4]);
     }
 
     [Theory]
@@ -160,12 +160,12 @@ public class MontadorComandoDemandaTests
     [InlineData("..")]
     [InlineData("")]
     [InlineData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
-    public void Identificador_de_demanda_invalido_e_recusado(string demandaId)
+    public void Identificador_de_trabalho_invalido_e_recusado(string demandaId)
     {
         Assert.Throws<EntradaInvalidaException>(() =>
-            MontadorComando.Novo(demandaId, new RepositorioCadastrado("App", []), Agente.Claude, Id, null));
+            MontadorComando.Novo(demandaId, "Ajuste NF-e", new RepositorioCadastrado("App", []), Agente.Claude, Id, null));
         Assert.Throws<EntradaInvalidaException>(() =>
-            MontadorComando.Retomar(new SessaoRegistrada(Agente.Claude, Id, "App", null, Fabrica.Agora, demandaId)));
+            MontadorComando.Retomar(new SessaoRegistrada(Agente.Claude, Id, "App", null, Fabrica.Agora, demandaId, "Ajuste NF-e")));
     }
 }
 
@@ -284,7 +284,7 @@ public class AberturaSessaoTests
     {
         var (abertura, _, disparador, pasta) = Novo();
         using var _ = pasta;
-        var s = new SessaoRegistrada(Agente.Claude, IdFixo, "Faturamento", null, Fabrica.Agora, "CHG-142");
+        var s = new SessaoRegistrada(Agente.Claude, IdFixo, "Faturamento", null, Fabrica.Agora, "CHG-142", "Ajuste NF-e");
         Assert.True(abertura.Retomar(s).Ok);
         Assert.Equal(["-Repo", "Faturamento", "-Sessao", IdFixo, "-Modo", "retomar"], Assert.Single(disparador.Comandos).Argumentos.TakeLast(6));
     }
@@ -294,7 +294,7 @@ public class AberturaSessaoTests
     {
         var (abertura, _, disparador, pasta) = Novo();
         using var _ = pasta;
-        var r = abertura.Retomar(new SessaoRegistrada(Agente.Claude, IdFixo, "..", null, Fabrica.Agora, "CHG-142"));
+        var r = abertura.Retomar(new SessaoRegistrada(Agente.Claude, IdFixo, "..", null, Fabrica.Agora, "CHG-142", "Ajuste NF-e"));
         Assert.False(r.Ok);
         Assert.Empty(disparador.Comandos);
     }
@@ -305,7 +305,7 @@ public class AberturaSessaoTests
         var (abertura, _, disparador, pasta) = Novo();
         using var _ = pasta;
         disparador.Falhar = true;
-        var r = abertura.Retomar(new SessaoRegistrada(Agente.Claude, IdFixo, "Faturamento", null, Fabrica.Agora, "CHG-142"));
+        var r = abertura.Retomar(new SessaoRegistrada(Agente.Claude, IdFixo, "Faturamento", null, Fabrica.Agora, "CHG-142", "Ajuste NF-e"));
         Assert.False(r.Ok);
         Assert.NotNull(r.Mensagem);
     }
@@ -373,18 +373,19 @@ public class AberturaSessaoDemandaTests
     }
 
     [Fact]
-    public void Retomar_sessao_movida_abre_no_mesmo_repositorio()
+    public void Retomar_sessao_vinculada_a_um_trabalho_abre_no_mesmo_repositorio()
     {
         var (abertura, dados, disparador, pasta) = Novo();
         using var _ = pasta;
-        abertura.Nova("A", "Faturamento", Agente.Claude, null);
-        dados.CriarDemanda("C", "C", null, Fabrica.Agora);
-        Assert.True(dados.MoverSessao(IdFixo, "C").Ok);
+        Assert.True(abertura.NovaEmSessoes("Faturamento", Agente.Claude, null).Ok);
+        dados.CriarDemanda("C", "Meu trabalho", null, Fabrica.Agora);
+        var pedido = PedidoVinculo.Criar(new Sessao(Agente.Claude, IdFixo, @"C:\Fontes\Faturamento", StatusGravado.Ativa, Fabrica.Agora))!;
+        Assert.True(dados.VincularSessao(pedido, "C", "Faturamento", null, Fabrica.Agora).Ok);
 
         var sessao = dados.Carregar().Demandas.Single(d => d.Id == "C").Repositorios.Single().Sessoes.Single();
         Assert.True(abertura.Retomar(sessao).Ok);
         var args = disparador.Comandos.Last().Argumentos;
-        Assert.Equal("C · Faturamento", args[4]);
+        Assert.Equal("Meu trabalho · Faturamento", args[4]);
         Assert.Equal(["-Repo", "Faturamento", "-Sessao", IdFixo, "-Modo", "retomar"], args.TakeLast(6));
     }
 }
