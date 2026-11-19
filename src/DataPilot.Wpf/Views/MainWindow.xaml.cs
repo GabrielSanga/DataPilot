@@ -4,29 +4,38 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Animation;
 using DataPilot.Wpf.ViewModels;
 
 namespace DataPilot.Wpf.Views;
 
 public partial class MainWindow : Window
 {
-    private MainViewModel Vm => (MainViewModel)DataContext;
 
-    // A lista e o view model se atualizam por eventos separados; este sinalizador evita que um eco volte ao outro.
+    #region "Variáveis"
+
+    private MainViewModel _ViewModel => (MainViewModel)DataContext;
+
     private bool _sincronizandoSelecao;
 
-    public MainWindow()
-    {
-        InitializeComponent();
-        DataContextChanged += (_, e) =>
-        {
-            if (e.OldValue is INotifyPropertyChanged antigo) antigo.PropertyChanged -= VmPropertyChanged;
-            if (e.NewValue is INotifyPropertyChanged novo) novo.PropertyChanged += VmPropertyChanged;
-        };
-    }
+    #endregion
 
-    private void VmPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    #region "Construtor"
+
+    public MainWindow()
+        {
+            InitializeComponent();
+            DataContextChanged += (_, e) =>
+            {
+                if (e.OldValue is INotifyPropertyChanged antigo) antigo.PropertyChanged -= VieModelPropertyChanged;
+                if (e.NewValue is INotifyPropertyChanged novo) novo.PropertyChanged += VieModelPropertyChanged;
+            };
+        }
+
+    #endregion
+
+    #region "Methods"
+
+    private void VieModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         switch (e.PropertyName)
         {
@@ -35,33 +44,21 @@ public partial class MainWindow : Window
                 break;
         }
     }
-
-    // ---------- seleção da lista ----------
-
-    /// <summary>
-    /// Só uma escolha do usuário (um item que entra na seleção) muda a demanda selecionada. Quando o filtro esconde o
-    /// item selecionado a lista fica sem seleção, mas a demanda continua sendo a mesma e a área dela não muda.
-    /// </summary>
-    private void ListaDemandas_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (_sincronizandoSelecao) return;
-        if (e.AddedItems.Count > 0 && e.AddedItems[0] is DemandaItem item)
-            Vm.DemandaSelecionada = item;
-    }
-
     private void SincronizarSelecaoDaLista()
     {
         _sincronizandoSelecao = true;
         try
         {
-            var atual = Vm.DemandaSelecionada;
+            var atual = _ViewModel.DemandaSelecionada;
             if (!ReferenceEquals(ListaDemandas.SelectedItem, atual))
                 ListaDemandas.SelectedItem = atual;
         }
         finally { _sincronizandoSelecao = false; }
     }
 
-    // ---------- teclado ----------
+    #endregion
+
+    #region "Events"
 
     protected override void OnPreviewKeyDown(KeyEventArgs e)
     {
@@ -70,7 +67,7 @@ public partial class MainWindow : Window
         if (ctrl && e.Key == Key.N)
         {
             e.Handled = true;
-            Vm.NovaDemanda();
+            _ViewModel.NovaDemanda();
         }
         else if (ctrl && e.Key == Key.F)
         {
@@ -81,26 +78,26 @@ public partial class MainWindow : Window
         else if (e.Key == Key.F8 && Keyboard.Modifiers == ModifierKeys.None)
         {
             e.Handled = true;
-            if (Vm.IrParaProximaCommand.CanExecute(null)) Vm.IrParaProximaCommand.Execute(null);
+            if (_ViewModel.IrParaProximaCommand.CanExecute(null)) _ViewModel.IrParaProximaCommand.Execute(null);
         }
     }
 
-    /// <summary>Esc no filtro limpa o texto.</summary>
     private void CampoFiltro_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key != Key.Escape) return;
         e.Handled = true;
-        Vm.FiltroTexto = "";
+        _ViewModel.FiltroTexto = "";
     }
 
-    private void NovaDemanda_Click(object sender, RoutedEventArgs e) => Vm.NovaDemanda();
+    private void NovaDemanda_Click(object sender, RoutedEventArgs e) => _ViewModel.NovaDemanda();
 
-    // ---------- menus "Mais ações" ----------
+    private void ListaDemandas_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_sincronizandoSelecao) return;
+        if (e.AddedItems.Count > 0 && e.AddedItems[0] is DemandaItem item)
+            _ViewModel.DemandaSelecionada = item;
+    }
 
-    /// <summary>
-    /// Abre o menu da linha, do repositório ou da demanda a que o botão pertence. O mesmo menu abre com o botão
-    /// direito, com a tecla de menu e com Shift+F10 sobre a linha (isso é do próprio WPF).
-    /// </summary>
     private void MaisAcoes_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement botao) return;
@@ -140,4 +137,7 @@ public partial class MainWindow : Window
             atual = VisualTreeHelper.GetParent(atual);
         }
     }
+
+    #endregion
+
 }

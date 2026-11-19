@@ -11,70 +11,59 @@ namespace DataPilot.Wpf;
 
 public partial class App : Application
 {
-    private MainViewModel? _vm;
-    private ResourceDictionary? _altoContraste;
+    #region "Variáveis"
 
-    protected override void OnStartup(StartupEventArgs e)
-    {
-        base.OnStartup(e);
+        private MainViewModel? _ViewModel;
 
-        // O tema é escolhido na abertura e trocado quando o alto contraste do Windows liga, desliga ou muda de esquema.
-        AplicarTema();
-        SystemParameters.StaticPropertyChanged += (_, args) =>
+    #endregion
+
+    #region "Métodos (Override)"
+
+        protected override void OnStartup(StartupEventArgs e)
         {
-            if (args.PropertyName is nameof(SystemParameters.HighContrast) or null)
-                Dispatcher.BeginInvoke(AplicarTema);
-        };
-        Microsoft.Win32.SystemEvents.UserPreferenceChanged += (_, _) => Dispatcher.BeginInvoke(AplicarTema);
+            base.OnStartup(e);
 
-        var pasta = LerParametro(e.Args, "--pasta-status") ?? Constantes.PastaStatusPadrao;
-        var dados = new DadosPainel(LerParametro(e.Args, "--dados") ?? DadosPainel.CaminhoPadrao);
-        var abertura = new AberturaSessao(dados, new DisparadorProcesso(), TimeProvider.System);
+            // Capturando parâmetros recebidos
+            var pasta = LerParametro(e.Args, "--pasta-status") ?? Constantes.PastaStatusPadrao;
+            var dados = new DadosPainel(LerParametro(e.Args, "--dados") ?? DadosPainel.CaminhoPadrao);
+            var abertura = new AberturaSessao(dados, new DisparadorProcesso(), TimeProvider.System);
+            var leitorTasks = new LeitorTasks(LerParametro(e.Args, "--raiz-fontes") ?? Constantes.RaizFontesPadrao);
 
-        var leitorTasks = new LeitorTasks(LerParametro(e.Args, "--raiz-fontes") ?? Constantes.RaizFontesPadrao);
+            // Cria a ViewModel principal
+            _ViewModel = new MainViewModel(pasta, TimeProvider.System, Dispatcher, dados, abertura, new InteracaoJanelas(), leitorTasks);
 
-        _vm = new MainViewModel(pasta, TimeProvider.System, Dispatcher, dados, abertura, new InteracaoJanelas(), leitorTasks);
-        var janela = new MainWindow { DataContext = _vm };
-        MainWindow = janela;
-        janela.Show();
-        _vm.Iniciar();
-    }
+            // Cria o WPF principal com a ViewModel
+            var janela = new MainWindow { DataContext = _ViewModel };
+    
+            // Seta o WPF como janela principal
+            MainWindow = janela;
 
-    /// <summary>
-    /// Com o alto contraste ligado, mescla depois do tema o dicionário que aponta os mesmos nomes para as cores do
-    /// sistema. Todos os pincéis são referenciados como recurso dinâmico, então a troca vale para as janelas abertas.
-    /// </summary>
-    private void AplicarTema()
-    {
-        var mesclados = Resources.MergedDictionaries;
-        if (_altoContraste is not null)
-        {
-            mesclados.Remove(_altoContraste);
-            _altoContraste = null;
+            // Mostra a janela principal
+            janela.Show();
+
+            // Inicia os processos da ViewModel
+            _ViewModel.Iniciar();
         }
-        if (SystemParameters.HighContrast)
-        {
-            _altoContraste = new ResourceDictionary
-            {
-                Source = new Uri("/DataPilot.Wpf;component/Themes/TemaAltoContraste.xaml", UriKind.Relative),
-            };
-            mesclados.Add(_altoContraste);
-        }
-    }
 
-    protected override void OnExit(ExitEventArgs e)
+        protected override void OnExit(ExitEventArgs e)
     {
-        _vm?.Dispose();
+        _ViewModel?.Dispose();
         base.OnExit(e);
     }
 
-    /// <summary>Valor de um parâmetro como <c>--pasta-status</c>, <c>--dados</c> ou <c>--raiz-fontes</c>, informado por quem inicia o painel.</summary>
-    private static string? LerParametro(string[] args, string nome)
-    {
-        for (var i = 0; i < args.Length - 1; i++)
-            if (string.Equals(args[i], nome, StringComparison.OrdinalIgnoreCase)
-                && !string.IsNullOrWhiteSpace(args[i + 1]))
-                return args[i + 1];
-        return null;
-    }
+    #endregion
+
+    #region "Métodos (Private)"
+
+        private static string? LerParametro(string[] args, string nome)
+        {
+            for (var i = 0; i < args.Length - 1; i++)
+                if (string.Equals(args[i], nome, StringComparison.OrdinalIgnoreCase)
+                    && !string.IsNullOrWhiteSpace(args[i + 1]))
+                    return args[i + 1];
+            return null;
+        }
+
+    #endregion
+
 }

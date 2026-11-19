@@ -12,8 +12,6 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolParaVisibilidade"/>
 
-        <!-- Menus "Mais ações": a ação principal fica visível na linha e o resto vem aqui. O menu pega o DataContext
-             e a habilitação do elemento sobre o qual abre (a linha, o cabeçalho do repositório ou o do trabalho). -->
         <ContextMenu x:Key="MenuSessao"
                      DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}"
                      IsEnabled="{Binding PlacementTarget.Tag, RelativeSource={RelativeSource Self}}">
@@ -45,8 +43,6 @@
                       Visibility="{Binding PodeDesarquivar, Converter={StaticResource BoolParaVisibilidade}}"/>
         </ContextMenu>
 
-        <!-- Linha de sessão: indicador do status, agente, rótulo, tempo e ações. Num trabalho há "Retomar" e "Excluir";
-             em "Sessões" a linha mostra também o repositório e tem o menu "Vincular a um trabalho". -->
         <DataTemplate x:Key="LinhaSessao" DataType="{x:Type local:SessaoItem}">
             <Grid MinHeight="46" Background="{DynamicResource Papel}" ToolTip="{Binding Dica}"
                   Tag="{Binding DataContext.DadosDisponiveis, RelativeSource={RelativeSource AncestorType=Window}}">
@@ -79,9 +75,6 @@
                                    Margin="0,0,10,0" TextTrimming="CharacterEllipsis"
                                    Visibility="{Binding EmSessoes, Converter={StaticResource BoolParaVisibilidade}}"/>
                         <TextBlock Text="{Binding Rotulo}" TextTrimming="CharacterEllipsis"/>
-                        <!-- Alto contraste: o nome do status também aparece em texto. -->
-                        <TextBlock Text="{Binding StatusTexto}" Style="{StaticResource TextoStatus}" Margin="12,0,0,0"
-                                   Visibility="{DynamicResource MostrarStatusEmTexto}"/>
                     </StackPanel>
                     <TextBlock Text="{Binding Motivo}" Style="{StaticResource TextoMeta}" TextWrapping="Wrap"
                                Visibility="{Binding MostrarMotivo, Converter={StaticResource BoolParaVisibilidade}}"/>
@@ -116,7 +109,6 @@
             </Grid>
         </DataTemplate>
 
-        <!-- Lançamento pendente: sessão nova do Codex ainda sem a primeira mensagem. "Abrir" e, no menu, "Cancelar". -->
         <DataTemplate x:Key="LinhaLancamento" DataType="{x:Type local:LancamentoItem}">
             <Grid MinHeight="46" Background="{DynamicResource Papel}" ContextMenu="{StaticResource MenuLancamento}"
                   ToolTip="Ainda não é uma sessão: ela aparece aqui quando a primeira mensagem for enviada."
@@ -152,7 +144,6 @@
             </Grid>
         </DataTemplate>
 
-        <!-- Repositório como baia: cabeçalho com a change e o progresso sobre uma linha grafite de 2 px, depois as faixas. -->
         <DataTemplate x:Key="BaiaRepositorio" DataType="{x:Type local:CardItem}">
             <StackPanel Margin="0,0,0,28">
                 <Grid ContextMenu="{StaticResource MenuRepositorio}"
@@ -210,7 +201,6 @@
             </StackPanel>
         </DataTemplate>
 
-        <!-- Trabalho selecionado: título, ações e um card por repositório. -->
         <DataTemplate x:Key="DetalheDemanda" DataType="{x:Type local:DemandaItem}">
             <DockPanel>
                 <Grid DockPanel.Dock="Top" Margin="0,0,12,22" ContextMenu="{StaticResource MenuDemanda}"
@@ -247,7 +237,6 @@
             </DockPanel>
         </DataTemplate>
 
-        <!-- Entrada "Sessões": sessões fora de trabalhos, com "Nova sessão". "Mostrar antigas" vive aqui, a única área que ela afeta. -->
         <DataTemplate x:Key="DetalheSessoes" DataType="{x:Type local:DemandaItem}">
             <DockPanel>
                 <Grid DockPanel.Dock="Top" Margin="0,0,12,22">
@@ -281,7 +270,6 @@
             </DockPanel>
         </DataTemplate>
 
-        <!-- Item da lista: faixa de status, título e contagens em frase. -->
         <DataTemplate x:Key="ItemDemanda" DataType="{x:Type local:DemandaItem}">
             <Border x:Name="Raiz" BorderBrush="{DynamicResource Linha}" BorderThickness="0">
                 <Grid>
@@ -312,7 +300,6 @@
             </DataTemplate.Triggers>
         </DataTemplate>
     </Window.Resources>
-
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -320,16 +307,12 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Barra superior: produto, alerta e contagens em texto -->
-        <Border Grid.Row="0" Background="{DynamicResource Nevoa}" BorderBrush="{DynamicResource Linha}" BorderThickness="0,0,0,1"
-                Padding="18,0" Height="54">
+        <Border Grid.Row="0" Background="{DynamicResource Nevoa}" BorderBrush="{DynamicResource Linha}" BorderThickness="0,0,0,1" Padding="18,0" Height="54">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <Button Style="{StaticResource BotaoDiscreto}" Command="{Binding IrParaInicioCommand}" VerticalAlignment="Center"
-                        AutomationProperties.Name="DataPilot, ir para o início" ToolTip="Início">
+                <Button Style="{StaticResource BotaoDiscreto}" Command="{Binding IrParaInicioCommand}" VerticalAlignment="Center" AutomationProperties.Name="DataPilot, ir para o início" ToolTip="Início">
                     <TextBlock Text="DataPilot" Style="{StaticResource TextoInstrumento}" FontSize="19" FontWeight="SemiBold"/>
                 </Button>
-                <TextBlock Text="{Binding ContagemAtencao}" FontWeight="SemiBold" Margin="26,0,0,0" VerticalAlignment="Center"
-                           Foreground="{DynamicResource TextoAtencao}">
+                <TextBlock Text="{Binding ContagemAtencao}" FontWeight="SemiBold" Margin="26,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextoAtencao}">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
                             <Style.Triggers>
@@ -340,8 +323,7 @@
                         </Style>
                     </TextBlock.Style>
                 </TextBlock>
-                <TextBlock Text="{Binding ContagemAguardando}" FontWeight="SemiBold" Margin="22,0,0,0" VerticalAlignment="Center"
-                           Foreground="{DynamicResource TextoAguardando}">
+                <TextBlock Text="{Binding ContagemAguardando}" FontWeight="SemiBold" Margin="22,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextoAguardando}">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
                             <Style.Triggers>
@@ -352,8 +334,7 @@
                         </Style>
                     </TextBlock.Style>
                 </TextBlock>
-                <TextBlock Text="{Binding ContagemExecutando}" Margin="22,0,0,0" VerticalAlignment="Center"
-                           Foreground="{DynamicResource SinalExecutando}">
+                <TextBlock Text="{Binding ContagemExecutando}" Margin="22,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource SinalExecutando}">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
                             <Style.Triggers>
@@ -367,15 +348,11 @@
             </StackPanel>
         </Border>
 
-        <!-- Avisos de pasta e de dados indisponíveis -->
         <StackPanel Grid.Row="1">
-            <Border Margin="12,10,12,0" Padding="12,8" Background="{DynamicResource AvisoFundo}"
-                    BorderBrush="{DynamicResource AvisoBorda}" BorderThickness="1" CornerRadius="3"
-                    Visibility="{Binding PastaIndisponivel, Converter={StaticResource BoolParaVisibilidade}}">
+            <Border Margin="12,10,12,0" Padding="12,8" Background="{DynamicResource AvisoFundo}" BorderBrush="{DynamicResource AvisoBorda}" BorderThickness="1" CornerRadius="3" Visibility="{Binding PastaIndisponivel, Converter={StaticResource BoolParaVisibilidade}}">
                 <TextBlock Text="{Binding Aviso}" TextWrapping="Wrap" Foreground="{DynamicResource AvisoTexto}"/>
             </Border>
-            <Border Margin="12,10,12,0" Padding="12,8" Background="{DynamicResource AvisoFundo}"
-                    BorderBrush="{DynamicResource AvisoBorda}" BorderThickness="1" CornerRadius="3">
+            <Border Margin="12,10,12,0" Padding="12,8" Background="{DynamicResource AvisoFundo}" BorderBrush="{DynamicResource AvisoBorda}" BorderThickness="1" CornerRadius="3">
                 <Border.Style>
                     <Style TargetType="Border">
                         <Setter Property="Visibility" Value="Collapsed"/>
@@ -397,25 +374,19 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Trilho de trabalhos -->
             <Border Grid.Column="0" Background="{DynamicResource Trilho}">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Top" Margin="14,14,14,10">
-                        <Button x:Name="BotaoNovaDemanda" Style="{StaticResource BotaoPrincipal}" Click="NovaDemanda_Click"
-                                IsEnabled="{Binding DadosDisponiveis}" ToolTip="Novo trabalho (Ctrl+N)" AutomationProperties.Name="Novo trabalho">
+                        <Button x:Name="BotaoNovaDemanda" Style="{StaticResource BotaoPrincipal}" Click="NovaDemanda_Click" IsEnabled="{Binding DadosDisponiveis}" ToolTip="Novo trabalho (Ctrl+N)" AutomationProperties.Name="Novo trabalho">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Style="{StaticResource Icone}" Text="&#xE710;" FontSize="12" Margin="0,0,8,0"/>
                                 <TextBlock Text="Novo trabalho"/>
                             </StackPanel>
                         </Button>
                         <Grid Margin="0,10,0,0">
-                            <TextBox x:Name="CampoFiltro" Padding="30,5,8,5" PreviewKeyDown="CampoFiltro_PreviewKeyDown"
-                                     Text="{Binding FiltroTexto, UpdateSourceTrigger=PropertyChanged}"
-                                     AutomationProperties.Name="Filtrar trabalhos" ToolTip="Filtrar trabalhos (Ctrl+F)"/>
-                            <TextBlock Style="{StaticResource Icone}" Text="&#xE71C;" FontSize="12" HorizontalAlignment="Left"
-                                       Margin="11,0,0,0" Foreground="{DynamicResource GrafiteClaro}" IsHitTestVisible="False"/>
-                            <TextBlock Text="Filtrar trabalhos" Margin="31,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
-                                       Foreground="{DynamicResource GrafiteClaro}">
+                            <TextBox x:Name="CampoFiltro" Padding="30,5,8,5" PreviewKeyDown="CampoFiltro_PreviewKeyDown" Text="{Binding FiltroTexto, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Filtrar trabalhos" ToolTip="Filtrar trabalhos (Ctrl+F)"/>
+                            <TextBlock Style="{StaticResource Icone}" Text="&#xE71C;" FontSize="12" HorizontalAlignment="Left" Margin="11,0,0,0" Foreground="{DynamicResource GrafiteClaro}" IsHitTestVisible="False"/>
+                            <TextBlock Text="Filtrar trabalhos" Margin="31,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False" Foreground="{DynamicResource GrafiteClaro}">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="Visibility" Value="Collapsed"/>
@@ -432,31 +403,20 @@
                     <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource Linha}" BorderThickness="0,1,0,0" Padding="16,11">
                         <CheckBox Content="Mostrar arquivados" IsChecked="{Binding MostrarArquivadas}"/>
                     </Border>
-                    <TextBlock DockPanel.Dock="Top" Margin="16,0,16,10" Style="{StaticResource TextoSecundario}"
-                               Text="Nenhum trabalho. Use &quot;Novo trabalho&quot; para criar o primeiro ou &quot;Sessões&quot; para abrir sessões sem trabalho."
-                               Visibility="{Binding SemDemandas, Converter={StaticResource BoolParaVisibilidade}}"/>
-                    <ListBox x:Name="ListaDemandas" ItemsSource="{Binding DemandasFiltradas}"
-                             ItemContainerStyle="{StaticResource ItemTrilho}" ItemTemplate="{StaticResource ItemDemanda}"
-                             Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Stretch"
-                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                             AutomationProperties.Name="Trabalhos"
-                             SelectionChanged="ListaDemandas_SelectionChanged"/>
+                    <TextBlock DockPanel.Dock="Top" Margin="16,0,16,10" Style="{StaticResource TextoSecundario}" Text="Nenhum trabalho." Visibility="{Binding SemDemandas, Converter={StaticResource BoolParaVisibilidade}}"/>
+                    <ListBox x:Name="ListaDemandas" ItemsSource="{Binding DemandasFiltradas}" ItemContainerStyle="{StaticResource ItemTrilho}" ItemTemplate="{StaticResource ItemDemanda}" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Trabalhos" SelectionChanged="ListaDemandas_SelectionChanged"/>
                 </DockPanel>
             </Border>
 
-            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Center" VerticalAlignment="Stretch"
-                          Background="Transparent" ShowsPreview="False" Focusable="False"/>
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Center" VerticalAlignment="Stretch" Background="Transparent" ShowsPreview="False" Focusable="False"/>
 
-            <!-- Área do item selecionado, com a faixa de erros e mensagens no topo -->
             <Grid Grid.Column="2" Margin="22,18,18,16">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <Border Grid.Row="0" Margin="0,0,0,16" Padding="12,8,6,8" CornerRadius="3" BorderThickness="1"
-                        Visibility="{Binding TemMensagem, Converter={StaticResource BoolParaVisibilidade}}"
-                        AutomationProperties.LiveSetting="Assertive">
+                <Border Grid.Row="0" Margin="0,0,0,16" Padding="12,8,6,8" CornerRadius="3" BorderThickness="1" Visibility="{Binding TemMensagem, Converter={StaticResource BoolParaVisibilidade}}" AutomationProperties.LiveSetting="Assertive">
                     <Border.Style>
                         <Style TargetType="Border">
                             <Setter Property="Background" Value="{DynamicResource Papel}"/>
@@ -470,9 +430,7 @@
                         </Style>
                     </Border.Style>
                     <DockPanel>
-                        <Button DockPanel.Dock="Right" Style="{StaticResource BotaoIcone}" Width="26" Height="26" MinHeight="26"
-                                Command="{Binding FecharMensagemCommand}" VerticalAlignment="Top"
-                                AutomationProperties.Name="Fechar mensagem" ToolTip="Fechar">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource BotaoIcone}" Width="26" Height="26" MinHeight="26" Command="{Binding FecharMensagemCommand}" VerticalAlignment="Top" AutomationProperties.Name="Fechar mensagem" ToolTip="Fechar">
                             <TextBlock Style="{StaticResource Icone}" Text="&#xE711;" FontSize="11"/>
                         </Button>
                         <TextBlock Text="{Binding Mensagem}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,10,0">

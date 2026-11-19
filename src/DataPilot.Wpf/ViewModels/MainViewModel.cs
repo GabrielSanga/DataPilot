@@ -33,11 +33,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private EstadoDados _estadoDados = EstadoDados.Vazio;
     private readonly DemandaItem _sessoes;
     private readonly ICollectionView _vista;
-
-    /// <summary>Todas as entradas da lista: trabalhos na ordem de urgência e, no fim, "Sessões".</summary>
     public ObservableCollection<DemandaItem> Demandas { get; } = [];
-
-    /// <summary>A lista como a tela a mostra: <see cref="Demandas"/> depois do filtro.</summary>
     public ICollectionView DemandasFiltradas => _vista;
 
     [ObservableProperty] private DemandaItem? _demandaSelecionada;
@@ -64,8 +60,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _mensagemEhErro;
     [ObservableProperty] private bool _temMensagem;
 
-    public MainViewModel(string pasta, TimeProvider relogio, Dispatcher dispatcher,
-        DadosPainel dados, AberturaSessao abertura, IInteracao interacao, LeitorTasks leitorTasks)
+    public MainViewModel(string pasta, TimeProvider relogio, Dispatcher dispatcher, DadosPainel dados, AberturaSessao abertura, IInteracao interacao, LeitorTasks leitorTasks)
     {
         _leitorTasks = leitorTasks;
         _relogio = relogio;

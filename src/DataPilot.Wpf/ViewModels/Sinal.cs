@@ -4,7 +4,7 @@ namespace DataPilot.Wpf.ViewModels;
 
 /// <summary>
 /// Nível visual de um status. Só "precisa de atenção" e "aguardando você" acendem (faixa e texto em destaque);
-/// os demais ficam em tom baixo. O tema transforma o nível em cor, o que permite trocar as cores no alto contraste.
+/// os demais ficam em tom baixo. O tema transforma o nível em cor.
 /// </summary>
 public enum NivelSinal { Neutro, Atencao, Aguardando, Executando, Ativa }
 

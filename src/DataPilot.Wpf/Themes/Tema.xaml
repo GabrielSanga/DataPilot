@@ -3,8 +3,7 @@
                     xmlns:sys="clr-namespace:System;assembly=System.Runtime"
                     xmlns:local="clr-namespace:DataPilot.Wpf.ViewModels">
 
-    <!-- ===== Cores (decisão 2 do design). Os pincéis são referenciados como DynamicResource,
-              para o dicionário de alto contraste poder trocá-los. ===== -->
+    <!-- ===== Cores (decisão 2 do design) ===== -->
     <SolidColorBrush x:Key="Nevoa" Color="#F1F3F5"/>
     <SolidColorBrush x:Key="Papel" Color="#FFFFFF"/>
     <SolidColorBrush x:Key="Trilho" Color="#E8ECEF"/>
@@ -16,9 +15,6 @@
     <SolidColorBrush x:Key="Desabilitado" Color="#8A949C"/>
     <SolidColorBrush x:Key="SelecaoBorda" Color="Transparent"/>
     <SolidColorBrush x:Key="Veu" Color="#26000000"/>
-
-    <!-- O nome do status só aparece em texto na linha com o alto contraste do Windows ligado (ver TemaAltoContraste). -->
-    <Visibility x:Key="MostrarStatusEmTexto">Collapsed</Visibility>
 
     <!-- Sinais de status: faixa, indicador e texto sobre fundo claro. -->
     <SolidColorBrush x:Key="SinalAtencao" Color="#C8102E"/>
