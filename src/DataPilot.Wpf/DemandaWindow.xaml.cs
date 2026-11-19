@@ -1,51 +1,38 @@
 using System.Windows;
-using System.Windows.Controls;
-using DataPilot.Core;
 
 namespace DataPilot.Wpf;
 
-/// <summary>Criar (existente nulo) ou editar uma demanda. Só fecha quando <c>aplicar</c> grava sem recusa.</summary>
+/// <summary>Criar (título atual nulo) ou editar um trabalho, só pelo título. Só fecha quando <c>aplicar</c> grava sem recusa.</summary>
 public partial class DemandaWindow : Window
 {
-    private readonly Func<DadosDemanda, string?> _aplicar;
+    private readonly Func<string, string?> _aplicar;
 
-    public DemandaWindow(Demanda? existente, Func<DadosDemanda, string?> aplicar)
+    public DemandaWindow(string? tituloAtual, Func<string, string?> aplicar)
     {
         _aplicar = aplicar;
         InitializeComponent();
-        var novo = existente is null;
-        Title = novo ? "Nova demanda" : "Editar demanda";
+        var novo = tituloAtual is null;
+        Title = novo ? "Novo trabalho" : "Editar trabalho";
         TituloJanela.Text = Title;
-        Principal.Content = novo ? "Criar demanda" : "Salvar demanda";
-        if (existente is not null)
+        Principal.Content = novo ? "Criar trabalho" : "Salvar trabalho";
+        if (tituloAtual is not null) CampoTitulo.Text = tituloAtual;
+        Loaded += (_, _) =>
         {
-            CampoId.Text = existente.Id;
-            CampoTitulo.Text = existente.Titulo;
-            CampoOpenspec.Text = existente.OpenspecChange ?? "";
-        }
-        CampoId.Focus();
+            CampoTitulo.Focus();
+            CampoTitulo.SelectAll();
+        };
     }
 
     private void Ok_Click(object sender, RoutedEventArgs e)
     {
-        var openspec = CampoOpenspec.Text.Trim();
-        var erro = _aplicar(new DadosDemanda(CampoId.Text.Trim(), CampoTitulo.Text.Trim(), openspec.Length == 0 ? null : openspec));
+        var erro = _aplicar(CampoTitulo.Text.Trim());
         if (erro is null) DialogResult = true;
-        else MostrarErro(erro);
-    }
-
-    /// <summary>O erro aparece junto do campo a que se refere; sem campo claro, junto dos botões. Nada é apagado.</summary>
-    private void MostrarErro(string erro)
-    {
-        foreach (var t in new[] { ErroId, ErroTitulo, ErroOpenspec, ErroGeral }) t.Text = "";
-        TextBlock alvo;
-        TextBox campo;
-        if (erro.Contains("OpenSpec", StringComparison.OrdinalIgnoreCase)) { alvo = ErroOpenspec; campo = CampoOpenspec; }
-        else if (erro.Contains("Título", StringComparison.Ordinal)) { alvo = ErroTitulo; campo = CampoTitulo; }
-        else if (erro.Contains("dentificador", StringComparison.Ordinal)) { alvo = ErroId; campo = CampoId; }
-        else { alvo = ErroGeral; campo = CampoId; }
-        alvo.Text = erro;
-        campo.Focus();
-        campo.SelectAll();
+        else
+        {
+            // O erro aparece junto do campo. Nada é apagado.
+            ErroTitulo.Text = erro;
+            CampoTitulo.Focus();
+            CampoTitulo.SelectAll();
+        }
     }
 }

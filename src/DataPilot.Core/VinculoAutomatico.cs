@@ -16,13 +16,13 @@ public static class VinculoAutomatico
     /// <summary>
     /// Calcula e aplica os vínculos de um retrato da pasta de status. Cada vínculo é uma gravação própria, conferida
     /// dentro dela: se outra instância do painel já o aplicou, a gravação é recusada. Falhas são ignoradas, e a sessão
-    /// continua em "Não vinculadas" até a leitura seguinte. Devolve quantos vínculos foram gravados.
+    /// continua em "Sessões" até a leitura seguinte. Devolve quantos vínculos foram gravados.
     /// </summary>
     public static int Aplicar(DadosPainel dados, EstadoDados estado, IReadOnlyList<Sessao> sessoes, TimeProvider relogio)
     {
         if (!estado.Disponivel) return 0;
         var gravados = 0;
-        foreach (var v in Calcular(estado.Demandas, sessoes, relogio.GetUtcNow()))
+        foreach (var v in Calcular(estado.Demandas, sessoes, relogio.GetUtcNow(), estado.Excluidas))
         {
             try
             {
@@ -38,7 +38,8 @@ public static class VinculoAutomatico
     }
 
     public static IReadOnlyList<VinculoPorLancamento> Calcular(
-        IReadOnlyList<Demanda> demandas, IReadOnlyList<Sessao> sessoes, DateTimeOffset agora)
+        IReadOnlyList<Demanda> demandas, IReadOnlyList<Sessao> sessoes, DateTimeOffset agora,
+        IReadOnlyList<SessaoExcluida>? excluidas = null)
     {
         var registradas = new HashSet<string>(
             demandas.SelectMany(d => d.Repositorios).SelectMany(r => r.Sessoes).Select(s => s.SessionId),
@@ -52,8 +53,12 @@ public static class VinculoAutomatico
             .ToList();
         if (disponiveis.Count == 0) return [];
 
+        var excluidasSet = new HashSet<(Agente, string)>(
+            (excluidas ?? []).Select(e => (e.Agente, e.SessionId.ToLowerInvariant())));
+
         var candidatas = sessoes
             .Where(s => s.ArquivoCriadoEm is not null && !registradas.Contains(s.SessionId))
+            .Where(s => !excluidasSet.Contains((s.Agente, s.SessionId.ToLowerInvariant())))
             .OrderBy(s => s.ArquivoCriadoEm)
             .ThenBy(s => s.SessionId, StringComparer.Ordinal);
 

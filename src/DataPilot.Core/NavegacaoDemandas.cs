@@ -18,61 +18,59 @@ public static class FiltroDemandas
     }
 
     /// <summary>
-    /// A demanda casa quando o texto aparece no identificador, no título, na change do OpenSpec ou no nome de um
-    /// repositório. Texto vazio (ou só espaços) casa com tudo.
+    /// O trabalho casa quando o texto aparece no título, no nome de um repositório ou na change de um repositório
+    /// (o identificador não entra). Texto vazio (ou só espaços) casa com tudo.
     /// </summary>
     public static bool Casa(Demanda demanda, string? filtro)
     {
         var f = Normalizar(filtro?.Trim());
         if (f.Length == 0) return true;
-        return Contem(demanda.Id, f)
-            || Contem(demanda.Titulo, f)
-            || Contem(demanda.OpenspecChange, f)
-            || demanda.Repositorios.Any(r => Contem(r.Pasta, f));
+        return Contem(demanda.Titulo, f)
+            || demanda.Repositorios.Any(r => Contem(r.Pasta, f) || Contem(r.OpenspecChange, f));
     }
 
     private static bool Contem(string? texto, string filtroNormalizado)
         => Normalizar(texto).Contains(filtroNormalizado, StringComparison.Ordinal);
 
     /// <summary>
-    /// Mantém, na ordem original, os itens cuja demanda casa com o filtro. Um item sem demanda (a entrada
-    /// "Não vinculadas") é sempre mantido.
+    /// Mantém, na ordem original, os itens cuja demanda casa com o filtro. Um item sem demanda (a entrada "Sessões") é sempre mantido.
     /// </summary>
     public static List<T> Filtrar<T>(IEnumerable<T> itens, string? filtro, Func<T, Demanda?> demanda)
         => itens.Where(i => demanda(i) is not { } d || Casa(d, filtro)).ToList();
 }
 
-/// <summary>Para onde "Ir para a próxima" leva: uma demanda ou "Não vinculadas" (<see cref="DemandaId"/> nulo).</summary>
+/// <summary>Para onde "Ir para a próxima" leva: um trabalho ou "Sessões" (<see cref="DemandaId"/> nulo).</summary>
 public sealed record DestinoProxima(string? DemandaId)
 {
-    public bool EhNaoVinculadas => DemandaId is null;
+    public bool EhSessoes => DemandaId is null;
 }
 
-/// <summary>Escolha da próxima demanda com sessão no status destacado no topo, como função pura.</summary>
+/// <summary>Escolha do próximo trabalho com sessão no status destacado no topo, como função pura.</summary>
 public static class ProximaSessao
 {
     /// <summary>
-    /// Percorre as demandas na ordem da lista, depois da selecionada e voltando ao início, e por fim "Não vinculadas"
+    /// Percorre os trabalhos na ordem da lista, depois do selecionado e voltando ao início, e por fim "Sessões"
     /// (que fica no fim da lista), procurando sessão no status destacado. Devolve null se não houver status
-    /// destacado ou nenhuma sessão nele. Sem seleção, a busca começa no início da lista.
+    /// destacado ou nenhuma sessão nele. Sem seleção, a busca começa no início da lista. Sessões excluídas já
+    /// não estão na visão.
     /// </summary>
-    /// <param name="selecionadaId">Identificador da demanda selecionada, ou null.</param>
-    /// <param name="naoVinculadasSelecionada">"Não vinculadas" está selecionada.</param>
-    public static DestinoProxima? Escolher(Visao visao, string? selecionadaId, bool naoVinculadasSelecionada)
+    /// <param name="selecionadaId">Identificador do trabalho selecionado, ou null.</param>
+    /// <param name="sessoesSelecionada">"Sessões" está selecionada.</param>
+    public static DestinoProxima? Escolher(Visao visao, string? selecionadaId, bool sessoesSelecionada)
     {
         if (visao.ResumoCabecalho.StatusDestacado is not { } status) return null;
 
-        // Posição na lista: demandas 0..n-1 e "Não vinculadas" em n.
+        // Posição na lista: trabalhos 0..n-1 e "Sessões" em n.
         var candidatos = new List<(DestinoProxima Destino, bool Tem)>();
         foreach (var d in visao.Demandas)
         {
             var tem = d.Cards.SelectMany(c => c.Sessoes).Any(s => s.Status == status);
             candidatos.Add((new DestinoProxima(d.Demanda.Id), tem));
         }
-        candidatos.Add((new DestinoProxima(null), visao.NaoVinculadas.Any(s => s.Status == status)));
+        candidatos.Add((new DestinoProxima(null), visao.Sessoes.TemStatus(status)));
 
         var atual = -1;
-        if (naoVinculadasSelecionada) atual = candidatos.Count - 1;
+        if (sessoesSelecionada) atual = candidatos.Count - 1;
         else if (selecionadaId is not null)
             atual = candidatos.FindIndex(c => c.Destino.DemandaId is { } id
                 && string.Equals(id, selecionadaId, StringComparison.OrdinalIgnoreCase));

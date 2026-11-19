@@ -90,7 +90,7 @@ public class LancamentoNaVisaoTests
     {
         var v = Montar([Dem("a", false, [], Lanc(L1, TimeSpan.FromMinutes(1)))]);
         Assert.Empty(v.Demandas.Single().Cards.Single().Sessoes);
-        Assert.Empty(v.NaoVinculadas);
+        Assert.Empty(v.Sessoes.NaoRegistradas);
     }
 
     // ---------- Lançamento pendente fora das contagens ----------
@@ -237,6 +237,6 @@ public class CancelarLancamentoTests
         Assert.Equal(0, gravados);
         Assert.Empty(dados.Carregar().Demandas.Single().Repositorios.Single().Sessoes);
         var v = VisaoAgrupada.Montar(dados.Carregar().Demandas, [sessao], false, false, relogio);
-        Assert.Equal(S1, Assert.Single(v.NaoVinculadas).Sessao.SessionId);
+        Assert.Equal(S1, Assert.Single(v.Sessoes.NaoRegistradas).Sessao.SessionId);
     }
 }

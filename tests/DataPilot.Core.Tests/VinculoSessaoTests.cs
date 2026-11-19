@@ -176,7 +176,7 @@ public class VinculoSessaoTests
         var antes = File.ReadAllText(caminho);
         var r = dados.VincularSessao(Pedido(), "CHG-150", "Faturamento", null, Fabrica.Agora);
         Assert.False(r.Ok);
-        Assert.Contains("arquivada", r.Mensagem);
+        Assert.Contains("arquivado", r.Mensagem);
         Assert.Equal(antes, File.ReadAllText(caminho));
     }
 
@@ -258,13 +258,13 @@ public class VinculoSessaoTests
         Assert.True(dados.VincularSessao(PedidoVinculo.Criar(lida)!, "CHG-142", "Faturamento", null, Fabrica.Agora).Ok);
 
         var vinculada = VisaoAgrupada.Montar(dados.Carregar().Demandas, [lida], false, false, Relogio);
-        Assert.Empty(vinculada.NaoVinculadas);
+        Assert.Empty(vinculada.Sessoes.NaoRegistradas);
         Assert.Single(vinculada.Demandas.Single().Cards.Single().Sessoes);
 
         Assert.True(dados.RemoverSessao(IdCodex).Ok);
 
         var depois = VisaoAgrupada.Montar(dados.Carregar().Demandas, [lida], false, false, Relogio);
-        Assert.Equal(IdCodex, Assert.Single(depois.NaoVinculadas).Sessao.SessionId);
+        Assert.Equal(IdCodex, Assert.Single(depois.Sessoes.NaoRegistradas).Sessao.SessionId);
         Assert.Empty(depois.Demandas.Single().Cards.Single().Sessoes);
         Assert.True(RegrasVinculo.PodeVincularSessao(lida).Sim);
     }
@@ -284,7 +284,7 @@ public class VinculoSessaoTests
             [Lida(IdCodex, cwd: @"C:\Fontes\Faturamento")]);
 
         Assert.All(v.Demandas.SelectMany(d => d.Cards), c => Assert.Empty(c.Sessoes));
-        Assert.Equal(IdCodex, Assert.Single(v.NaoVinculadas).Sessao.SessionId);
+        Assert.Equal(IdCodex, Assert.Single(v.Sessoes.NaoRegistradas).Sessao.SessionId);
     }
 
     [Fact]
@@ -296,7 +296,7 @@ public class VinculoSessaoTests
 
         Assert.Single(v.Demandas.Single(d => d.Demanda.Id == "a").Cards.Single().Sessoes);
         Assert.Empty(v.Demandas.Single(d => d.Demanda.Id == "b").Cards.Single().Sessoes);
-        Assert.Empty(v.NaoVinculadas);
+        Assert.Empty(v.Sessoes.NaoRegistradas);
     }
 
     // ---------- Coincidência de pasta (pré-seleção do diálogo e aviso) ----------

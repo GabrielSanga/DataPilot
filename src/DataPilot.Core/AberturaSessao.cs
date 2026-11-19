@@ -14,10 +14,10 @@ public sealed class AberturaSessao(DadosPainel dados, IDisparador disparador, Ti
         var estado = dados.Carregar();
         if (!estado.Disponivel) return ResultadoOperacao.Falha($"Dados do painel indisponíveis: {dados.Caminho}");
         var demanda = estado.Demandas.FirstOrDefault(d => string.Equals(d.Id, demandaId, StringComparison.OrdinalIgnoreCase));
-        if (demanda is null) return ResultadoOperacao.Falha("Demanda não encontrada.");
-        if (demanda.Arquivada) return ResultadoOperacao.Falha("A demanda está arquivada.");
+        if (demanda is null) return ResultadoOperacao.Falha("Trabalho não encontrado.");
+        if (demanda.Arquivada) return ResultadoOperacao.Falha("O trabalho está arquivado.");
         var repo = demanda.Repositorios.FirstOrDefault(r => string.Equals(r.Pasta, pasta, StringComparison.OrdinalIgnoreCase));
-        if (repo is null) return ResultadoOperacao.Falha("Repositório não vinculado a esta demanda.");
+        if (repo is null) return ResultadoOperacao.Falha("Repositório não vinculado a este trabalho.");
 
         // O GUID da sessão só existe para o Claude; o do Codex aparece depois, pelo hook. Para o Codex, o painel
         // registra um lançamento pendente, que vincula a sessão quando ela surgir na pasta de status.
@@ -25,7 +25,7 @@ public sealed class AberturaSessao(DadosPainel dados, IDisparador disparador, Ti
         var idLancamento = agente == Agente.Codex ? _gerarGuid().ToString("D") : null;
 
         ComandoTerminal comando;
-        try { comando = MontadorComando.Novo(demanda.Id, repo, agente, id, rotulo); }
+        try { comando = MontadorComando.Novo(demanda.Id, demanda.Titulo, repo, agente, id, rotulo); }
         catch (EntradaInvalidaException e) { return ResultadoOperacao.Falha(e.Message); }
 
         // Registrar antes de abrir garante que toda sessão aberta possa ser retomada.
@@ -75,7 +75,7 @@ public sealed class AberturaSessao(DadosPainel dados, IDisparador disparador, Ti
         var (demanda, repo, lancamento) = achado.Value;
 
         ComandoTerminal comando;
-        try { comando = MontadorComando.Novo(demanda.Id, repo, lancamento.Agente, null, lancamento.Rotulo); }
+        try { comando = MontadorComando.Novo(demanda.Id, demanda.Titulo, repo, lancamento.Agente, null, lancamento.Rotulo); }
         catch (EntradaInvalidaException e) { return ResultadoOperacao.Falha(e.Message); }
 
         var renovacao = dados.RenovarLancamento(lancamento.Id, agora);
@@ -89,6 +89,56 @@ public sealed class AberturaSessao(DadosPainel dados, IDisparador disparador, Ti
         catch (FalhaDisparoException e)
         {
             dados.RenovarLancamento(lancamento.Id, lancamento.CriadoEm);
+            return ResultadoOperacao.Falha(e.Message);
+        }
+    }
+
+    /// <summary>
+    /// "Nova sessão" em "Sessões": vincula a pasta à <c>sem-demanda</c>, se ainda não estiver, e segue o fluxo de
+    /// sempre (Claude registrado na hora, Codex com lançamento pendente).
+    /// </summary>
+    public ResultadoOperacao NovaEmSessoes(string pasta, Agente agente, string? rotulo)
+    {
+        if (!ValidadorEntrada.PastaValida(pasta)) return ResultadoOperacao.Falha("Repositório inválido.");
+        var estado = dados.Carregar();
+        if (!estado.Disponivel) return ResultadoOperacao.Falha($"Dados do painel indisponíveis: {dados.Caminho}");
+
+        var implicita = estado.Demandas.FirstOrDefault(d => RegrasDemanda.EhImplicita(d.Id));
+        var jaVinculado = implicita?.Repositorios.Any(r => string.Equals(r.Pasta, pasta, StringComparison.OrdinalIgnoreCase)) == true;
+        if (!jaVinculado)
+        {
+            var vinculo = dados.VincularRepositorio(DadosPainel.IdDemandaImplicita, pasta);
+            if (!vinculo.Ok) return vinculo;
+        }
+        return Nova(DadosPainel.IdDemandaImplicita, pasta, agente, rotulo);
+    }
+
+    /// <summary>
+    /// "Retomar" numa sessão que o painel não registrou: registra-a em "Sessões", no repositório escolhido, e abre a
+    /// conversa. Se o terminal não abre, o registro é desfeito.
+    /// </summary>
+    public ResultadoOperacao RetomarNaoRegistrada(PedidoVinculo pedido, string pasta)
+    {
+        if (!ValidadorEntrada.PastaValida(pasta)) return ResultadoOperacao.Falha("Repositório inválido.");
+        var agora = relogio.GetUtcNow();
+        var sessao = new SessaoRegistrada(pedido.Agente, pedido.SessionId, pasta, null, agora,
+            DadosPainel.IdDemandaImplicita, DadosPainel.TituloDemandaImplicita);
+
+        ComandoTerminal comando;
+        try { comando = MontadorComando.Retomar(sessao); }
+        catch (EntradaInvalidaException e) { return ResultadoOperacao.Falha(e.Message); }
+
+        var registro = dados.RegistrarRetomada(pedido, pasta, agora);
+        if (!registro.Ok) return registro;
+
+        try
+        {
+            disparador.Iniciar(comando);
+            return ResultadoOperacao.Sucesso;
+        }
+        catch (FalhaDisparoException e)
+        {
+            dados.DesfazerRegistro(pedido.SessionId);
             return ResultadoOperacao.Falha(e.Message);
         }
     }

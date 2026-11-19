@@ -1,23 +1,20 @@
+using System.IO;
 using System.Windows;
 using DataPilot.Core;
 
 namespace DataPilot.Wpf;
 
-public sealed record DadosDemanda(string Id, string Titulo, string? OpenspecChange);
-
 public sealed record NovaSessaoEscolha(Agente Agente, string? Rotulo);
 
-public sealed record DestinoDemanda(string Id, string Texto);
-
-/// <summary>Demanda oferecida no diálogo de vínculo, com os repositórios dela e o que coincide com a pasta da sessão (se houver).</summary>
+/// <summary>Trabalho oferecido no diálogo de vínculo, com os repositórios dele e o que coincide com a pasta da sessão (se houver).</summary>
 public sealed record OpcaoDemandaVinculo(string Id, string Texto, IReadOnlyList<string> Repositorios, string? RepositorioSugerido);
 
 public sealed record EscolhaVinculo(string DemandaId, string Repositorio, string? Rotulo);
 
 /// <summary>
 /// Perguntas, avisos e diálogos ao usuário, atrás de uma interface para a lógica do view model não depender de janelas.
-/// Nos diálogos de demanda e de vínculo, <c>aplicar</c> grava e devolve a mensagem de recusa (ou null); o diálogo
-/// só fecha quando a gravação dá certo.
+/// Nos diálogos de trabalho, repositório e vínculo, <c>aplicar</c> grava e devolve a mensagem de recusa (ou null); o
+/// diálogo só fecha quando a gravação dá certo.
 /// </summary>
 public interface IInteracao
 {
@@ -27,12 +24,25 @@ public interface IInteracao
     /// </summary>
     bool Confirmar(string titulo, string mensagem, string acao);
 
-    bool DialogoDemanda(Demanda? existente, Func<DadosDemanda, string?> aplicar);
-    bool DialogoVincularRepositorio(string demandaTitulo, IReadOnlyList<string> sugestoes, Func<string, string?> aplicar);
+    /// <summary>Criar (<c>tituloAtual</c> nulo) ou editar um trabalho; só o título.</summary>
+    bool DialogoTrabalho(string? tituloAtual, Func<string, string?> aplicar);
+
+    /// <summary>
+    /// "Vincular repositório" (<c>pastaFixa</c> nulo: abre a escolha de pasta do Windows em <c>raiz</c>) ou "Trocar change"
+    /// (pasta já conhecida). <c>aplicar</c> recebe o nome da pasta e a change escolhida (ou nenhuma).
+    /// </summary>
+    bool DialogoRepositorio(string raiz, string? pastaFixa, string? changeAtual, Func<string, string?, string?> aplicar);
+
     /// <summary>Diálogo de vínculo. <c>aplicar</c> devolve a mensagem de recusa; "" mantém o diálogo aberto sem mensagem (o usuário não confirmou o aviso).</summary>
     bool DialogoVincularSessao(string descricaoSessao, IReadOnlyList<OpcaoDemandaVinculo> demandas, Func<EscolhaVinculo, string?> aplicar);
-    NovaSessaoEscolha? PedirNovaSessao(string demandaTitulo, string pasta);
-    string? EscolherDemandaDestino(IReadOnlyList<DestinoDemanda> destinos);
+
+    NovaSessaoEscolha? PedirNovaSessao();
+
+    /// <summary>Escolha de pasta do Windows, começando em <c>raiz</c>. Nulo quando o usuário cancela.</summary>
+    string? EscolherPasta(string raiz);
+
+    /// <summary>Escolha do repositório entre as pastas diretas da raiz, pré-selecionando <c>sugerida</c>. Nulo quando cancela.</summary>
+    string? EscolherRepositorio(IReadOnlyList<string> pastas, string? sugerida);
 }
 
 public sealed class InteracaoJanelas : IInteracao
@@ -44,25 +54,42 @@ public sealed class InteracaoJanelas : IInteracao
     public bool Confirmar(string titulo, string mensagem, string acao)
         => new ConfirmacaoWindow(titulo, mensagem, acao) { Owner = Dono }.ShowDialog() == true;
 
-    public bool DialogoDemanda(Demanda? existente, Func<DadosDemanda, string?> aplicar)
-        => new DemandaWindow(existente, aplicar) { Owner = Dono }.ShowDialog() == true;
+    public bool DialogoTrabalho(string? tituloAtual, Func<string, string?> aplicar)
+        => new DemandaWindow(tituloAtual, aplicar) { Owner = Dono }.ShowDialog() == true;
 
-    public bool DialogoVincularRepositorio(string demandaTitulo, IReadOnlyList<string> sugestoes, Func<string, string?> aplicar)
-        => new VincularRepositorioWindow(demandaTitulo, sugestoes, aplicar) { Owner = Dono }.ShowDialog() == true;
+    public bool DialogoRepositorio(string raiz, string? pastaFixa, string? changeAtual, Func<string, string?, string?> aplicar)
+        => new VincularRepositorioWindow(raiz, pastaFixa, changeAtual, aplicar) { Owner = Dono }.ShowDialog() == true;
 
     public bool DialogoVincularSessao(string descricaoSessao, IReadOnlyList<OpcaoDemandaVinculo> demandas, Func<EscolhaVinculo, string?> aplicar)
         => new VincularSessaoWindow(descricaoSessao, demandas, aplicar) { Owner = Dono }.ShowDialog() == true;
 
-    public NovaSessaoEscolha? PedirNovaSessao(string demandaTitulo, string pasta)
+    public NovaSessaoEscolha? PedirNovaSessao()
     {
-        var janela = new NovaSessaoWindow(demandaTitulo, pasta) { Owner = Dono };
+        var janela = new NovaSessaoWindow { Owner = Dono };
         return janela.ShowDialog() == true ? new NovaSessaoEscolha(janela.AgenteEscolhido, janela.Rotulo) : null;
     }
 
-    public string? EscolherDemandaDestino(IReadOnlyList<DestinoDemanda> destinos)
+    public string? EscolherPasta(string raiz) => EscolhaPastaWindows.Escolher(raiz, Dono);
+
+    public string? EscolherRepositorio(IReadOnlyList<string> pastas, string? sugerida)
     {
-        var janela = new MoverSessaoWindow(destinos) { Owner = Dono };
-        return janela.ShowDialog() == true ? janela.DestinoEscolhido : null;
+        var janela = new EscolherRepositorioWindow(pastas, sugerida) { Owner = Dono };
+        return janela.ShowDialog() == true ? janela.Escolhido : null;
+    }
+}
+
+/// <summary>A escolha de pasta do próprio Windows (diálogo do .NET), sempre começando na raiz dos fontes.</summary>
+public static class EscolhaPastaWindows
+{
+    public static string? Escolher(string raiz, Window? dono)
+    {
+        var dialogo = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "Escolha a pasta do repositório",
+            Multiselect = false,
+        };
+        if (Directory.Exists(raiz)) dialogo.InitialDirectory = raiz;
+        return (dono is null ? dialogo.ShowDialog() : dialogo.ShowDialog(dono)) == true ? dialogo.FolderName : null;
     }
 }
 

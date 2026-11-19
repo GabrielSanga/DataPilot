@@ -17,7 +17,8 @@ param(
     [string]$DadosLancamento = (Join-Path $env:TEMP 'datapilot-exemplo-lancamento.json'),
     [string]$DadosAguardando = (Join-Path $env:TEMP 'datapilot-exemplo-aguardando.json'),
     [string]$RaizFontes = (Join-Path $env:TEMP 'datapilot-exemplo-fontes'),
-    [string]$DadosProgresso = (Join-Path $env:TEMP 'datapilot-exemplo-progresso.json')
+    [string]$DadosProgresso = (Join-Path $env:TEMP 'datapilot-exemplo-progresso.json'),
+    [string]$DadosTrabalhos = (Join-Path $env:TEMP 'datapilot-exemplo-trabalhos.json')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -293,29 +294,34 @@ New-Item -ItemType Directory -Force -Path $portal | Out-Null
 [System.IO.File]::WriteAllText((Join-Path $portal 'tasks.md'), "# Tasks`n`nsem caixas de selecao`n", $utf8)
 New-Item -ItemType Directory -Force -Path (Join-Path $RaizFontes 'Estoque\openspec\changes') | Out-Null
 
+# Cada trabalho mostra uma indicacao diferente (a change fica em cada repositorio):
+#  - CHG-142: Faturamento (ajuste-nfe) 4 de 6 e Estoque (ajuste-nfe) 3 de 6, cada um no proprio card, sem soma no topo;
+#  - CHG-150: Faturamento (relatorio-mensal) arquivada 2 de 2, Compras com a pasta da change trocada por juncao
+#    ("progresso indisponivel"), Portal com a change ativa sem tarefas ("sem tarefas") e Estoque sem change;
+#  - CHG-160: Faturamento com a change fantasma ("change nao encontrada").
 $progressoJson = @"
 {
   "demandas": [
     {
-      "id": "CHG-142", "titulo": "Ajuste NF-e", "openspecChange": "ajuste-nfe", "criadaEm": "$criada", "arquivada": false,
+      "id": "CHG-142", "titulo": "Ajuste NF-e", "criadaEm": "$criada", "arquivada": false,
       "repositorios": [
-        { "nome": "Faturamento", "pasta": "Faturamento", "sessoes": [] },
+        { "nome": "Faturamento", "pasta": "Faturamento", "openspecChange": "ajuste-nfe", "sessoes": [] },
+        { "nome": "Estoque", "pasta": "Estoque", "openspecChange": "ajuste-nfe", "sessoes": [] }
+      ]
+    },
+    {
+      "id": "CHG-150", "titulo": "Relatorio mensal", "criadaEm": "$criada", "arquivada": false,
+      "repositorios": [
+        { "nome": "Faturamento", "pasta": "Faturamento", "openspecChange": "relatorio-mensal", "sessoes": [] },
+        { "nome": "Compras", "pasta": "Compras", "openspecChange": "relatorio-mensal", "sessoes": [] },
+        { "nome": "Portal", "pasta": "Portal", "openspecChange": "relatorio-mensal", "sessoes": [] },
         { "nome": "Estoque", "pasta": "Estoque", "sessoes": [] }
       ]
     },
     {
-      "id": "CHG-150", "titulo": "Relatorio mensal", "openspecChange": "relatorio-mensal", "criadaEm": "$criada", "arquivada": false,
+      "id": "CHG-160", "titulo": "Change que nao existe", "criadaEm": "$criada", "arquivada": false,
       "repositorios": [
-        { "nome": "Faturamento", "pasta": "Faturamento", "sessoes": [] },
-        { "nome": "Compras", "pasta": "Compras", "sessoes": [] },
-        { "nome": "Portal", "pasta": "Portal", "sessoes": [] },
-        { "nome": "Estoque", "pasta": "Estoque", "sessoes": [] }
-      ]
-    },
-    {
-      "id": "CHG-160", "titulo": "Change que nao existe", "openspecChange": "change-fantasma", "criadaEm": "$criada", "arquivada": false,
-      "repositorios": [
-        { "nome": "Faturamento", "pasta": "Faturamento", "sessoes": [] }
+        { "nome": "Faturamento", "pasta": "Faturamento", "openspecChange": "change-fantasma", "sessoes": [] }
       ]
     }
   ]
@@ -323,8 +329,61 @@ $progressoJson = @"
 "@
 [System.IO.File]::WriteAllText($DadosProgresso, $progressoJson, $utf8)
 
+# Arquivo de dados "Trabalhos e Sessoes": o de varias demandas com a change em cada repositorio, sessoes em "Sessoes"
+# (sem-demanda), um trabalho (CHG-170) com a change herdada do campo antigo da demanda e UMA SESSAO EXCLUIDA
+# (22222222..., do Claude em Estoque): ela existe na pasta de status, mas nao aparece em lugar nenhum do painel.
+# Use uma copia, porque criar, excluir e vincular gravam no arquivo.
+$trabalhosJson = @"
+{
+  "demandas": [
+    {
+      "id": "sem-demanda", "titulo": "Sem demanda", "arquivada": false,
+      "repositorios": [
+        { "nome": "Faturamento", "pasta": "Faturamento", "sessoes": [
+            { "agente": "claude", "sessionId": "0b6f1c2e-5d1a-4c8e-9f3a-2b7d4e6a8c10", "rotulo": "implementacao", "criadaEm": "$criada" } ] },
+        { "nome": "Estoque", "pasta": "Estoque", "sessoes": [
+            { "agente": "claude", "sessionId": "11111111-2222-3333-4444-555555555555", "criadaEm": "$criada" } ] }
+      ]
+    },
+    {
+      "id": "t3f9a1c20", "titulo": "Ajuste NF-e", "criadaEm": "$criada", "arquivada": false,
+      "repositorios": [
+        { "nome": "Faturamento", "pasta": "Faturamento", "openspecChange": "ajuste-nfe", "sessoes": [
+            { "agente": "claude", "sessionId": "33333333-4444-5555-6666-777777777777", "rotulo": "implementacao", "criadaEm": "$criada" } ] },
+        { "nome": "Estoque", "pasta": "Estoque", "openspecChange": "ajuste-nfe", "sessoes": [
+            { "agente": "claude", "sessionId": "55555555-6666-7777-8888-999999999999", "rotulo": "ajuste de saldo", "criadaEm": "$criada" },
+            { "agente": "claude", "sessionId": "66666666-7777-8888-9999-aaaaaaaaaaaa", "criadaEm": "$criada" } ] }
+      ]
+    },
+    {
+      "id": "t7b20d4e1", "titulo": "Relatorio mensal", "criadaEm": "$criada", "arquivada": false,
+      "repositorios": [
+        { "nome": "Faturamento", "pasta": "Faturamento", "openspecChange": "relatorio-mensal", "sessoes": [
+            { "agente": "claude", "sessionId": "77777777-8888-9999-aaaa-bbbbbbbbbbbb", "criadaEm": "$criada" } ] },
+        { "nome": "Portal", "pasta": "Portal", "openspecChange": "relatorio-mensal", "sessoes": [] }
+      ]
+    },
+    {
+      "id": "CHG-170", "titulo": "Trabalho antigo", "openspecChange": "ajuste-nfe", "criadaEm": "$criada", "arquivada": false,
+      "repositorios": [
+        { "nome": "Estoque", "pasta": "Estoque", "sessoes": [] }
+      ]
+    },
+    {
+      "id": "t0000c0de", "titulo": "Sem repositorios ainda", "criadaEm": "$criada", "arquivada": false,
+      "repositorios": []
+    }
+  ],
+  "excluidas": [
+    { "agente": "claude", "sessionId": "22222222-3333-4444-5555-666666666666", "excluidaEm": "$criada" }
+  ]
+}
+"@
+[System.IO.File]::WriteAllText($DadosTrabalhos, $trabalhosJson, $utf8)
+
 Write-Output "Raiz de fontes de exemplo (progresso do OpenSpec) criada em: $RaizFontes"
 Write-Output "Arquivo de dados do progresso do OpenSpec criado em: $DadosProgresso"
+Write-Output "Arquivo de dados de trabalhos e sessoes criado em: $DadosTrabalhos"
 Write-Output "Pasta de exemplo criada em: $Pasta"
 Write-Output "Arquivo de dados de exemplo criado em: $Dados"
 Write-Output "Arquivo de dados de varias demandas criado em: $DadosVarias"

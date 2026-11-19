@@ -29,7 +29,7 @@ public class ReabrirLancamentoTests
 
         Assert.True(abertura.ReabrirLancamento(L1).Ok);
 
-        var esperado = MontadorComando.Novo("CHG-142", Repo(dados), Agente.Codex, null, "ajuste");
+        var esperado = MontadorComando.Novo("CHG-142", "CHG-142", Repo(dados), Agente.Codex, null, "ajuste");
         var comando = Assert.Single(disparador.Comandos);
         Assert.Equal(esperado.Executavel, comando.Executavel);
         Assert.Equal(esperado.Argumentos, comando.Argumentos);

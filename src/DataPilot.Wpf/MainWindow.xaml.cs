@@ -32,9 +32,6 @@ public partial class MainWindow : Window
             case nameof(MainViewModel.DemandaSelecionada):
                 SincronizarSelecaoDaLista();
                 break;
-            case nameof(MainViewModel.AlertaNivel):
-                AcenderAlerta();
-                break;
         }
     }
 
@@ -61,15 +58,6 @@ public partial class MainWindow : Window
                 ListaDemandas.SelectedItem = atual;
         }
         finally { _sincronizandoSelecao = false; }
-    }
-
-    // ---------- alerta ----------
-
-    /// <summary>Quando o alerta acende, aparece com um esmaecimento de 150 ms, uma vez. Sem animações no Windows, direto.</summary>
-    private void AcenderAlerta()
-    {
-        if (Vm.AlertaNivel == NivelSinal.Neutro || !SystemParameters.ClientAreaAnimation) return;
-        Alerta.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(150)));
     }
 
     // ---------- teclado ----------

@@ -8,10 +8,9 @@ public partial class NovaSessaoWindow : Window
     public Agente AgenteEscolhido { get; private set; }
     public string? Rotulo { get; private set; }
 
-    public NovaSessaoWindow(string demandaTitulo, string pasta)
+    public NovaSessaoWindow()
     {
         InitializeComponent();
-        Destino.Text = $"Repositório {pasta}, demanda {demandaTitulo}";
         Loaded += (_, _) => CampoRotulo.Focus();
     }
 

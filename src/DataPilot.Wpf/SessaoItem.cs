@@ -27,8 +27,8 @@ public static class Sinal
 
 /// <summary>
 /// Linha de sessão. Todo texto vem limpo e cortado pelo Core; é exibido só como texto simples.
-/// Sessões registradas (no repositório) têm "Retomar" e o menu de mais ações (Mover, Remover); as não vinculadas
-/// só têm "Vincular".
+/// Sessões de um trabalho têm "Retomar" e "Excluir"; as de "Sessões" também mostram o repositório e têm o menu
+/// "Vincular a um trabalho". O status aparece como indicador colorido; o nome dele fica na dica e no nome acessível.
 /// </summary>
 public sealed partial class SessaoItem : ObservableObject
 {
@@ -36,79 +36,76 @@ public sealed partial class SessaoItem : ObservableObject
 
     [ObservableProperty] private string _agente = "";
     [ObservableProperty] private string _pasta = "";
+    /// <summary>Rótulo da sessão; em branco quando não há.</summary>
     [ObservableProperty] private string _rotulo = "";
-    /// <summary>Texto principal da linha: o rótulo (ou "sem rótulo") nas registradas; a pasta nas não vinculadas.</summary>
-    [ObservableProperty] private string _textoPrincipal = "";
-    [ObservableProperty] private bool _principalEhVazio;
     [ObservableProperty] private string _dica = "";
     [ObservableProperty] private string _statusTexto = "";
     [ObservableProperty] private string _tempo = "";
     [ObservableProperty] private NivelSinal _nivel;
 
-    // Só as sessões registradas no arquivo de dados oferecem ações.
-    [ObservableProperty] private bool _temAcoes;
+    /// <summary>A linha está em "Sessões": mostra o repositório e o menu "Vincular a um trabalho".</summary>
+    [ObservableProperty] private bool _emSessoes;
+    [ObservableProperty] private bool _podeRetomar;
+    [ObservableProperty] private bool _podeVincular;
+    /// <summary>O motivo de "Retomar" e "Vincular" estarem indisponíveis, mostrado em texto na própria linha.</summary>
+    [ObservableProperty] private string _motivo = "";
+    [ObservableProperty] private bool _mostrarMotivo;
 
     public StatusExibido Status { get; private set; }
     public SessaoRegistrada? Registrada { get; private set; }
-    public IRelayCommand RetomarCommand { get; }
-    public IRelayCommand MoverCommand { get; }
-    public IRelayCommand RemoverCommand { get; }
-    public IRelayCommand VincularCommand { get; }
 
-    // Sessão não vinculada (na entrada "Não vinculadas"): só a ação de vincular.
-    [ObservableProperty] private bool _temVincular;
-    [ObservableProperty] private bool _podeVincular;
-    [ObservableProperty] private string _motivoVincular = "";
-    /// <summary>O motivo de "Vincular" indisponível, mostrado na própria linha.</summary>
-    [ObservableProperty] private bool _mostrarMotivo;
-
-    /// <summary>Sessão lida da pasta de status (só para sessões não vinculadas); nunca vai a um comando.</summary>
+    /// <summary>Sessão lida da pasta de status, quando há; nunca vai a um comando.</summary>
     public Sessao? Lida { get; private set; }
 
-    public SessaoItem(string sessionId, Action<SessaoItem> retomar, Action<SessaoItem> mover, Action<SessaoItem> remover,
-        Action<SessaoItem> vincular)
+    /// <summary>Agente da sessão, do registro ou da leitura.</summary>
+    public Agente AgenteDaSessao { get; private set; }
+
+    public IRelayCommand RetomarCommand { get; }
+    public IRelayCommand ExcluirCommand { get; }
+    public IRelayCommand VincularCommand { get; }
+
+    public SessaoItem(string sessionId, Action<SessaoItem> retomar, Action<SessaoItem> excluir, Action<SessaoItem> vincular)
     {
         SessionId = sessionId;
-        VincularCommand = new RelayCommand(() => vincular(this));
         RetomarCommand = new RelayCommand(() => retomar(this));
-        MoverCommand = new RelayCommand(() => mover(this));
-        RemoverCommand = new RelayCommand(() => remover(this));
+        ExcluirCommand = new RelayCommand(() => excluir(this));
+        VincularCommand = new RelayCommand(() => vincular(this));
     }
 
-    /// <summary>Sessão registrada, com ou sem arquivo de status.</summary>
-    public void Atualizar(SessaoNaVisao v)
+    /// <summary>Sessão registrada, com ou sem arquivo de status. <paramref name="emSessoes"/>: a linha está em "Sessões".</summary>
+    public void Atualizar(SessaoNaVisao v, bool emSessoes)
     {
         var r = v.Registrada;
         Registrada = r;
-        Lida = null;
-        TemAcoes = true;
-        TemVincular = false;
+        Lida = v.Lida;
+        AgenteDaSessao = r.Agente;
+        EmSessoes = emSessoes;
+        PodeRetomar = true;
+        PodeVincular = true;
+        Motivo = "";
         MostrarMotivo = false;
-        Aplicar(v.Status, v.Tempo, v.Lida is null ? r.Pasta : TextoExibicao.NomePasta(v.Lida.Cwd), r.Agente);
+        Aplicar(v.Status, v.Tempo, r.Pasta, r.Agente);
         Rotulo = r.Rotulo is null ? "" : TextoExibicao.Limpar(r.Rotulo);
-        PrincipalEhVazio = Rotulo.Length == 0;
-        TextoPrincipal = PrincipalEhVazio ? "sem rótulo" : Rotulo;
-        Dica = (v.Lida is null ? "" : $"{TextoExibicao.Limpar(v.Lida.Cwd)}\n")
+        Dica = $"Status: {StatusTexto}\n" + (v.Lida is null ? "" : $"{TextoExibicao.Limpar(v.Lida.Cwd)}\n")
             + $"Sessão: {TextoExibicao.Limpar(r.SessionId)}\nRetomar abre em: {r.Pasta}";
     }
 
-    /// <summary>Sessão lida da pasta de status que o painel não registrou: só exibição e a ação de vincular.</summary>
-    public void AtualizarNaoVinculada(SessaoExibida e)
+    /// <summary>Sessão da pasta de status que o painel não registrou: aparece em "Sessões" com "Retomar", "Excluir" e vínculo.</summary>
+    public void AtualizarNaoRegistrada(SessaoExibida e)
     {
         Registrada = null;
         Lida = e.Sessao;
-        TemAcoes = false;
-        TemVincular = true;
+        AgenteDaSessao = e.Sessao.Agente;
+        EmSessoes = true;
         var s = e.Sessao;
         var pode = RegrasVinculo.PodeVincularSessao(s);
+        PodeRetomar = pode.Sim;
         PodeVincular = pode.Sim;
-        MotivoVincular = pode.Motivo ?? "";
-        MostrarMotivo = !pode.Sim && MotivoVincular.Length > 0;
+        Motivo = pode.Motivo ?? "";
+        MostrarMotivo = !pode.Sim && Motivo.Length > 0;
         Aplicar(e.Status, e.Tempo, TextoExibicao.NomePasta(s.Cwd), s.Agente);
         Rotulo = "";
-        PrincipalEhVazio = false;
-        TextoPrincipal = Pasta;
-        Dica = $"{TextoExibicao.Limpar(s.Cwd)}\nSessão: {TextoExibicao.Limpar(s.SessionId)}"
+        Dica = $"Status: {StatusTexto}\n{TextoExibicao.Limpar(s.Cwd)}\nSessão: {TextoExibicao.Limpar(s.SessionId)}"
             + (pode.Sim ? "" : $"\n{pode.Motivo}");
     }
 

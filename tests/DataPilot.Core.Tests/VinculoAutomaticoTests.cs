@@ -258,7 +258,7 @@ public class AberturaCodexLancamentoTests
     {
         var (abertura, dados, _, pasta) = Novo();
         using var _ = pasta;
-        var s = new SessaoRegistrada(Agente.Codex, IdFixo, "Faturamento", null, Fabrica.Agora, "CHG-142");
+        var s = new SessaoRegistrada(Agente.Codex, IdFixo, "Faturamento", null, Fabrica.Agora, "CHG-142", "CHG-142");
         Assert.True(abertura.Retomar(s).Ok);
         Assert.Empty(Repo(dados).Lancamentos);
     }
@@ -441,7 +441,7 @@ public class VinculoPorLancamentoTests
         var repo = Repo(dados);
         Assert.Empty(repo.Lancamentos);
         var s = Assert.Single(repo.Sessoes);
-        Assert.Equal(new SessaoRegistrada(Agente.Codex, S1, "Faturamento", "ajuste", quando, "CHG-142"), s);
+        Assert.Equal(new SessaoRegistrada(Agente.Codex, S1, "Faturamento", "ajuste", quando, "CHG-142", "CHG-142"), s);
     }
 
     [Fact]

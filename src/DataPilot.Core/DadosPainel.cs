@@ -34,7 +34,7 @@ public sealed class DadosPainel(string caminho)
         var leitura = Ler();
         return leitura.Erro is not null
             ? new EstadoDados(false, [], leitura.Erro)
-            : new EstadoDados(true, Extrair(leitura.Raiz), null);
+            : new EstadoDados(true, Extrair(leitura.Raiz), null) { Excluidas = ExtrairExcluidas(leitura.Raiz) };
     }
 
     private readonly record struct Leitura(JsonObject Raiz, string? Erro);
@@ -63,11 +63,13 @@ public sealed class DadosPainel(string caminho)
     /// <summary>Confere só os contêineres: o que não for do tipo esperado torna o arquivo ilegível.</summary>
     private static string? VerificarEstrutura(JsonObject raiz)
     {
+        if (raiz.TryGetPropertyValue("excluidas", out var excl) && excl is not null && excl is not JsonArray)
+            return "\"excluidas\" não é uma lista";
         if (!raiz.TryGetPropertyValue("demandas", out var demandas) || demandas is null) return null;
         if (demandas is not JsonArray lista) return "\"demandas\" não é uma lista";
         foreach (var d in lista)
         {
-            if (d is not JsonObject demanda) return "uma demanda não é um objeto";
+            if (d is not JsonObject demanda) return "um item de \"demandas\" não é um objeto";
             if (!demanda.TryGetPropertyValue("repositorios", out var repos) || repos is null) continue;
             if (repos is not JsonArray repositorios) return "\"repositorios\" não é uma lista";
             foreach (var r in repositorios)
@@ -97,6 +99,10 @@ public sealed class DadosPainel(string caminho)
             var id = Texto(demanda, "id")!;
             if (!idsDemanda.Add(id)) continue;
 
+            var tituloDemanda = Texto(demanda, "titulo")!;
+            var openspecDemanda = Texto(demanda, "openspecChange");
+            if (!ValidadorEntrada.OpenspecChangeValido(openspecDemanda)) openspecDemanda = null;
+
             var repositorios = new List<RepositorioCadastrado>();
             var pastas = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (demanda["repositorios"] is JsonArray repos)
@@ -118,7 +124,7 @@ public sealed class DadosPainel(string caminho)
                             if (!ValidadorEntrada.RotuloValido(rotulo)) rotulo = null;
                             var criada = DateTimeOffset.TryParse(Texto(s, "criadaEm"), CultureInfo.InvariantCulture,
                                 DateTimeStyles.None, out var c) ? c : DateTimeOffset.MinValue;
-                            sessoes.Add(new SessaoRegistrada(agente, sessionId!, pasta!, rotulo, criada, id));
+                            sessoes.Add(new SessaoRegistrada(agente, sessionId!, pasta!, rotulo, criada, id, tituloDemanda));
                         }
                     }
                     var lancamentos = new List<LancamentoPendente>();
@@ -138,17 +144,18 @@ public sealed class DadosPainel(string caminho)
                             lancamentos.Add(new LancamentoPendente(idLancamento!, agenteLancamento, criadoEm, rotuloLancamento));
                         }
                     }
-                    repositorios.Add(new RepositorioCadastrado(pasta!, sessoes, lancamentos));
+                    var changeRepo = Texto(repo, "openspecChange");
+                    if (changeRepo == "") changeRepo = null; // "Nenhuma" escolhida pelo usuário: não herda da demanda
+                    else if (!ValidadorEntrada.OpenspecChangeValido(changeRepo)) changeRepo = openspecDemanda;
+                    repositorios.Add(new RepositorioCadastrado(pasta!, sessoes, lancamentos, changeRepo));
                 }
             }
 
-            var openspec = Texto(demanda, "openspecChange");
-            if (!ValidadorEntrada.OpenspecChangeValido(openspec)) openspec = null;
             DateTimeOffset? criadaEm = DateTimeOffset.TryParse(Texto(demanda, "criadaEm"), CultureInfo.InvariantCulture,
                 DateTimeStyles.None, out var cd) ? cd : null;
             var arquivada = demanda["arquivada"] is JsonValue a && a.TryGetValue<bool>(out var b) && b;
 
-            resultado.Add(new Demanda(id, Texto(demanda, "titulo")!, openspec, criadaEm, arquivada, repositorios));
+            resultado.Add(new Demanda(id, tituloDemanda, openspecDemanda, criadaEm, arquivada, repositorios));
         }
         return resultado;
     }
@@ -161,50 +168,75 @@ public sealed class DadosPainel(string caminho)
 
     // ---------- demandas ----------
 
-    public ResultadoOperacao CriarDemanda(string id, string titulo, string? openspecChange, DateTimeOffset criadaEm)
+    /// <summary>
+    /// Cria um trabalho só com o título. O identificador (<c>t</c> e 8 dígitos hexadecimais de um GUID novo) é gerado
+    /// aqui, conferido contra os existentes, e devolvido em <see cref="ResultadoOperacao.Id"/>; nunca é pedido nem exibido.
+    /// </summary>
+    public ResultadoOperacao CriarDemanda(string titulo, DateTimeOffset criadaEm, Func<Guid>? gerarGuid = null)
+        => Criar(titulo, criadaEm, gerarGuid ?? Guid.NewGuid, idFixo: null);
+
+    /// <summary>Criação com identificador escolhido, só para montar cenários de teste (dados gravados por versões anteriores).</summary>
+    internal ResultadoOperacao CriarDemandaComId(string id, string titulo, DateTimeOffset criadaEm)
     {
-        var invalido = ValidarCampos(id, titulo, openspecChange);
-        if (invalido is not null) return invalido;
+        if (!ValidadorEntrada.IdDemandaValido(id))
+            return ResultadoOperacao.Falha("Identificador inválido.");
         if (RegrasDemanda.EhImplicita(id))
             return ResultadoOperacao.Falha($"O identificador {IdDemandaImplicita} é reservado.");
+        return Criar(titulo, criadaEm, Guid.NewGuid, idFixo: id);
+    }
 
-        return Alterar(raiz =>
+    private ResultadoOperacao Criar(string titulo, DateTimeOffset criadaEm, Func<Guid> guid, string? idFixo)
+    {
+        var invalido = ValidarTitulo(titulo);
+        if (invalido is not null) return invalido;
+
+        string? criado = null;
+        var r = Alterar(raiz =>
         {
-            if (EncontrarDemanda(raiz, id) is not null)
-                return ResultadoOperacao.Falha($"Já existe uma demanda com o identificador {id}.");
+            var existentes = raiz["demandas"]!.AsArray().OfType<JsonObject>()
+                .Select(d => Texto(d, "id")).OfType<string>()
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            existentes.Add(IdDemandaImplicita);
+
+            string? id = null;
+            if (idFixo is not null)
+            {
+                if (existentes.Contains(idFixo))
+                    return ResultadoOperacao.Falha($"Já existe um trabalho com o identificador {idFixo}.");
+                id = idFixo;
+            }
+            for (var tentativa = 0; tentativa < 100 && id is null; tentativa++)
+            {
+                var candidato = "t" + guid().ToString("N")[..8];
+                if (!existentes.Contains(candidato)) id = candidato;
+            }
+            if (id is null) return ResultadoOperacao.Falha("Não foi possível gerar um identificador para o trabalho.");
 
             var nova = new JsonObject { ["id"] = id, ["titulo"] = titulo };
-            if (!string.IsNullOrEmpty(openspecChange)) nova["openspecChange"] = openspecChange;
             nova["criadaEm"] = criadaEm.ToString("o", CultureInfo.InvariantCulture);
             nova["arquivada"] = false;
             nova["repositorios"] = new JsonArray();
             raiz["demandas"]!.AsArray().Add(nova);
+            criado = id;
             return ResultadoOperacao.Sucesso;
         });
+        return r.Ok ? r with { Id = criado } : r;
     }
 
-    /// <summary>Altera <c>id</c>, <c>titulo</c> e <c>openspecChange</c>; repositórios e sessões ficam como estão.</summary>
-    public ResultadoOperacao EditarDemanda(string idAtual, string novoId, string titulo, string? openspecChange)
+
+    /// <summary>Altera só o <c>titulo</c>; <c>id</c>, repositórios e sessões ficam como estão.</summary>
+    public ResultadoOperacao EditarDemanda(string id, string titulo)
     {
-        if (RegrasDemanda.EhImplicita(idAtual))
-            return ResultadoOperacao.Falha("A demanda \"Sem demanda\" não pode ser editada.");
-        var invalido = ValidarCampos(novoId, titulo, openspecChange);
+        if (RegrasDemanda.EhImplicita(id))
+            return ResultadoOperacao.Falha("\"Sessões\" não pode ser editada.");
+        var invalido = ValidarTitulo(titulo);
         if (invalido is not null) return invalido;
-        if (RegrasDemanda.EhImplicita(novoId))
-            return ResultadoOperacao.Falha($"O identificador {IdDemandaImplicita} é reservado.");
 
         return Alterar(raiz =>
         {
-            var demanda = EncontrarDemanda(raiz, idAtual);
-            if (demanda is null) return ResultadoOperacao.Falha($"A demanda {idAtual} não existe.");
-            var outra = EncontrarDemanda(raiz, novoId);
-            if (outra is not null && !ReferenceEquals(outra, demanda))
-                return ResultadoOperacao.Falha($"Já existe uma demanda com o identificador {novoId}.");
-
-            demanda["id"] = novoId;
+            var demanda = EncontrarDemanda(raiz, id);
+            if (demanda is null) return ResultadoOperacao.Falha($"O trabalho {id} não existe.");
             demanda["titulo"] = titulo;
-            if (string.IsNullOrEmpty(openspecChange)) demanda.Remove("openspecChange");
-            else demanda["openspecChange"] = openspecChange;
             return ResultadoOperacao.Sucesso;
         });
     }
@@ -212,7 +244,7 @@ public sealed class DadosPainel(string caminho)
     public ResultadoOperacao ArquivarDemanda(string id)
     {
         if (RegrasDemanda.EhImplicita(id))
-            return ResultadoOperacao.Falha("A demanda \"Sem demanda\" não pode ser arquivada.");
+            return ResultadoOperacao.Falha("\"Sessões\" não pode ser arquivada.");
         return DefinirArquivada(id, true);
     }
 
@@ -222,37 +254,63 @@ public sealed class DadosPainel(string caminho)
         => Alterar(raiz =>
         {
             var demanda = EncontrarDemanda(raiz, id);
-            if (demanda is null) return ResultadoOperacao.Falha($"A demanda {id} não existe.");
+            if (demanda is null) return ResultadoOperacao.Falha($"O trabalho {id} não existe.");
             demanda["arquivada"] = arquivada;
             return ResultadoOperacao.Sucesso;
         });
 
-    private static ResultadoOperacao? ValidarCampos(string id, string titulo, string? openspecChange)
-    {
-        if (!ValidadorEntrada.IdDemandaValido(id))
-            return ResultadoOperacao.Falha("Identificador inválido: use de 1 a 30 caracteres entre letras, dígitos, \"_\", \".\" e \"-\", e não só pontos.");
-        if (!ValidadorEntrada.TituloValido(titulo))
-            return ResultadoOperacao.Falha("Título inválido: use de 1 a 80 caracteres, sem caracteres de controle.");
-        if (!string.IsNullOrEmpty(openspecChange) && !ValidadorEntrada.OpenspecChangeValido(openspecChange))
-            return ResultadoOperacao.Falha("Change do OpenSpec inválida: use letras, dígitos, \"_\", \".\" e \"-\", e não só pontos.");
-        return null;
-    }
+    private static ResultadoOperacao? ValidarTitulo(string titulo)
+        => ValidadorEntrada.TituloValido(titulo)
+            ? null
+            : ResultadoOperacao.Falha("Título inválido: use de 1 a 80 caracteres, sem caracteres de controle.");
 
     // ---------- repositórios ----------
 
-    public ResultadoOperacao VincularRepositorio(string demandaId, string pasta)
+    /// <summary>Vincula o repositório à demanda; <paramref name="openspecChange"/> é a change escolhida (ou nenhuma).</summary>
+    public ResultadoOperacao VincularRepositorio(string demandaId, string pasta, string? openspecChange = null)
     {
         if (!ValidadorEntrada.PastaValida(pasta))
             return ResultadoOperacao.Falha("Nome de pasta inválido: use apenas letras, dígitos, \"_\", \".\" e \"-\", e não só pontos.");
+        if (!string.IsNullOrEmpty(openspecChange) && !ValidadorEntrada.OpenspecChangeValido(openspecChange))
+            return ResultadoOperacao.Falha("Change do OpenSpec inválida: use letras, dígitos, \"_\", \".\" e \"-\", e não só pontos.");
+
+        return Alterar(raiz =>
+        {
+            var demanda = EncontrarOuCriarImplicita(raiz, demandaId);
+            if (demanda is null) return ResultadoOperacao.Falha($"O trabalho {demandaId} não existe.");
+            if (EncontrarRepositorio(demanda, pasta) is not null)
+                return ResultadoOperacao.Falha($"O repositório {pasta} já está vinculado a este trabalho.");
+
+            var novo = NovoRepositorio(pasta);
+            if (!string.IsNullOrEmpty(openspecChange)) novo["openspecChange"] = openspecChange;
+            Repositorios(demanda).Add(novo);
+            return ResultadoOperacao.Sucesso;
+        });
+    }
+
+    /// <summary>
+    /// Grava a change do repositório (ou a remove, com <c>null</c>). Só o repositório é gravado: o campo antigo da
+    /// demanda é preservado, mas o repositório passa a ter a própria change (vazia, quando "Nenhuma").
+    /// </summary>
+    public ResultadoOperacao DefinirChange(string demandaId, string pasta, string? openspecChange)
+    {
+        if (!string.IsNullOrEmpty(openspecChange) && !ValidadorEntrada.OpenspecChangeValido(openspecChange))
+            return ResultadoOperacao.Falha("Change do OpenSpec inválida: use letras, dígitos, \"_\", \".\" e \"-\", e não só pontos.");
 
         return Alterar(raiz =>
         {
             var demanda = EncontrarDemanda(raiz, demandaId);
-            if (demanda is null) return ResultadoOperacao.Falha($"A demanda {demandaId} não existe.");
-            if (EncontrarRepositorio(demanda, pasta) is not null)
-                return ResultadoOperacao.Falha($"O repositório {pasta} já está vinculado a esta demanda.");
+            if (demanda is null) return ResultadoOperacao.Falha($"O trabalho {demandaId} não existe.");
+            var repo = EncontrarRepositorio(demanda, pasta);
+            if (repo is null) return ResultadoOperacao.Falha($"O repositório {pasta} não está vinculado a este trabalho.");
 
-            Repositorios(demanda).Add(NovoRepositorio(pasta));
+            if (string.IsNullOrEmpty(openspecChange))
+            {
+                repo.Remove("openspecChange");
+                // "Nenhuma" precisa vencer a change herdada da demanda: o texto vazio no repositório vale como "nenhuma".
+                if (demanda["openspecChange"] is not null) repo["openspecChange"] = "";
+            }
+            else repo["openspecChange"] = openspecChange;
             return ResultadoOperacao.Sucesso;
         });
     }
@@ -263,9 +321,9 @@ public sealed class DadosPainel(string caminho)
         return Alterar(raiz =>
         {
             var demanda = EncontrarDemanda(raiz, demandaId);
-            if (demanda is null) return ResultadoOperacao.Falha($"A demanda {demandaId} não existe.");
+            if (demanda is null) return ResultadoOperacao.Falha($"O trabalho {demandaId} não existe.");
             if (demanda["repositorios"] is not JsonArray repos)
-                return ResultadoOperacao.Falha($"O repositório {pasta} não está vinculado a esta demanda.");
+                return ResultadoOperacao.Falha($"O repositório {pasta} não está vinculado a este trabalho.");
 
             var removido = false;
             for (var i = repos.Count - 1; i >= 0; i--)
@@ -277,7 +335,7 @@ public sealed class DadosPainel(string caminho)
                 }
             }
             return removido ? ResultadoOperacao.Sucesso
-                : ResultadoOperacao.Falha($"O repositório {pasta} não está vinculado a esta demanda.");
+                : ResultadoOperacao.Falha($"O repositório {pasta} não está vinculado a este trabalho.");
         });
     }
 
@@ -290,9 +348,78 @@ public sealed class DadosPainel(string caminho)
     /// Vínculo explícito de uma sessão que o painel não abriu. Recebe só o <see cref="PedidoVinculo"/> (agente e
     /// identificador); demanda, pasta e rótulo vêm da escolha do usuário. Grava <c>vinculadaEm</c> (e usa a mesma
     /// data em <c>criadaEm</c>) e vincula o repositório à demanda quando faltar. Demanda arquivada não recebe vínculo.
+    /// Uma sessão já registrada em "Sessões" (<c>sem-demanda</c>) é movida para a demanda escolhida, com o repositório
+    /// e o rótulo escolhidos (sem rótulo escolhido, mantém o que tinha).
     /// </summary>
     public ResultadoOperacao VincularSessao(PedidoVinculo pedido, string demandaId, string pasta, string? rotulo, DateTimeOffset vinculadaEm)
-        => Registrar(demandaId, pasta, pedido.Agente, pedido.SessionId, rotulo, vinculadaEm, vinculadaEm, criarRepositorio: true);
+    {
+        if (!ValidadorEntrada.PastaValida(pasta)) return ResultadoOperacao.Falha("Repositório inválido.");
+        if (!ValidadorEntrada.IdentificadorValido(pedido.SessionId)) return ResultadoOperacao.Falha("Identificador de sessão inválido.");
+        if (rotulo is not null && !ValidadorEntrada.RotuloValido(rotulo)) return ResultadoOperacao.Falha("Rótulo inválido.");
+
+        return Alterar(raiz =>
+        {
+            var demanda = EncontrarOuCriarImplicita(raiz, demandaId);
+            if (demanda is null) return ResultadoOperacao.Falha($"O trabalho {demandaId} não existe.");
+            if (demanda["arquivada"] is JsonValue arq && arq.TryGetValue<bool>(out var arquivada) && arquivada)
+                return ResultadoOperacao.Falha($"O trabalho {demandaId} está arquivado.");
+
+            var existente = SessoesComId(raiz, pedido.SessionId).FirstOrDefault();
+            JsonObject? no = null;
+            if (existente is not null)
+            {
+                // Só a sessão registrada em "Sessões" pode ser movida; as de um trabalho continuam onde estão.
+                var implicita = EncontrarDemanda(raiz, IdDemandaImplicita);
+                if (RegrasDemanda.EhImplicita(demandaId) || implicita is null || !ContemSessao(implicita, pedido.SessionId))
+                    return ResultadoOperacao.Falha("Esta sessão já está registrada.");
+                no = RetirarSessao(implicita, pedido.SessionId);
+            }
+
+            var repo = EncontrarRepositorio(demanda, pasta);
+            if (repo is null)
+            {
+                repo = NovoRepositorio(pasta);
+                Repositorios(demanda).Add(repo);
+            }
+
+            if (no is null)
+            {
+                AdicionarSessao(repo, pedido.Agente, pedido.SessionId, rotulo, vinculadaEm, vinculadaEm);
+                return ResultadoOperacao.Sucesso;
+            }
+            if (rotulo is not null) no["rotulo"] = rotulo;
+            if (repo["sessoes"] is not JsonArray sessoes) repo["sessoes"] = sessoes = new JsonArray();
+            sessoes.Add(no);
+            return ResultadoOperacao.Sucesso;
+        });
+    }
+
+    /// <summary>
+    /// "Retomar" numa sessão que o painel não registrou: registra-a em "Sessões" (<c>sem-demanda</c>), no repositório
+    /// escolhido, com <c>vinculadaEm</c>. Só o <see cref="PedidoVinculo"/> (agente e GUID canônico) vem do arquivo de status.
+    /// </summary>
+    public ResultadoOperacao RegistrarRetomada(PedidoVinculo pedido, string pasta, DateTimeOffset vinculadaEm)
+        => Registrar(IdDemandaImplicita, pasta, pedido.Agente, pedido.SessionId, null, vinculadaEm, vinculadaEm, criarRepositorio: true);
+
+    private static bool ContemSessao(JsonObject demanda, string sessionId)
+        => demanda["repositorios"] is JsonArray repos
+           && repos.OfType<JsonObject>().Any(r => r["sessoes"] is JsonArray ss && ss.OfType<JsonObject>().Any(s => SessaoIgual(s, sessionId)));
+
+    /// <summary>Tira o nó da sessão da demanda e o devolve inteiro, para preservar campos desconhecidos.</summary>
+    private static JsonObject? RetirarSessao(JsonObject demanda, string sessionId)
+    {
+        if (demanda["repositorios"] is not JsonArray repos) return null;
+        foreach (var repo in repos.OfType<JsonObject>())
+        {
+            if (repo["sessoes"] is not JsonArray lista) continue;
+            var indice = lista.ToList().FindIndex(n => n is JsonObject s && SessaoIgual(s, sessionId));
+            if (indice < 0) continue;
+            var no = (JsonObject)lista[indice]!;
+            lista.RemoveAt(indice);
+            return no;
+        }
+        return null;
+    }
 
     private ResultadoOperacao Registrar(string demandaId, string pasta, Agente agente, string sessionId, string? rotulo,
         DateTimeOffset criadaEm, DateTimeOffset? vinculadaEm, bool criarRepositorio)
@@ -303,13 +430,13 @@ public sealed class DadosPainel(string caminho)
 
         return Alterar(raiz =>
         {
-            var demanda = EncontrarDemanda(raiz, demandaId);
-            if (demanda is null) return ResultadoOperacao.Falha($"A demanda {demandaId} não existe.");
+            var demanda = EncontrarOuCriarImplicita(raiz, demandaId);
+            if (demanda is null) return ResultadoOperacao.Falha($"O trabalho {demandaId} não existe.");
             if (vinculadaEm is not null && demanda["arquivada"] is JsonValue arq && arq.TryGetValue<bool>(out var arquivada) && arquivada)
-                return ResultadoOperacao.Falha($"A demanda {demandaId} está arquivada.");
+                return ResultadoOperacao.Falha($"O trabalho {demandaId} está arquivado.");
             var repo = EncontrarRepositorio(demanda, pasta);
             if (repo is null && !criarRepositorio)
-                return ResultadoOperacao.Falha($"O repositório {pasta} não está vinculado a esta demanda.");
+                return ResultadoOperacao.Falha($"O repositório {pasta} não está vinculado a este trabalho.");
             if (SessoesComId(raiz, sessionId).Any())
                 return ResultadoOperacao.Falha("Esta sessão já está registrada.");
             if (repo is null)
@@ -357,9 +484,9 @@ public sealed class DadosPainel(string caminho)
         return Alterar(raiz =>
         {
             var demanda = EncontrarDemanda(raiz, demandaId);
-            if (demanda is null) return ResultadoOperacao.Falha($"A demanda {demandaId} não existe.");
+            if (demanda is null) return ResultadoOperacao.Falha($"O trabalho {demandaId} não existe.");
             var repo = EncontrarRepositorio(demanda, pasta);
-            if (repo is null) return ResultadoOperacao.Falha($"O repositório {pasta} não está vinculado a esta demanda.");
+            if (repo is null) return ResultadoOperacao.Falha($"O repositório {pasta} não está vinculado a este trabalho.");
             if (LancamentosComId(raiz, lancamentoId).Any()) return ResultadoOperacao.Falha("Este lançamento já está registrado.");
 
             var lista = repo["lancamentos"] as JsonArray;
@@ -438,11 +565,11 @@ public sealed class DadosPainel(string caminho)
         return Alterar(raiz =>
         {
             var demanda = EncontrarDemanda(raiz, demandaId);
-            if (demanda is null) return ResultadoOperacao.Falha($"A demanda {demandaId} não existe.");
+            if (demanda is null) return ResultadoOperacao.Falha($"O trabalho {demandaId} não existe.");
             if (demanda["arquivada"] is JsonValue arq && arq.TryGetValue<bool>(out var arquivada) && arquivada)
-                return ResultadoOperacao.Falha($"A demanda {demandaId} está arquivada.");
+                return ResultadoOperacao.Falha($"O trabalho {demandaId} está arquivado.");
             var repo = EncontrarRepositorio(demanda, pasta);
-            if (repo is null) return ResultadoOperacao.Falha($"O repositório {pasta} não está vinculado a esta demanda.");
+            if (repo is null) return ResultadoOperacao.Falha($"O repositório {pasta} não está vinculado a este trabalho.");
 
             if (repo["lancamentos"] is not JsonArray lista
                 || lista.OfType<JsonObject>().FirstOrDefault(l => LancamentoIgual(l, lancamentoId)) is not { } lancamento)
@@ -482,39 +609,57 @@ public sealed class DadosPainel(string caminho)
             .Where(l => LancamentoIgual(l, id));
 
     /// <summary>
-    /// Move a sessão para a demanda de destino, no repositório de mesma pasta (criado ali se faltar).
-    /// O nó da sessão é movido inteiro, então campos desconhecidos dela são preservados.
+    /// Exclui a sessão do painel numa única gravação: remove o registro, se houver, e acrescenta o agente, o
+    /// identificador e a data à lista <c>excluidas</c>. Nada do agente nem da pasta de status é tocado. Excluir de novo
+    /// uma sessão já excluída não duplica o item.
     /// </summary>
-    public ResultadoOperacao MoverSessao(string sessionId, string demandaDestinoId)
+    public ResultadoOperacao ExcluirSessao(Agente agente, string sessionId, DateTimeOffset excluidaEm)
     {
+        if (!Enum.IsDefined(agente)) return ResultadoOperacao.Falha("Agente inválido.");
+        if (!ValidadorEntrada.IdentificadorExclusaoValido(sessionId)) return ResultadoOperacao.Falha("Identificador de sessão inválido.");
+
         return Alterar(raiz =>
         {
-            var origem = Extrair(raiz).SelectMany(d => d.Repositorios.SelectMany(r => r.Sessoes))
-                .FirstOrDefault(s => string.Equals(s.SessionId, sessionId, StringComparison.OrdinalIgnoreCase));
-            if (origem is null) return ResultadoOperacao.Falha("Sessão não registrada.");
-            if (string.Equals(origem.DemandaId, demandaDestinoId, StringComparison.OrdinalIgnoreCase))
-                return ResultadoOperacao.Falha("A sessão já está nessa demanda.");
-
-            var destino = EncontrarDemanda(raiz, demandaDestinoId);
-            if (destino is null) return ResultadoOperacao.Falha($"A demanda {demandaDestinoId} não existe.");
-
-            var demandaOrigem = EncontrarDemanda(raiz, origem.DemandaId)!;
-            var repoOrigem = EncontrarRepositorio(demandaOrigem, origem.Pasta)!;
-            var lista = (JsonArray)repoOrigem["sessoes"]!;
-            var indice = lista.ToList().FindIndex(n => n is JsonObject s && SessaoIgual(s, sessionId));
-            var no = lista[indice]!;
-            lista.RemoveAt(indice);
-
-            var repoDestino = EncontrarRepositorio(destino, origem.Pasta);
-            if (repoDestino is null)
+            foreach (var demanda in raiz["demandas"]!.AsArray().OfType<JsonObject>())
             {
-                repoDestino = NovoRepositorio(origem.Pasta);
-                Repositorios(destino).Add(repoDestino);
+                if (demanda["repositorios"] is not JsonArray repos) continue;
+                foreach (var repo in repos.OfType<JsonObject>())
+                {
+                    if (repo["sessoes"] is not JsonArray sessoes) continue;
+                    for (var i = sessoes.Count - 1; i >= 0; i--)
+                        if (sessoes[i] is JsonObject s && SessaoIgual(s, sessionId)) sessoes.RemoveAt(i);
+                }
             }
-            if (repoDestino["sessoes"] is not JsonArray sessoes) repoDestino["sessoes"] = sessoes = new JsonArray();
-            sessoes.Add(no);
+
+            if (raiz["excluidas"] is not JsonArray lista) raiz["excluidas"] = lista = new JsonArray();
+            var jaExcluida = lista.OfType<JsonObject>().Any(e =>
+                string.Equals(Texto(e, "sessionId"), sessionId, StringComparison.OrdinalIgnoreCase)
+                && Texto(e, "agente") == ValidadorEntrada.NomeAgente(agente));
+            if (!jaExcluida)
+                lista.Add(new JsonObject
+                {
+                    ["agente"] = ValidadorEntrada.NomeAgente(agente),
+                    ["sessionId"] = sessionId,
+                    ["excluidaEm"] = excluidaEm.ToString("o", CultureInfo.InvariantCulture),
+                });
             return ResultadoOperacao.Sucesso;
         });
+    }
+
+    private static List<SessaoExcluida> ExtrairExcluidas(JsonObject raiz)
+    {
+        var resultado = new List<SessaoExcluida>();
+        if (raiz["excluidas"] is not JsonArray lista) return resultado;
+        foreach (var e in lista.OfType<JsonObject>())
+        {
+            if (!ValidadorEntrada.TentarAgente(Texto(e, "agente"), out var agente)) continue;
+            var id = Texto(e, "sessionId");
+            if (!ValidadorEntrada.IdentificadorExclusaoValido(id)) continue;
+            var data = DateTimeOffset.TryParse(Texto(e, "excluidaEm"), CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out var d) ? d : DateTimeOffset.MinValue;
+            resultado.Add(new SessaoExcluida(agente, id!, data));
+        }
+        return resultado;
     }
 
     /// <summary>Remove o registro de uma sessão. Nada do agente nem da pasta de status é tocado.</summary>
@@ -569,6 +714,25 @@ public sealed class DadosPainel(string caminho)
     private static JsonObject? EncontrarDemanda(JsonObject raiz, string id)
         => raiz["demandas"]!.AsArray().OfType<JsonObject>()
             .FirstOrDefault(d => DemandaCarregavel(d) && string.Equals(Texto(d, "id"), id, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// A demanda desse identificador; "Sessões" (<c>sem-demanda</c>) é criada se o arquivo ainda não a tiver, pois
+    /// é fixa e pode receber repositórios e sessões antes de qualquer outra.
+    /// </summary>
+    private static JsonObject? EncontrarOuCriarImplicita(JsonObject raiz, string id)
+    {
+        var existente = EncontrarDemanda(raiz, id);
+        if (existente is not null || !RegrasDemanda.EhImplicita(id)) return existente;
+        var nova = new JsonObject
+        {
+            ["id"] = IdDemandaImplicita,
+            ["titulo"] = TituloDemandaImplicita,
+            ["arquivada"] = false,
+            ["repositorios"] = new JsonArray(),
+        };
+        raiz["demandas"]!.AsArray().Add(nova);
+        return nova;
+    }
 
     private static JsonObject? EncontrarRepositorio(JsonObject demanda, string pasta)
         => demanda["repositorios"] is JsonArray repos

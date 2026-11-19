@@ -156,19 +156,22 @@ public enum EstadoRepositorio
     Ilegivel,
 }
 
-/// <summary>Progresso da change num repositório da demanda.</summary>
+/// <summary>Progresso da change de um repositório de um trabalho.</summary>
 public sealed record ProgressoRepositorio(string Pasta, EstadoRepositorio Estado, bool Arquivada, int Concluidas, int Total)
 {
     public static ProgressoRepositorio NaoEncontrada(string pasta) => new(pasta, EstadoRepositorio.NaoEncontrada, false, 0, 0);
     public static ProgressoRepositorio Ilegivel(string pasta, bool arquivada = false) => new(pasta, EstadoRepositorio.Ilegivel, arquivada, 0, 0);
 
-    /// <summary>Texto do card; vazio quando a change não está no repositório.</summary>
+    /// <summary>Valor de 0 a 1 para a barra.</summary>
+    public double Fracao => Total == 0 ? 0 : (double)Concluidas / Total;
+
+    /// <summary>Texto do card, abaixo do nome da change.</summary>
     public string Texto => Estado switch
     {
         EstadoRepositorio.Lido => $"{Concluidas} de {Total}" + (Arquivada ? " · arquivada" : ""),
         EstadoRepositorio.SemTarefas => "sem tarefas" + (Arquivada ? " · arquivada" : ""),
         EstadoRepositorio.Ilegivel => "progresso indisponível",
-        _ => "",
+        _ => "change não encontrada",
     };
 }
 
@@ -321,55 +324,15 @@ public sealed class LeitorTasks
         uint disposicao, uint flags, IntPtr modelo);
 }
 
-/// <summary>Progresso da change de uma demanda, somando os repositórios em que ela foi encontrada e lida.</summary>
-public sealed record ProgressoDemanda(IReadOnlyList<ProgressoRepositorio> Repositorios)
+/// <summary>Lê o progresso de cada repositório com change (a própria ou a herdada); sem change, nada é lido.</summary>
+public static class ProgressoDosRepositorios
 {
-    public static readonly ProgressoDemanda Nenhum = new([]);
-
-    private IEnumerable<ProgressoRepositorio> Somados
-        => Repositorios.Where(r => r.Estado is EstadoRepositorio.Lido or EstadoRepositorio.SemTarefas);
-
-    public int Concluidas => Somados.Sum(r => r.Concluidas);
-    public int Total => Somados.Sum(r => r.Total);
-
-    /// <summary>A demanda tem repositórios, mas nenhum tem a change.</summary>
-    public bool NaoEncontrada
-        => Repositorios.Count > 0 && Repositorios.All(r => r.Estado == EstadoRepositorio.NaoEncontrada);
-
-    /// <summary>Há soma a exibir: algum repositório foi lido e tem tarefas.</summary>
-    public bool TemSoma => Repositorios.Any(r => r.Estado == EstadoRepositorio.Lido);
-
-    /// <summary>Todos os repositórios lidos têm a change arquivada.</summary>
-    public bool Arquivada
+    public static IReadOnlyDictionary<string, ProgressoRepositorio> Montar(
+        IEnumerable<RepositorioCadastrado> repositorios, LeitorTasks leitor)
     {
-        get
-        {
-            var lidos = Somados.ToList();
-            return lidos.Count > 0 && lidos.All(r => r.Arquivada);
-        }
-    }
-
-    /// <summary>Valor de 0 a 1 para a barra.</summary>
-    public double Fracao => Total == 0 ? 0 : (double)Concluidas / Total;
-
-    /// <summary>Texto abaixo do nome da change; vazio quando não há o que mostrar (sem repositórios).</summary>
-    public string Texto
-    {
-        get
-        {
-            if (Repositorios.Count == 0) return "";
-            if (NaoEncontrada) return "change não encontrada nos repositórios";
-            var sufixo = Arquivada ? " · arquivada" : "";
-            if (TemSoma) return $"{Concluidas} de {Total} tarefas{sufixo}";
-            if (Repositorios.Any(r => r.Estado == EstadoRepositorio.SemTarefas)) return "sem tarefas" + sufixo;
-            return "progresso indisponível";
-        }
-    }
-
-    /// <summary>Lê o progresso dos repositórios; demanda sem change não lê nada.</summary>
-    public static ProgressoDemanda Montar(string? openspecChange, IEnumerable<string> pastas, LeitorTasks leitor)
-    {
-        if (openspecChange is null) return Nenhum;
-        return new ProgressoDemanda(pastas.Select(p => leitor.Ler(p, openspecChange)).ToList());
+        var resultado = new Dictionary<string, ProgressoRepositorio>(StringComparer.OrdinalIgnoreCase);
+        foreach (var r in repositorios)
+            if (r.OpenspecChange is { } change) resultado[r.Pasta] = leitor.Ler(r.Pasta, change);
+        return resultado;
     }
 }
