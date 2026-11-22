@@ -28,7 +28,7 @@ O DataPilot é um painel para Windows que organiza as sessões do **Claude Code*
 
 - **Trabalhos em vez de abas soltas.** Cada trabalho reúne os repositórios envolvidos e as sessões de IA de cada um.
 - **Status sempre atualizado.** Uma cor por sessão mostra se ela precisa de atenção, aguarda você, está executando, está ativa ou já encerrou.
-- **O que importa primeiro.** O topo da janela conta as sessões que dependem de você, e **F8** leva direto à próxima.
+- **O que importa primeiro.** O topo da janela conta as sessões que dependem de você.
 - **Abrir e retomar com um clique.** Cada sessão abre numa aba do Windows Terminal, já no repositório certo e com um título que diz de onde ela é.
 - **Progresso do OpenSpec por repositório.** O card de cada repositório mostra a change em andamento e quantas tarefas já foram concluídas.
 - **Sessões avulsas no mesmo lugar.** Conversas iniciadas fora de um trabalho também aparecem, prontas para retomar ou organizar.
@@ -84,7 +84,7 @@ Os diálogos são diretos: pedem só o que é necessário e mostram o erro junto
 
 ## Feito para o dia a dia
 
-- **Teclado em primeiro lugar.** **Ctrl+N** cria um trabalho, **Ctrl+F** filtra a lista e **F8** vai para a próxima sessão que precisa de você. As ações secundárias ficam num menu, aberto pelo botão direito ou por **Shift+F10**.
+- **Teclado em primeiro lugar.** **Ctrl+N** cria um trabalho e **Ctrl+F** filtra a lista. As ações secundárias ficam num menu, aberto pelo botão direito ou por **Shift+F10**.
 - **Calmo por padrão.** A janela usa cor só para sinalizar o que pede ação. O resto fica neutro.
 - **Acessível.** Com o alto contraste do Windows ligado, o painel adota as cores do sistema e mostra o nome do status em texto.
 - **Separação de papéis.** Os agentes de IA rodam isolados do usuário que usa o painel. O painel só lê o status das sessões e nunca executa nada que venha delas.
@@ -94,7 +94,7 @@ Os diálogos são diretos: pedem só o que é necessário e mostram o erro junto
 - Windows 10 ou 11, com o Windows Terminal
 - Claude Code, Codex ou os dois
 
-A preparação do ambiente está em [docs/instalacao-etapa-1.md](docs/instalacao-etapa-1.md). A compilação, os dados de exemplo e os roteiros de verificação estão em [docs/desenvolvimento.md](docs/desenvolvimento.md).
+A preparação do ambiente está em [docs/instalacao-etapa-1.md](docs/instalacao-etapa-1.md). A compilação, os dados de exemplo e os roteiros de verificação estão em [docs/desenvolvimento.md](docs/desenvolvimento.md). O mapa do código está em [docs/arquitetura.md](docs/arquitetura.md).
 
 ## Licença
 

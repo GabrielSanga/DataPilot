@@ -309,9 +309,7 @@
 
         <Border Grid.Row="0" Background="{DynamicResource Nevoa}" BorderBrush="{DynamicResource Linha}" BorderThickness="0,0,0,1" Padding="18,0" Height="54">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <Button Style="{StaticResource BotaoDiscreto}" Command="{Binding IrParaInicioCommand}" VerticalAlignment="Center" AutomationProperties.Name="DataPilot, ir para o início" ToolTip="Início">
-                    <TextBlock Text="DataPilot" Style="{StaticResource TextoInstrumento}" FontSize="19" FontWeight="SemiBold"/>
-                </Button>
+                <TextBlock Text="DataPilot" Style="{StaticResource TextoInstrumento}" FontSize="19" FontWeight="SemiBold"/>
                 <TextBlock Text="{Binding ContagemAtencao}" FontWeight="SemiBold" Margin="26,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextoAtencao}">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">

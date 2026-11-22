@@ -57,18 +57,19 @@ public class VinculoSessaoTests
     public void Pedido_e_recusado_para_identificador_fora_do_formato(string id)
     {
         Assert.Null(PedidoVinculo.Criar(Lida(id)));
-        var pode = RegrasVinculo.PodeVincularSessao(Lida(id));
-        Assert.False(pode.Sim);
-        Assert.False(string.IsNullOrWhiteSpace(pode.Motivo));
+        Assert.Null(PedidoVinculo.Criar(Registrada(id)));
     }
 
     [Fact]
-    public void Pode_vincular_guid_canonico_sem_motivo()
+    public void Pode_vincular_guid_canonico()
     {
-        var pode = RegrasVinculo.PodeVincularSessao(Lida(IdCodex));
-        Assert.True(pode.Sim);
-        Assert.Null(pode.Motivo);
+        Assert.NotNull(PedidoVinculo.Criar(Lida(IdCodex)));
+        var pedido = PedidoVinculo.Criar(Registrada(IdCodex));
+        Assert.Equal((Agente.Codex, IdCodex), (pedido!.Agente, pedido.SessionId));
     }
+
+    private static SessaoRegistrada Registrada(string id)
+        => new(Agente.Codex, id, "Faturamento", null, DateTimeOffset.UtcNow, "sem-demanda");
 
     // ---------- Vincular sessão não vinculada / Rastro do vínculo ----------
 
@@ -266,12 +267,12 @@ public class VinculoSessaoTests
         Assert.Empty(vinculada.Sessoes.NaoRegistradas);
         Assert.Single(vinculada.Demandas.Single().Cards.Single().Sessoes);
 
-        Assert.True(dados.RemoverSessao(IdCodex).Ok);
+        Assert.True(dados.DesfazerRegistro(IdCodex).Ok);
 
         var depois = VisaoAgrupada.Montar(dados.Carregar().Demandas, [lida], false, false, Relogio);
         Assert.Equal(IdCodex, Assert.Single(depois.Sessoes.NaoRegistradas).Sessao.SessionId);
         Assert.Empty(depois.Demandas.Single().Cards.Single().Sessoes);
-        Assert.True(RegrasVinculo.PodeVincularSessao(lida).Sim);
+        Assert.NotNull(PedidoVinculo.Criar(lida));
     }
 
     // ---------- Sem sugestões no card: não vinculadas ficam só na entrada própria ----------
@@ -311,24 +312,24 @@ public class VinculoSessaoTests
     [InlineData(@"C:\Fontes\FATURAMENTO\")]
     [InlineData("/home/ia/Faturamento")]
     public void Coincidencia_ignora_maiusculas_barra_final_e_separador(string cwd)
-        => Assert.True(RegrasVinculo.PastaCoincide(Lida(IdCodex, cwd: cwd), "Faturamento"));
+        => Assert.True(RegrasVinculo.PastaCoincide(cwd, "Faturamento"));
 
     [Theory]
     [InlineData(@"C:\Fontes\Faturamento2")]
     [InlineData(@"C:\Faturamento\Outra")]
     [InlineData(@"C:\Fontes\Fatura")]
     public void Pasta_de_nome_diferente_nao_coincide(string cwd)
-        => Assert.False(RegrasVinculo.PastaCoincide(Lida(IdCodex, cwd: cwd), "Faturamento"));
+        => Assert.False(RegrasVinculo.PastaCoincide(cwd, "Faturamento"));
 
     // ---------- Aviso de pasta divergente ----------
 
     [Fact]
     public void Repositorio_diferente_da_pasta_informada_avisa()
-        => Assert.True(RegrasVinculo.AvisarPastaDivergente(Lida(IdCodex, cwd: @"C:\Fontes\Faturamento"), "Estoque"));
+        => Assert.True(RegrasVinculo.AvisarPastaDivergente(@"C:\Fontes\Faturamento", "Estoque"));
 
     [Theory]
     [InlineData(@"C:\Fontes\Faturamento")]
     [InlineData(@"C:\Fontes\faturamento\")]
     public void Repositorio_igual_a_pasta_informada_nao_avisa(string cwd)
-        => Assert.False(RegrasVinculo.AvisarPastaDivergente(Lida(IdCodex, cwd: cwd), "Faturamento"));
+        => Assert.False(RegrasVinculo.AvisarPastaDivergente(cwd, "Faturamento"));
 }

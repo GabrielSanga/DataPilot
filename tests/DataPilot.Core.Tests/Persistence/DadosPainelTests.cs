@@ -722,7 +722,7 @@ public class DadosPainelTests
     {
         var (dados, pasta, _) = Novo(ArquivoDaEtapa3());
         using var _p = pasta;
-        Assert.True(dados.RemoverSessao(Id1).Ok);
+        Assert.True(dados.DesfazerRegistro(Id1).Ok);
         Assert.Empty(Demanda(dados, "sem-demanda").Repositorios.Single(r => r.Pasta == "Faturamento").Sessoes);
     }
 
@@ -731,7 +731,7 @@ public class DadosPainelTests
     {
         var (dados, pasta, _) = Novo(ArquivoDaEtapa3());
         using var _p = pasta;
-        Assert.False(dados.RemoverSessao(Id3).Ok);
+        Assert.False(dados.DesfazerRegistro(Id3).Ok);
     }
 
     // ---------- Arquivo ilegível e gravação segura ----------
@@ -766,7 +766,7 @@ public class DadosPainelTests
         Assert.False(dados.RemoverRepositorio("A", "X").Ok);
         Assert.False(dados.RegistrarSessao("A", "X", Agente.Claude, Id1, null, Fabrica.Agora).Ok);
         Assert.False(dados.ExcluirSessao(Agente.Claude, Id1, Fabrica.Agora).Ok);
-        Assert.False(dados.RemoverSessao(Id1).Ok);
+        Assert.False(dados.DesfazerRegistro(Id1).Ok);
         Assert.False(dados.DesfazerRegistro(Id1).Ok);
 
         Assert.Equal(bytes, File.ReadAllBytes(caminho));
@@ -789,7 +789,7 @@ public class DadosPainelTests
         Assert.True(dados.ArquivarDemanda("CHG-2").Ok);
         Assert.True(dados.DesarquivarDemanda("CHG-2").Ok);
         Assert.True(dados.RegistrarSessao("CHG-1", "A", Agente.Codex, Id2, null, Fabrica.Agora).Ok);
-        Assert.True(dados.RemoverSessao(Id2).Ok);
+        Assert.True(dados.DesfazerRegistro(Id2).Ok);
         Assert.True(dados.RemoverRepositorio("CHG-2", "B").Ok);
 
         var raiz = JsonNode.Parse(Texto(caminho))!;

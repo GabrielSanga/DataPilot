@@ -20,7 +20,7 @@ public partial class NovaSessaoWindow : Window
         var rotulo = CampoRotulo.Text.Trim();
         if (rotulo.Length > 0 && !ValidadorEntrada.RotuloValido(rotulo))
         {
-            Mensagem.Text = "Rótulo inválido: use até 40 caracteres, sem \";\" nem caracteres de controle.";
+            Mensagem.Text = ValidadorEntrada.MensagemRotulo;
             CampoRotulo.Focus();
             return;
         }

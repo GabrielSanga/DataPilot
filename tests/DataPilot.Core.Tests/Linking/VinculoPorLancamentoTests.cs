@@ -146,7 +146,7 @@ public class VinculoPorLancamentoTests
         var (dados, pasta) = ComLancamento();
         using var _ = pasta;
         dados.VincularPorLancamento(Pedido(S1), "CHG-142", "Faturamento", L1, B);
-        Assert.True(dados.RemoverSessao(S1).Ok);
+        Assert.True(dados.DesfazerRegistro(S1).Ok);
 
         var lida = ApoioVinculoAutomatico.Codex(S1, B.AddMinutes(1));
         Assert.Empty(VinculoAutomatico.Calcular(dados.Carregar().Demandas, [lida], B.AddHours(1)));

@@ -108,7 +108,7 @@ public class ReabrirLancamentoTests
     {
         var (abertura, dados, disparador, _, pasta) = ComLancamento();
         using var _1 = pasta;
-        Assert.True(dados.CancelarLancamento(L1).Ok);
+        Assert.True(dados.DesfazerLancamento(L1).Ok);
         var conteudo = File.ReadAllText(dados.Caminho);
 
         Assert.False(abertura.ReabrirLancamento(L1).Ok);

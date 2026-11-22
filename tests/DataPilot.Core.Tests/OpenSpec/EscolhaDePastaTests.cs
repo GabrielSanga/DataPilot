@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using DataPilot.Core.OpenSpec;
+using DataPilot.Core.Tests.Helpers;
 
 namespace DataPilot.Core.Tests.OpenSpec;
 
@@ -45,4 +47,25 @@ public class EscolhaDePastaTests
         Assert.False(r.Ok);
         Assert.Contains("Nome de pasta inválido", r.Erro);
     }
+
+    [Fact]
+    public void PastasDaRaiz_ignora_atalho_nome_invalido_e_arquivo_e_ordena()
+    {
+        using var raiz = new PastaTemporaria();
+        foreach (var nome in new[] { "beta", "Alfa", "com espaço", "a;b" })
+            Directory.CreateDirectory(Path.Combine(raiz.Caminho, nome));
+        raiz.Escrever("arquivo.txt", "x");
+        var alvo = Path.Combine(raiz.Caminho, "beta");
+        var link = Path.Combine(raiz.Caminho, "atalho");
+        var p = Process.Start(new ProcessStartInfo("cmd.exe", $"/c mklink /J \"{link}\" \"{alvo}\"")
+            { CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true })!;
+        p.WaitForExit();
+        Assert.Equal(0, p.ExitCode);
+
+        Assert.Equal(["Alfa", "beta"], EscolhaDePasta.PastasDaRaiz(raiz.Caminho));
+    }
+
+    [Fact]
+    public void PastasDaRaiz_de_raiz_inexistente_devolve_vazio()
+        => Assert.Empty(EscolhaDePasta.PastasDaRaiz(Path.Combine(Path.GetTempPath(), "datapilot-" + Guid.NewGuid().ToString("N"))));
 }

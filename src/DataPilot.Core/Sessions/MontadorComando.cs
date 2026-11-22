@@ -37,7 +37,7 @@ public static class MontadorComando
     public static string Titulo(string demandaId, string? tituloDemanda, Agente agente, string pasta, string? rotulo)
     {
         var prefixo = RegrasDemanda.EhImplicita(demandaId)
-            ? (agente == Agente.Claude ? "Claude" : "Codex")
+            ? Agentes.Nome(agente)
             : TituloNaAba(tituloDemanda);
         var titulo = $"{prefixo} · {pasta}";
         return rotulo is null ? titulo : $"{titulo} · {rotulo}";
@@ -61,11 +61,11 @@ public static class MontadorComando
         if (!RegrasDemanda.EhImplicita(demandaId) && !ValidadorEntrada.TituloValido(tituloDemanda))
             throw new EntradaInvalidaException("Título do trabalho inválido.");
         if (!ValidadorEntrada.PastaValida(pasta))
-            throw new EntradaInvalidaException($"Pasta inválida: {TextoExibicao.Limpar(pasta)}");
+            throw new EntradaInvalidaException(ValidadorEntrada.MensagemPasta);
         if (sessionId is not null && !ValidadorEntrada.IdentificadorValido(sessionId))
             throw new EntradaInvalidaException("Identificador de sessão inválido.");
         if (rotulo is not null && !ValidadorEntrada.RotuloValido(rotulo))
-            throw new EntradaInvalidaException("Rótulo inválido: use até 40 caracteres, sem \";\" nem caracteres de controle.");
+            throw new EntradaInvalidaException(ValidadorEntrada.MensagemRotulo);
 
         var args = new List<string>
         {
@@ -73,7 +73,7 @@ public static class MontadorComando
             "--title", Titulo(demandaId, tituloDemanda, agente, pasta, rotulo), "--suppressApplicationTitle",
             "ssh", "-t", Constantes.DestinoSsh,
             "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", Constantes.ScriptAbrir,
-            "-Agente", ValidadorEntrada.NomeAgente(agente),
+            "-Agente", Agentes.NoArquivo(agente),
             "-Repo", pasta,
         };
         if (sessionId is not null) { args.Add("-Sessao"); args.Add(sessionId); }

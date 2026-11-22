@@ -26,14 +26,7 @@ public static partial class ValidadorStatus
             var raiz = doc.RootElement;
             if (raiz.ValueKind != JsonValueKind.Object) return false;
 
-            if (!Texto(raiz, "agente", out var agenteTxt)) return false;
-            Agente agente;
-            switch (agenteTxt)
-            {
-                case "claude": agente = Agente.Claude; break;
-                case "codex": agente = Agente.Codex; break;
-                default: return false;
-            }
+            if (!Texto(raiz, "agente", out var agenteTxt) || !Agentes.TentarLer(agenteTxt, out var agente)) return false;
 
             if (!Texto(raiz, "session_id", out var id)) return false;
             if (!PadraoId().IsMatch(id) || id != nomeArquivoSemExtensao) return false;

@@ -48,7 +48,7 @@ public partial class VincularRepositorioWindow : Window
     /// <summary>Abre a escolha de pasta. Devolve false se o usuário cancelou; pasta recusada mostra o erro e mantém a anterior.</summary>
     private bool EscolherPasta()
     {
-        var caminho = EscolhaPastaWindows.Escolher(_raiz, this);
+        var caminho = InteracaoJanelas.EscolherPasta(_raiz, this);
         if (caminho is null) return false;
 
         var r = EscolhaDePasta.Validar(_raiz, caminho);

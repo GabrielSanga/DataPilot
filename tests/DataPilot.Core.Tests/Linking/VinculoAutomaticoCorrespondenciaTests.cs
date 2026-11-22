@@ -136,4 +136,19 @@ public class VinculoAutomaticoCorrespondenciaTests
         var r = VinculoAutomatico.Calcular([D("A", false, L(L1, B))], [S(S1, B.AddMinutes(-30)), S(S2, B.AddMinutes(5))], Agora);
         Assert.Equal(S2, Assert.Single(r).Pedido.SessionId);
     }
+
+    [Fact]
+    public void Mesmo_id_registrado_em_outro_agente_nao_grava_vinculo()
+    {
+        var (dados, pasta) = ApoioVinculoAutomatico.NovoDados("A");
+        using var _ = pasta;
+        dados.RegistrarLancamento("A", "Faturamento", Agente.Codex, L1, null, B);
+        var claude = S(S1, null, agente: Agente.Claude);
+        Assert.True(dados.RegistrarRetomada(PedidoVinculo.Criar(claude)!, "Faturamento", B).Ok);
+
+        var gravados = VinculoAutomatico.Aplicar(dados, dados.Carregar(), [S(S1, B.AddMinutes(5))], new RelogioFalso(Agora));
+
+        Assert.Equal(0, gravados);
+        Assert.Single(dados.Carregar().Demandas.Single(x => x.Id == "A").Repositorios.Single().Lancamentos);
+    }
 }

@@ -44,24 +44,21 @@ public static class VinculoAutomatico
         IReadOnlyList<Demanda> demandas, IReadOnlyList<Sessao> sessoes, DateTimeOffset agora,
         IReadOnlyList<SessaoExcluida>? excluidas = null)
     {
-        var registradas = new HashSet<string>(
-            demandas.SelectMany(d => d.Repositorios).SelectMany(r => r.Sessoes).Select(s => s.SessionId),
-            StringComparer.OrdinalIgnoreCase);
+        var registradas = demandas.SelectMany(d => d.Repositorios).SelectMany(r => r.Sessoes)
+            .Select(s => ChaveSessao.De(s.Agente, s.SessionId)).ToHashSet();
 
         // Lançamentos de demandas arquivadas ou vencidos não vinculam.
         var disponiveis = demandas
-            .Where(d => !d.Arquivada)
-            .SelectMany(d => d.Repositorios.SelectMany(r => r.Lancamentos.Select(l => (Demanda: d.Id, r.Pasta, Lancamento: l))))
-            .Where(x => agora - x.Lancamento.CriadoEm <= DadosPainel.ValidadeLancamento)
+            .SelectMany(d => d.Repositorios.SelectMany(r => r.Lancamentos.Where(l => RegrasDemanda.LancamentoValido(d, l, agora)).Select(l => (Demanda: d.Id, r.Pasta, Lancamento: l))))
             .ToList();
         if (disponiveis.Count == 0) return [];
 
         var excluidasSet = new HashSet<(Agente, string)>(
-            (excluidas ?? []).Select(e => (e.Agente, e.SessionId.ToLowerInvariant())));
+            (excluidas ?? []).Select(e => ChaveSessao.De(e.Agente, e.SessionId)));
 
         var candidatas = sessoes
-            .Where(s => s.ArquivoCriadoEm is not null && !registradas.Contains(s.SessionId))
-            .Where(s => !excluidasSet.Contains((s.Agente, s.SessionId.ToLowerInvariant())))
+            .Where(s => s.ArquivoCriadoEm is not null && !registradas.Contains(ChaveSessao.De(s.Agente, s.SessionId)))
+            .Where(s => !excluidasSet.Contains(ChaveSessao.De(s.Agente, s.SessionId)))
             .OrderBy(s => s.ArquivoCriadoEm)
             .ThenBy(s => s.SessionId, StringComparer.Ordinal);
 
@@ -73,7 +70,7 @@ public static class VinculoAutomatico
 
             var escolhido = disponiveis
                 .Where(x => x.Lancamento.Agente == sessao.Agente
-                    && RegrasVinculo.PastaCoincide(sessao, x.Pasta)
+                    && RegrasVinculo.PastaCoincide(sessao.Cwd, x.Pasta)
                     && x.Lancamento.CriadoEm <= sessao.ArquivoCriadoEm)
                 .OrderByDescending(x => x.Lancamento.CriadoEm)
                 .ThenBy(x => x.Lancamento.Id, StringComparer.Ordinal)

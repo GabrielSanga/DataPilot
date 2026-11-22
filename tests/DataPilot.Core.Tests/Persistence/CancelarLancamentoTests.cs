@@ -28,7 +28,7 @@ public class CancelarLancamentoTests
         using var _ = pasta;
         dados.RegistrarLancamento("CHG-142", "Faturamento", Agente.Codex, L1, null, Base);
 
-        Assert.True(dados.CancelarLancamento(L1).Ok);
+        Assert.True(dados.DesfazerLancamento(L1).Ok);
         Assert.Empty(dados.Carregar().Demandas.Single().Repositorios.Single().Lancamentos);
     }
 
@@ -38,7 +38,7 @@ public class CancelarLancamentoTests
         var (dados, pasta) = ComDoisLancamentos();
         using var _ = pasta;
 
-        Assert.True(dados.CancelarLancamento(L1).Ok);
+        Assert.True(dados.DesfazerLancamento(L1).Ok);
 
         var estado = dados.Carregar();
         Assert.Equal(L2, Assert.Single(estado.Demandas.Single().Repositorios.Single().Lancamentos).Id);
@@ -54,7 +54,7 @@ public class CancelarLancamentoTests
         var antes = File.ReadAllBytes(dados.Caminho);
         var escrita = File.GetLastWriteTimeUtc(dados.Caminho);
 
-        var r = dados.CancelarLancamento("dddddddd-4444-4444-8444-dddddddddddd");
+        var r = dados.DesfazerLancamento("dddddddd-4444-4444-8444-dddddddddddd");
 
         Assert.False(r.Ok);
         Assert.Equal(antes, File.ReadAllBytes(dados.Caminho));
@@ -70,7 +70,7 @@ public class CancelarLancamentoTests
         Assert.True(dados.VincularPorLancamento(PedidoVinculo.Criar(ApoioVinculoAutomatico.Codex(S1, Base))!, "CHG-142", "Faturamento", L1, Base.AddMinutes(1)).Ok);
         var antes = File.ReadAllBytes(dados.Caminho);
 
-        Assert.False(dados.CancelarLancamento(L1).Ok);
+        Assert.False(dados.DesfazerLancamento(L1).Ok);
 
         Assert.Equal(antes, File.ReadAllBytes(dados.Caminho));
         Assert.Equal(S1, dados.Carregar().Demandas.Single().Repositorios.Single().Sessoes.Single().SessionId);
@@ -82,7 +82,7 @@ public class CancelarLancamentoTests
         var (dados, pasta) = ApoioVinculoAutomatico.NovoDados("CHG-142");
         using var _ = pasta;
         dados.RegistrarLancamento("CHG-142", "Faturamento", Agente.Codex, L1, null, Base);
-        Assert.True(dados.CancelarLancamento(L1).Ok);
+        Assert.True(dados.DesfazerLancamento(L1).Ok);
 
         var sessao = ApoioVinculoAutomatico.Codex(S1, Base.AddMinutes(2));
         var relogio = new RelogioFalso(Base.AddMinutes(3));

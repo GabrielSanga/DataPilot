@@ -45,12 +45,15 @@ public sealed partial class SessaoItem : ObservableObject
     public IRelayCommand ExcluirCommand { get; }
     public IRelayCommand VincularCommand { get; }
 
-    public SessaoItem(string sessionId, Action<SessaoItem> retomar, Action<SessaoItem> excluir, Action<SessaoItem> vincular)
+    private readonly MainViewModel _painel;
+
+    internal SessaoItem(string sessionId, MainViewModel painel)
     {
         SessionId = sessionId;
-        RetomarCommand = new RelayCommand(() => retomar(this));
-        ExcluirCommand = new RelayCommand(() => excluir(this));
-        VincularCommand = new RelayCommand(() => vincular(this));
+        _painel = painel;
+        RetomarCommand = new RelayCommand(() => _painel.Retomar(this));
+        ExcluirCommand = new RelayCommand(() => _painel.ExcluirSessao(this));
+        VincularCommand = new RelayCommand(() => _painel.VincularSessao(this));
     }
 
     /// <summary>Sessão registrada, com ou sem arquivo de status. <paramref name="emSessoes"/>: a linha está em "Sessões".</summary>
@@ -79,21 +82,21 @@ public sealed partial class SessaoItem : ObservableObject
         AgenteDaSessao = e.Sessao.Agente;
         EmSessoes = true;
         var s = e.Sessao;
-        var pode = RegrasVinculo.PodeVincularSessao(s);
-        PodeRetomar = pode.Sim;
-        PodeVincular = pode.Sim;
-        Motivo = pode.Motivo ?? "";
-        MostrarMotivo = !pode.Sim && Motivo.Length > 0;
+        var pode = PedidoVinculo.Criar(s) is not null;
+        PodeRetomar = pode;
+        PodeVincular = pode;
+        Motivo = pode ? "" : RegrasVinculo.MotivoIdentificadorInvalido;
+        MostrarMotivo = !pode;
         Aplicar(e.Status, e.Tempo, TextoExibicao.NomePasta(s.Cwd), s.Agente);
         Rotulo = "";
         Dica = $"Status: {StatusTexto}\n{TextoExibicao.Limpar(s.Cwd)}\nSessão: {TextoExibicao.Limpar(s.SessionId)}"
-            + (pode.Sim ? "" : $"\n{pode.Motivo}");
+            + (pode ? "" : $"\n{Motivo}");
     }
 
     private void Aplicar(StatusExibido status, string tempo, string pasta, Agente agente)
     {
         Status = status;
-        Agente = agente == DataPilot.Core.Models.Agente.Claude ? "Claude" : "Codex";
+        Agente = Agentes.Nome(agente);
         Pasta = pasta;
         StatusTexto = RegrasExibicao.Texto(status);
         Tempo = tempo.Length == 0 ? "—" : tempo;

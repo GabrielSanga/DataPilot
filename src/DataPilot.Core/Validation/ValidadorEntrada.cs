@@ -15,6 +15,11 @@ public static partial class ValidadorEntrada
     public const int TamanhoMaximoTitulo = 80;
     public const int TamanhoMaximoOpenspecChange = 100;
 
+    public const string MensagemPasta = "Nome de pasta inválido: use apenas letras, dígitos, \"_\", \".\" e \"-\", e não só pontos.";
+    public const string MensagemRotulo = "Rótulo inválido: use até 40 caracteres, sem \";\" nem caracteres de controle.";
+    public const string MensagemTitulo = "Título inválido: use de 1 a 80 caracteres, sem caracteres de controle.";
+    public const string MensagemChange = "Change do OpenSpec inválida: use letras, dígitos, \"_\", \".\" e \"-\", e não só pontos.";
+
     // As duas primeiras repetem as regras do abrir.ps1; \z evita aceitar uma quebra de linha final.
     [GeneratedRegex(@"\A[A-Za-z0-9_.-]+\z")]
     private static partial Regex PadraoPasta();
@@ -48,12 +53,6 @@ public static partial class ValidadorEntrada
     public static bool IdentificadorExclusaoValido(string? id)
         => id is not null && PadraoIdentificadorHook().IsMatch(id);
 
-    [GeneratedRegex(@"\At[0-9a-f]{8}\z", RegexOptions.IgnoreCase)]
-    private static partial Regex PadraoIdTrabalho();
-
-    /// <summary>Identificador gerado pelo painel: <c>t</c> e 8 dígitos hexadecimais.</summary>
-    public static bool IdTrabalhoGeradoValido(string? id) => id is not null && PadraoIdTrabalho().IsMatch(id);
-
     /// <summary>GUID na forma canônica 8-4-4-4-12.</summary>
     public static bool IdentificadorValido(string? id)
         => id is not null && PadraoGuid().IsMatch(id);
@@ -75,18 +74,5 @@ public static partial class ValidadorEntrada
             if (cat is UnicodeCategory.LineSeparator or UnicodeCategory.ParagraphSeparator) return false;
         }
         return true;
-    }
-
-    /// <summary>Texto do agente como usado no arquivo de dados e no comando.</summary>
-    public static string NomeAgente(Agente agente) => agente == Agente.Claude ? "claude" : "codex";
-
-    public static bool TentarAgente(string? texto, out Agente agente)
-    {
-        switch (texto)
-        {
-            case "claude": agente = Agente.Claude; return true;
-            case "codex": agente = Agente.Codex; return true;
-            default: agente = default; return false;
-        }
     }
 }

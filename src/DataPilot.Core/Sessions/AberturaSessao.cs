@@ -14,7 +14,7 @@ public sealed class AberturaSessao(DadosPainel dados, IDisparador disparador, Ti
     {
         rotulo = string.IsNullOrWhiteSpace(rotulo) ? null : rotulo.Trim();
         if (rotulo is not null && !ValidadorEntrada.RotuloValido(rotulo))
-            return ResultadoOperacao.Falha("Rótulo inválido: use até 40 caracteres, sem \";\" nem caracteres de controle.");
+            return ResultadoOperacao.Falha(ValidadorEntrada.MensagemRotulo);
 
         var estado = dados.Carregar();
         if (!estado.Disponivel) return ResultadoOperacao.Falha($"Dados do painel indisponíveis: {dados.Caminho}");
@@ -26,24 +26,29 @@ public sealed class AberturaSessao(DadosPainel dados, IDisparador disparador, Ti
 
         // O GUID da sessão só existe para o Claude; o do Codex aparece depois, pelo hook. Para o Codex, o painel
         // registra um lançamento pendente, que vincula a sessão quando ela surgir na pasta de status.
-        var id = agente == Agente.Claude ? _gerarGuid().ToString("D") : null;
-        var idLancamento = agente == Agente.Codex ? _gerarGuid().ToString("D") : null;
-
-        ComandoTerminal comando;
-        try { comando = MontadorComando.Novo(demanda.Id, demanda.Titulo, repo, agente, id, rotulo); }
-        catch (EntradaInvalidaException e) { return ResultadoOperacao.Falha(e.Message); }
+        var claude = agente == Agente.Claude;
+        var id = _gerarGuid().ToString("D");
 
         // Registrar antes de abrir garante que toda sessão aberta possa ser retomada.
-        if (id is not null)
-        {
-            var registro = dados.RegistrarSessao(demanda.Id, repo.Pasta, agente, id, rotulo, relogio.GetUtcNow());
-            if (!registro.Ok) return registro;
-        }
-        if (idLancamento is not null)
-        {
-            var lancamento = dados.RegistrarLancamento(demanda.Id, repo.Pasta, agente, idLancamento, rotulo, relogio.GetUtcNow());
-            if (!lancamento.Ok) return lancamento;
-        }
+        return Executar(
+            () => MontadorComando.Novo(demanda.Id, demanda.Titulo, repo, agente, claude ? id : null, rotulo),
+            () => claude
+                ? dados.RegistrarSessao(demanda.Id, repo.Pasta, agente, id, rotulo, relogio.GetUtcNow())
+                : dados.RegistrarLancamento(demanda.Id, repo.Pasta, agente, id, rotulo, relogio.GetUtcNow()),
+            () => { _ = claude ? dados.DesfazerRegistro(id) : dados.DesfazerLancamento(id); });
+    }
+
+    /// <summary>
+    /// Fluxo comum: montar o comando (erro vira falha), gravar, disparar e, se o disparo falhar, desfazer a gravação.
+    /// </summary>
+    private ResultadoOperacao Executar(Func<ComandoTerminal> montar, Func<ResultadoOperacao> gravar, Action desfazer)
+    {
+        ComandoTerminal comando;
+        try { comando = montar(); }
+        catch (EntradaInvalidaException e) { return ResultadoOperacao.Falha(e.Message); }
+
+        var gravacao = gravar();
+        if (!gravacao.Ok) return gravacao;
 
         try
         {
@@ -52,12 +57,10 @@ public sealed class AberturaSessao(DadosPainel dados, IDisparador disparador, Ti
         }
         catch (FalhaDisparoException e)
         {
-            if (id is not null) dados.DesfazerRegistro(id);
-            if (idLancamento is not null) dados.DesfazerLancamento(idLancamento);
+            desfazer();
             return ResultadoOperacao.Falha(e.Message);
         }
     }
-
     /// <summary>
     /// Abre de novo o agente de um lançamento pendente (aba fechada antes da primeira mensagem). Como ainda não existe
     /// conversa, é o mesmo comando de uma sessão nova, no repositório e com o rótulo do lançamento. Reaproveita o
@@ -70,32 +73,18 @@ public sealed class AberturaSessao(DadosPainel dados, IDisparador disparador, Ti
 
         var agora = relogio.GetUtcNow();
         var achado = estado.Demandas
-            .Where(d => !d.Arquivada)
             .SelectMany(d => d.Repositorios.SelectMany(r => r.Lancamentos.Select(l => (Demanda: d, Repo: r, Lancamento: l))))
             .Where(x => string.Equals(x.Lancamento.Id, lancamentoId, StringComparison.OrdinalIgnoreCase)
-                && agora - x.Lancamento.CriadoEm <= DadosPainel.ValidadeLancamento)
+                && RegrasDemanda.LancamentoValido(x.Demanda, x.Lancamento, agora))
             .Select(x => ((Demanda Demanda, RepositorioCadastrado Repo, LancamentoPendente Lancamento)?)x)
             .FirstOrDefault();
         if (achado is null) return ResultadoOperacao.Falha("Este lançamento não existe mais.");
         var (demanda, repo, lancamento) = achado.Value;
 
-        ComandoTerminal comando;
-        try { comando = MontadorComando.Novo(demanda.Id, demanda.Titulo, repo, lancamento.Agente, null, lancamento.Rotulo); }
-        catch (EntradaInvalidaException e) { return ResultadoOperacao.Falha(e.Message); }
-
-        var renovacao = dados.RenovarLancamento(lancamento.Id, agora);
-        if (!renovacao.Ok) return renovacao;
-
-        try
-        {
-            disparador.Iniciar(comando);
-            return ResultadoOperacao.Sucesso;
-        }
-        catch (FalhaDisparoException e)
-        {
-            dados.RenovarLancamento(lancamento.Id, lancamento.CriadoEm);
-            return ResultadoOperacao.Falha(e.Message);
-        }
+        return Executar(
+            () => MontadorComando.Novo(demanda.Id, demanda.Titulo, repo, lancamento.Agente, null, lancamento.Rotulo),
+            () => dados.RenovarLancamento(lancamento.Id, agora),
+            () => dados.RenovarLancamento(lancamento.Id, lancamento.CriadoEm));
     }
 
     /// <summary>
@@ -104,7 +93,7 @@ public sealed class AberturaSessao(DadosPainel dados, IDisparador disparador, Ti
     /// </summary>
     public ResultadoOperacao NovaEmSessoes(string pasta, Agente agente, string? rotulo)
     {
-        if (!ValidadorEntrada.PastaValida(pasta)) return ResultadoOperacao.Falha("Repositório inválido.");
+        if (!ValidadorEntrada.PastaValida(pasta)) return ResultadoOperacao.Falha(ValidadorEntrada.MensagemPasta);
         var estado = dados.Carregar();
         if (!estado.Disponivel) return ResultadoOperacao.Falha($"Dados do painel indisponíveis: {dados.Caminho}");
 
@@ -112,10 +101,10 @@ public sealed class AberturaSessao(DadosPainel dados, IDisparador disparador, Ti
         var jaVinculado = implicita?.Repositorios.Any(r => string.Equals(r.Pasta, pasta, StringComparison.OrdinalIgnoreCase)) == true;
         if (!jaVinculado)
         {
-            var vinculo = dados.VincularRepositorio(DadosPainel.IdDemandaImplicita, pasta);
+            var vinculo = dados.VincularRepositorio(RegrasDemanda.IdDemandaImplicita, pasta);
             if (!vinculo.Ok) return vinculo;
         }
-        return Nova(DadosPainel.IdDemandaImplicita, pasta, agente, rotulo);
+        return Nova(RegrasDemanda.IdDemandaImplicita, pasta, agente, rotulo);
     }
 
     /// <summary>
@@ -124,44 +113,17 @@ public sealed class AberturaSessao(DadosPainel dados, IDisparador disparador, Ti
     /// </summary>
     public ResultadoOperacao RetomarNaoRegistrada(PedidoVinculo pedido, string pasta)
     {
-        if (!ValidadorEntrada.PastaValida(pasta)) return ResultadoOperacao.Falha("Repositório inválido.");
+        if (!ValidadorEntrada.PastaValida(pasta)) return ResultadoOperacao.Falha(ValidadorEntrada.MensagemPasta);
         var agora = relogio.GetUtcNow();
         var sessao = new SessaoRegistrada(pedido.Agente, pedido.SessionId, pasta, null, agora,
-            DadosPainel.IdDemandaImplicita, DadosPainel.TituloDemandaImplicita);
+            RegrasDemanda.IdDemandaImplicita, RegrasDemanda.TituloDemandaImplicita);
 
-        ComandoTerminal comando;
-        try { comando = MontadorComando.Retomar(sessao); }
-        catch (EntradaInvalidaException e) { return ResultadoOperacao.Falha(e.Message); }
-
-        var registro = dados.RegistrarRetomada(pedido, pasta, agora);
-        if (!registro.Ok) return registro;
-
-        try
-        {
-            disparador.Iniciar(comando);
-            return ResultadoOperacao.Sucesso;
-        }
-        catch (FalhaDisparoException e)
-        {
-            dados.DesfazerRegistro(pedido.SessionId);
-            return ResultadoOperacao.Falha(e.Message);
-        }
+        return Executar(
+            () => MontadorComando.Retomar(sessao),
+            () => dados.RegistrarRetomada(pedido, pasta, agora),
+            () => dados.DesfazerRegistro(pedido.SessionId));
     }
 
     public ResultadoOperacao Retomar(SessaoRegistrada sessao)
-    {
-        ComandoTerminal comando;
-        try { comando = MontadorComando.Retomar(sessao); }
-        catch (EntradaInvalidaException e) { return ResultadoOperacao.Falha(e.Message); }
-
-        try
-        {
-            disparador.Iniciar(comando);
-            return ResultadoOperacao.Sucesso;
-        }
-        catch (FalhaDisparoException e)
-        {
-            return ResultadoOperacao.Falha(e.Message);
-        }
-    }
+        => Executar(() => MontadorComando.Retomar(sessao), () => ResultadoOperacao.Sucesso, () => { });
 }

@@ -1,4 +1,4 @@
-using DataPilot.Wpf.Models;
+using DataPilot.Core.Models;
 
 namespace DataPilot.Wpf.Services;
 
@@ -35,3 +35,10 @@ public interface IInteracao
     /// <summary>Escolha do repositório entre as pastas diretas da raiz, pré-selecionando <c>sugerida</c>. Nulo quando cancela.</summary>
     string? EscolherRepositorio(IReadOnlyList<string> pastas, string? sugerida);
 }
+
+public sealed record EscolhaVinculo(string DemandaId, string Repositorio, string? Rotulo);
+
+public sealed record NovaSessaoEscolha(Agente Agente, string? Rotulo);
+
+/// <summary>Trabalho oferecido no diálogo de vínculo, com os repositórios dele e o que coincide com a pasta da sessão (se houver).</summary>
+public sealed record OpcaoDemandaVinculo(string Id, string Texto, IReadOnlyList<string> Repositorios, string? RepositorioSugerido);

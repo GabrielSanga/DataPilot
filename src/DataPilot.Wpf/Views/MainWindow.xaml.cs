@@ -75,11 +75,6 @@ public partial class MainWindow : Window
             CampoFiltro.Focus();
             CampoFiltro.SelectAll();
         }
-        else if (e.Key == Key.F8 && Keyboard.Modifiers == ModifierKeys.None)
-        {
-            e.Handled = true;
-            if (_ViewModel.IrParaProximaCommand.CanExecute(null)) _ViewModel.IrParaProximaCommand.Execute(null);
-        }
     }
 
     private void CampoFiltro_PreviewKeyDown(object sender, KeyEventArgs e)
