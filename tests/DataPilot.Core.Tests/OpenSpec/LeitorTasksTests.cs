@@ -255,8 +255,8 @@ public sealed class LeitorTasksTests : IDisposable
     // ---------- progresso por repositório e exibição ----------
 
     private IReadOnlyDictionary<string, ProgressoRepositorio> Montar(params (string Pasta, string? Change)[] repos)
-        => ProgressoDosRepositorios.Montar(
-            repos.Select(r => new RepositorioCadastrado(r.Pasta, [], [], r.Change)), new LeitorTasks(_raiz.Caminho));
+        => new LeitorTasks(_raiz.Caminho).LerRepositorios(
+            repos.Select(r => new RepositorioCadastrado(r.Pasta, [], [], r.Change)));
 
     [Fact]
     public void Cada_repositorio_mostra_o_progresso_da_propria_change_sem_soma()
@@ -318,7 +318,7 @@ public sealed class LeitorTasksTests : IDisposable
             """{"demandas":[{"id":"A","titulo":"A","openspecChange":"ajuste","repositorios":[{"pasta":"F"}]}]}""");
         using var _p = pasta;
         var repo = dados.Carregar().Demandas.Single().Repositorios.Single();
-        var p = ProgressoDosRepositorios.Montar([repo], new LeitorTasks(_raiz.Caminho));
+        var p = new LeitorTasks(_raiz.Caminho).LerRepositorios([repo]);
         Assert.Equal("2 de 3", p["F"].Texto);
     }
 }

@@ -1,4 +1,4 @@
-using System.Text;
+using DataPilot.Core.Arquivos;
 using DataPilot.Core.Models;
 
 namespace DataPilot.Core.Monitoring;
@@ -15,8 +15,6 @@ public sealed record RetratoPasta(bool Disponivel, IReadOnlyList<Sessao> Sessoes
 /// </summary>
 public sealed class LeitorPasta
 {
-    private static readonly UTF8Encoding Utf8Estrito = new(false, true);
-
     private readonly string _pasta;
     private readonly Dictionary<string, (DateTime Modificado, DateTime Criado, long Tamanho, Sessao? Sessao)> _cache =
         new(StringComparer.OrdinalIgnoreCase);
@@ -110,26 +108,8 @@ public sealed class LeitorPasta
 
     private static Sessao? LerEValidar(FileInfo arq)
     {
-        var limite = Constantes.TamanhoMaximoArquivo;
-        var buffer = new byte[limite + 1];
-        int total = 0;
-        using (var fs = new FileStream(arq.FullName, new FileStreamOptions
-        {
-            Mode = FileMode.Open,
-            Access = FileAccess.Read,
-            Share = FileShare.ReadWrite | FileShare.Delete,
-        }))
-        {
-            int n;
-            while (total < buffer.Length && (n = fs.Read(buffer, total, buffer.Length - total)) > 0)
-                total += n;
-        }
-        if (total > limite) return null;
-
-        var inicio = total >= 3 && buffer[0] == 0xEF && buffer[1] == 0xBB && buffer[2] == 0xBF ? 3 : 0;
-        string texto;
-        try { texto = Utf8Estrito.GetString(buffer, inicio, total - inicio); }
-        catch (DecoderFallbackException) { return null; }
+        var texto = LeituraSegura.LerTexto(arq.FullName, Constantes.TamanhoMaximoArquivo);
+        if (texto is null) return null;
 
         var nome = Path.GetFileNameWithoutExtension(arq.Name);
         return ValidadorStatus.TentarLer(texto, nome, out var sessao) ? sessao : null;

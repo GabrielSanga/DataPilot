@@ -1,3 +1,4 @@
+using DataPilot.Core.Arquivos;
 using DataPilot.Core.Validation;
 
 namespace DataPilot.Core.OpenSpec;
@@ -40,39 +41,18 @@ public static class EscolhaDePasta
 
         var nome = Path.GetFileName(completo);
         if (!ValidadorEntrada.PastaValida(nome))
-            return ResultadoPasta.Recusada("Nome de pasta inválido: use apenas letras, dígitos, \"_\", \".\" e \"-\", e não só pontos.");
+            return ResultadoPasta.Recusada(ValidadorEntrada.MensagemPasta);
         return ResultadoPasta.Aceita(nome);
     }
-}
 
-/// <summary>
-/// Lista as changes ativas de um repositório (pastas de <c>openspec\changes</c>, sem <c>archive</c>). A pasta é do
-/// usuário <c>ia</c>, então só entram pastas comuns (nem atalho nem junção, conferindo também <c>openspec</c> e
-/// <c>changes</c>), de nome válido, até 200, em ordem alfabética. Os nomes só são exibidos; viram dado quando o
-/// usuário escolhe um, e passam pela validação antes de gravar.
-/// </summary>
-public static class ChangesDoRepositorio
-{
-    public const int Maximo = 200;
-
-    public static IReadOnlyList<string> Listar(string raiz, string pasta)
+    /// <summary>Pastas diretas da raiz dos fontes com nome válido e que não são atalhos nem junções, em ordem.</summary>
+    public static IReadOnlyList<string> PastasDaRaiz(string raiz)
     {
-        if (!ValidadorEntrada.PastaValida(pasta)) return [];
-        var repo = Path.Combine(raiz, pasta);
-        var changes = Path.Combine(repo, "openspec", "changes");
-        foreach (var caminho in new[] { repo, Path.Combine(repo, "openspec"), changes })
-            if (LocalizadorTasks.Tipo(caminho) != LocalizadorTasks.TipoEntrada.Normal) return [];
-
         try
         {
-            return new DirectoryInfo(changes).EnumerateDirectories()
-                .Where(d => (d.Attributes & FileAttributes.ReparsePoint) == 0)
-                .Select(d => d.Name)
-                .Where(n => !string.Equals(n, "archive", StringComparison.OrdinalIgnoreCase)
-                            && ValidadorEntrada.OpenspecChangeValido(n))
+            return LeituraSegura.Subpastas(raiz)
+                .Where(ValidadorEntrada.PastaValida)
                 .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(n => n, StringComparer.Ordinal)
-                .Take(Maximo)
                 .ToList();
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)

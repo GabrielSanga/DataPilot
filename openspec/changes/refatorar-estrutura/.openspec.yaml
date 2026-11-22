@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-11-22
+# Refatoração pura: nenhum comportamento observável muda, então nenhuma spec muda.
+skip_specs: true

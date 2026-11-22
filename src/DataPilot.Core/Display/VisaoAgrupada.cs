@@ -40,7 +40,7 @@ public sealed record DemandaNaVisao(
 {
     /// <summary>Alguma sessão exibida em status que pede confirmação antes de arquivar.</summary>
     public bool TemSessaoEmAndamento
-        => Cards.SelectMany(c => c.Sessoes).Any(s => Correspondencia.ExigeConfirmacao(s.Status));
+        => Cards.SelectMany(c => c.Sessoes).Any(s => RegrasExibicao.ExigeConfirmacao(s.Status));
 }
 
 /// <summary>Lançamento pendente da entrada "Sessões", com o repositório em que foi aberto.</summary>
@@ -59,10 +59,6 @@ public sealed record EntradaSessoes(
     public static EntradaSessoes Vazia { get; } = new([], [], []);
 
     public int Quantidade => Registradas.Count + NaoRegistradas.Count;
-
-    /// <summary>Algum status da entrada, para "Ir para a próxima" e para o resumo da lista.</summary>
-    public bool TemStatus(StatusExibido status)
-        => Registradas.Any(s => s.Status == status) || NaoRegistradas.Any(s => s.Status == status);
 
     /// <summary>Status mais urgente das sessões com status, ou null.</summary>
     public StatusExibido? MaisUrgente
@@ -94,12 +90,12 @@ public static class VisaoAgrupada
         IReadOnlyList<SessaoExcluida>? excluidas = null)
     {
         var excluidasSet = new HashSet<(Agente, string)>(
-            (excluidas ?? []).Select(e => (e.Agente, e.SessionId.ToLowerInvariant())));
+            (excluidas ?? []).Select(e => ChaveSessao.De(e.Agente, e.SessionId)));
 
         var lidas = new Dictionary<(Agente, string), Sessao>();
         foreach (var s in sessoesLidas)
         {
-            var chave = (s.Agente, s.SessionId.ToLowerInvariant());
+            var chave = ChaveSessao.De(s.Agente, s.SessionId);
             if (excluidasSet.Contains(chave)) continue;
             lidas.TryAdd(chave, s);
         }
@@ -109,10 +105,10 @@ public static class VisaoAgrupada
         foreach (var d in demandas)
             foreach (var r in d.Repositorios)
                 foreach (var s in r.Sessoes)
-                    registradas.Add((s.Agente, s.SessionId.ToLowerInvariant()));
+                    registradas.Add(ChaveSessao.De(s.Agente, s.SessionId));
 
         var naoRegistradas = RegrasExibicao.Montar(
-            lidas.Where(p => !registradas.Contains((p.Key.Item1, p.Key.Item2))).Select(p => p.Value),
+            lidas.Where(p => !registradas.Contains(p.Key)).Select(p => p.Value),
             mostrarAntigas, relogio);
 
         var itens = new List<DemandaNaVisao>();
@@ -145,7 +141,7 @@ public static class VisaoAgrupada
     {
         var cards = MontarCards(d, lidas, excluidas, relogio);
         var registradas = cards.SelectMany(c => c.Sessoes).ToList();
-        registradas.Sort(ComparaSessoes);
+        registradas.Sort((a, b) => RegrasExibicao.ComparaSessoes(Chave(a), Chave(b)));
         var lancamentos = cards.SelectMany(c => c.Lancamentos.Select(l => new LancamentoEmSessoes(c.Pasta, l)))
             .OrderByDescending(x => x.Lancamento.Lancamento.CriadoEm)
             .ThenBy(x => x.Lancamento.Lancamento.Id, StringComparer.Ordinal)
@@ -162,14 +158,14 @@ public static class VisaoAgrupada
             var sessoes = new List<SessaoNaVisao>();
             foreach (var r in repo.Sessoes)
             {
-                if (excluidas.Contains((r.Agente, r.SessionId.ToLowerInvariant()))) continue;
-                if (lidas.TryGetValue((r.Agente, r.SessionId.ToLowerInvariant()), out var lida))
+                if (excluidas.Contains(ChaveSessao.De(r.Agente, r.SessionId))) continue;
+                if (lidas.TryGetValue(ChaveSessao.De(r.Agente, r.SessionId), out var lida))
                     sessoes.Add(new SessaoNaVisao(r, lida, RegrasExibicao.StatusExibido(lida, relogio),
                         RegrasExibicao.TempoDecorrido(RegrasExibicao.Idade(lida, relogio))));
                 else
                     sessoes.Add(new SessaoNaVisao(r, null, StatusExibido.SemStatus, ""));
             }
-            sessoes.Sort(ComparaSessoes);
+            sessoes.Sort((a, b) => RegrasExibicao.ComparaSessoes(Chave(a), Chave(b)));
             cards.Add(new CardNaVisao(repo.Pasta, sessoes, MontarLancamentos(d, repo, relogio)));
         }
         return cards;
@@ -192,10 +188,9 @@ public static class VisaoAgrupada
     /// </summary>
     private static List<LancamentoNaVisao> MontarLancamentos(Demanda d, RepositorioCadastrado repo, TimeProvider relogio)
     {
-        if (d.Arquivada) return [];
         var agora = relogio.GetUtcNow();
         return repo.Lancamentos
-            .Where(l => agora - l.CriadoEm <= DadosPainel.ValidadeLancamento)
+            .Where(l => RegrasDemanda.LancamentoValido(d, l, agora))
             .OrderByDescending(l => l.CriadoEm)
             .ThenBy(l => l.Id, StringComparer.Ordinal)
             .Select(l => new LancamentoNaVisao(l, RegrasExibicao.TempoDecorrido(agora - l.CriadoEm < TimeSpan.Zero ? TimeSpan.Zero : agora - l.CriadoEm)))
@@ -205,21 +200,13 @@ public static class VisaoAgrupada
     /// <summary>"2 repositórios, 3 sessões"; zero vira "nenhum repositório" e "nenhuma sessão".</summary>
     public static string TextoResumo(int repositorios, int sessoes)
     {
-        var r = repositorios switch { 0 => "nenhum repositório", 1 => "1 repositório", _ => $"{repositorios} repositórios" };
-        var s = sessoes switch { 0 => "nenhuma sessão", 1 => "1 sessão", _ => $"{sessoes} sessões" };
+        var r = RegrasExibicao.Quantidade(repositorios, "repositório", "repositórios", "nenhum");
+        var s = RegrasExibicao.Quantidade(sessoes, "sessão", "sessões", "nenhuma");
         return $"{r}, {s}";
     }
 
-    /// <summary>Status exibido; no mesmo status, atualização mais recente primeiro (sem status: registro mais recente).</summary>
-    private static int ComparaSessoes(SessaoNaVisao a, SessaoNaVisao b)
-    {
-        var c = a.Status.CompareTo(b.Status);
-        if (c != 0) return c;
-        var da = a.Lida?.Atualizado ?? a.Registrada.CriadaEm;
-        var db = b.Lida?.Atualizado ?? b.Registrada.CriadaEm;
-        c = db.CompareTo(da);
-        return c != 0 ? c : string.CompareOrdinal(a.Registrada.SessionId, b.Registrada.SessionId);
-    }
+    private static (StatusExibido, DateTimeOffset, string) Chave(SessaoNaVisao s)
+        => (s.Status, s.Lida?.Atualizado ?? s.Registrada.CriadaEm, s.Registrada.SessionId);
 
     private static DateTimeOffset? Atualizacao(DemandaNaVisao d)
     {

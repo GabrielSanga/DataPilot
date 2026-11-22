@@ -48,21 +48,21 @@ public sealed partial class DemandaItem : ObservableObject
     public IRelayCommand VincularCommand { get; }
     public IRelayCommand NovaSessaoCommand { get; }
 
-    public DemandaItem(string chave, bool sessoes,
-        Action<DemandaItem> editar, Action<DemandaItem> arquivar, Action<DemandaItem> desarquivar, Action<DemandaItem> vincular,
-        Action<DemandaItem> novaSessao)
+    private readonly MainViewModel _painel;
+
+    internal DemandaItem(string chave, bool sessoes, MainViewModel painel)
     {
         Chave = chave;
         EhSessoes = sessoes;
-        EditarCommand = new RelayCommand(() => editar(this));
-        ArquivarCommand = new RelayCommand(() => arquivar(this));
-        DesarquivarCommand = new RelayCommand(() => desarquivar(this));
-        VincularCommand = new RelayCommand(() => vincular(this));
-        NovaSessaoCommand = new RelayCommand(() => novaSessao(this));
+        _painel = painel;
+        EditarCommand = new RelayCommand(() => _painel.EditarDemanda(this));
+        ArquivarCommand = new RelayCommand(() => _painel.ArquivarDemanda(this));
+        DesarquivarCommand = new RelayCommand(() => _painel.DesarquivarDemanda(this));
+        VincularCommand = new RelayCommand(() => _painel.VincularRepositorio(this));
+        NovaSessaoCommand = new RelayCommand(() => _painel.NovaSessaoEmSessoes(this));
     }
 
-    public void Atualizar(DemandaNaVisao v, Func<string, CardItem> criarCard, Func<string, SessaoItem> criarSessao,
-        Func<string, LancamentoItem> criarLancamento)
+    public void Atualizar(DemandaNaVisao v)
     {
         var d = v.Demanda;
         Demanda = d;
@@ -79,8 +79,8 @@ public sealed partial class DemandaItem : ObservableObject
 
         SincronizacaoColecao.Sincronizar(Cards, v.Cards,
             c => c.Pasta, c => c.Pasta,
-            c => criarCard(c.Pasta),
-            (item, dado) => item.Atualizar(dado, d, criarSessao, criarLancamento));
+            c => new CardItem(c.Pasta, _painel),
+            (item, dado) => item.Atualizar(dado, d));
     }
 
     /// <summary>Mostra o progresso da change em cada card. Não há soma no topo do trabalho.</summary>
@@ -105,22 +105,20 @@ public sealed partial class DemandaItem : ObservableObject
         public DateTimeOffset Data => Registrada is { } r ? r.Lida?.Atualizado ?? r.Registrada.CriadaEm : NaoRegistrada!.Sessao.Atualizado;
     }
 
-    public void AtualizarSessoes(EntradaSessoes e, Func<string, SessaoItem> criarSessao, Func<string, LancamentoItem> criarLancamento)
+    public void AtualizarSessoes(EntradaSessoes e)
     {
         Titulo = "Sessões";
-        Resumo = e.Quantidade switch { 0 => "nenhuma sessão", 1 => "1 sessão", var n => $"{n} sessões" };
+        Resumo = RegrasExibicao.Quantidade(e.Quantidade, "sessão", "sessões", "nenhuma");
         AplicarSinal(e.MaisUrgente);
         SemSessoes = e.Quantidade == 0 && e.Lancamentos.Count == 0;
 
         var linhas = e.Registradas.Select(r => new LinhaSessoes(r.Registrada.SessionId, r, null))
             .Concat(e.NaoRegistradas.Select(n => new LinhaSessoes(n.Sessao.SessionId, null, n)))
-            .OrderBy(l => l.Status)
-            .ThenByDescending(l => l.Data)
-            .ThenBy(l => l.Id, StringComparer.Ordinal)
             .ToList();
+        linhas.Sort((a, b) => RegrasExibicao.ComparaSessoes((a.Status, a.Data, a.Id), (b.Status, b.Data, b.Id)));
         SincronizacaoColecao.Sincronizar(Sessoes, linhas,
             s => s.SessionId, l => l.Id,
-            l => criarSessao(l.Id),
+            l => new SessaoItem(l.Id, _painel),
             (item, l) =>
             {
                 if (l.Registrada is { } r) item.Atualizar(r, emSessoes: true);
@@ -128,7 +126,7 @@ public sealed partial class DemandaItem : ObservableObject
             });
         SincronizacaoColecao.Sincronizar(LancamentosSessoes, e.Lancamentos,
             l => l.Id, l => l.Lancamento.Lancamento.Id,
-            l => criarLancamento(l.Lancamento.Lancamento.Id),
+            l => new LancamentoItem(l.Lancamento.Lancamento.Id, _painel),
             (item, l) => item.Atualizar(l.Lancamento, l.Pasta, emSessoes: true));
     }
 }

@@ -54,14 +54,18 @@ public static class RegrasExibicao
             if (!mostrarAntigas && EhAntiga(s, relogio)) continue;
             lista.Add(new SessaoExibida(s, StatusExibido(s, relogio), TempoDecorrido(Idade(s, relogio))));
         }
-        lista.Sort((a, b) =>
-        {
-            var c = a.Status.CompareTo(b.Status);
-            if (c != 0) return c;
-            c = b.Sessao.Atualizado.CompareTo(a.Sessao.Atualizado);
-            return c != 0 ? c : string.CompareOrdinal(a.Sessao.SessionId, b.Sessao.SessionId);
-        });
+        lista.Sort((a, b) => ComparaSessoes((a.Status, a.Sessao.Atualizado, a.Sessao.SessionId), (b.Status, b.Sessao.Atualizado, b.Sessao.SessionId)));
         return lista;
+    }
+
+    /// <summary>Ordem das sessões: status mais urgente, depois a data mais recente e, por fim, o id.</summary>
+    public static int ComparaSessoes(
+        (StatusExibido Status, DateTimeOffset Data, string Id) a, (StatusExibido Status, DateTimeOffset Data, string Id) b)
+    {
+        var c = a.Status.CompareTo(b.Status);
+        if (c != 0) return c;
+        c = b.Data.CompareTo(a.Data);
+        return c != 0 ? c : string.CompareOrdinal(a.Id, b.Id);
     }
 
     /// <summary>Contagens do cabeçalho. Recebe só as sessões visíveis; "sem status" não entra.</summary>
@@ -80,6 +84,14 @@ public static class RegrasExibicao
         return new ResumoCabecalho(atencao, aguardando, executando);
     }
 
+    /// <summary>"nenhuma sessão", "1 sessão" ou "3 sessões".</summary>
+    public static string Quantidade(int n, string singular, string plural, string nenhum)
+        => n switch { 0 => $"{nenhum} {singular}", 1 => $"1 {singular}", _ => $"{n} {plural}" };
+
+    /// <summary>Avisa antes de retomar ou arquivar quando a sessão não está encerrada, inativa nem sem status.</summary>
+    public static bool ExigeConfirmacao(StatusExibido status)
+        => status is not (Models.StatusExibido.Encerrada or Models.StatusExibido.Inativa or Models.StatusExibido.SemStatus);
+
     public static string TempoDecorrido(TimeSpan idade)
     {
         if (idade < TimeSpan.FromMinutes(1)) return "agora";
@@ -90,43 +102,3 @@ public static class RegrasExibicao
 }
 
 public sealed record SessaoExibida(Sessao Sessao, StatusExibido Status, string Tempo);
-
-/// <summary>
-/// Resumo estruturado do cabeçalho: contagens por status e os textos com plural correto. A tela monta as partes
-/// (alerta, "aguardando você", "executando") a partir daqui.
-/// </summary>
-public sealed record ResumoCabecalho(int PrecisaAtencao, int Aguardando, int Executando)
-{
-    public const string TextoNada = "Nada precisa de você agora";
-
-    public string TextoPrecisaAtencao => PrecisaAtencao == 1 ? "1 precisa de atenção" : $"{PrecisaAtencao} precisam de atenção";
-    public string TextoAguardando => $"{Aguardando} aguardando você";
-    public string TextoExecutando => $"{Executando} executando";
-
-    /// <summary>Status destacado no topo: atenção antes de aguardando; null quando nada precisa do usuário.</summary>
-    public StatusExibido? StatusDestacado
-        => PrecisaAtencao > 0 ? StatusExibido.PrecisaAtencao
-         : Aguardando > 0 ? StatusExibido.Aguardando
-         : null;
-
-    /// <summary>Texto do alerta: "2 precisam de atenção", "1 aguardando você" ou "Nada precisa de você agora".</summary>
-    public string TextoAlerta => StatusDestacado switch
-    {
-        StatusExibido.PrecisaAtencao => TextoPrecisaAtencao,
-        StatusExibido.Aguardando => TextoAguardando,
-        _ => TextoNada,
-    };
-
-    /// <summary>Contagens não nulas em uma frase, separadas por vírgula; "Nada precisa de você agora" se não houver.</summary>
-    public string Texto
-    {
-        get
-        {
-            var partes = new List<string>();
-            if (PrecisaAtencao > 0) partes.Add(TextoPrecisaAtencao);
-            if (Aguardando > 0) partes.Add(TextoAguardando);
-            if (Executando > 0) partes.Add(TextoExecutando);
-            return partes.Count == 0 ? TextoNada : string.Join(", ", partes);
-        }
-    }
-}

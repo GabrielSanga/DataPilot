@@ -32,16 +32,18 @@ public sealed partial class CardItem : ObservableObject
     public IRelayCommand TrocarChangeCommand { get; }
     public IRelayCommand RemoverRepositorioCommand { get; }
 
-    public CardItem(string pasta, Action<CardItem> novaSessao, Action<CardItem> trocarChange, Action<CardItem> remover)
+    private readonly MainViewModel _painel;
+
+    internal CardItem(string pasta, MainViewModel painel)
     {
         Pasta = pasta;
-        NovaSessaoCommand = new RelayCommand(() => novaSessao(this));
-        TrocarChangeCommand = new RelayCommand(() => trocarChange(this));
-        RemoverRepositorioCommand = new RelayCommand(() => remover(this));
+        _painel = painel;
+        NovaSessaoCommand = new RelayCommand(() => _painel.NovaSessao(this));
+        TrocarChangeCommand = new RelayCommand(() => _painel.TrocarChange(this));
+        RemoverRepositorioCommand = new RelayCommand(() => _painel.RemoverRepositorio(this));
     }
 
-    public void Atualizar(CardNaVisao card, Demanda demanda, Func<string, SessaoItem> criarSessao,
-        Func<string, LancamentoItem> criarLancamento)
+    public void Atualizar(CardNaVisao card, Demanda demanda)
     {
         DemandaId = demanda.Id;
         PodeNovaSessao = !demanda.Arquivada;
@@ -52,11 +54,11 @@ public sealed partial class CardItem : ObservableObject
         if (!TemChange) AplicarProgresso(null);
         SincronizacaoColecao.Sincronizar(Sessoes, card.Sessoes,
             s => s.SessionId, s => s.Registrada.SessionId,
-            s => criarSessao(s.Registrada.SessionId),
+            s => new SessaoItem(s.Registrada.SessionId, _painel),
             (item, dado) => item.Atualizar(dado, emSessoes: false));
         SincronizacaoColecao.Sincronizar(Lancamentos, card.Lancamentos,
             l => l.Id, l => l.Lancamento.Id,
-            l => criarLancamento(l.Lancamento.Id),
+            l => new LancamentoItem(l.Lancamento.Id, _painel),
             (item, dado) => item.Atualizar(dado, card.Pasta, emSessoes: false));
     }
 

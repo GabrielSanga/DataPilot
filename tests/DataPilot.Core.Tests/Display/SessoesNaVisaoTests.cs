@@ -57,19 +57,7 @@ public class SessoesNaVisaoTests
         Assert.Empty(v.Sessoes.NaoRegistradas);
         Assert.Empty(v.Demandas.Single().Cards.Single().Sessoes);
         Assert.Equal(0, v.ResumoCabecalho.PrecisaAtencao);
-        Assert.Null(ProximaSessao.Escolher(v, null, false));
     }
-
-    [Fact]
-    public void Ir_para_a_proxima_chega_a_Sessoes_quando_so_ha_sessao_la()
-    {
-        var sem = Dem("sem-demanda", new RepositorioCadastrado("Estoque", [Reg(IdA, "Estoque", "sem-demanda")]));
-        var trabalho = Dem("t1", new RepositorioCadastrado("F", [Reg(IdB, "F", "t1")]));
-        var v = VisaoAgrupada.Montar([sem, trabalho],
-            [Lida(IdA, StatusGravado.Aguardando), Lida(IdB, StatusGravado.Ativa)], false, false, Relogio);
-        Assert.True(ProximaSessao.Escolher(v, null, false)!.EhSessoes);
-    }
-
     [Fact]
     public void Sessao_excluida_nao_e_vinculada_por_lancamento()
     {

@@ -1,6 +1,6 @@
 # Desenvolvimento e verificação
 
-Guia técnico do DataPilot: como compilar, gerar os dados de exemplo e conferir cada funcionalidade. Os comandos são executados na raiz do repositório. Para a visão geral do produto, veja o [README](../README.md).
+Guia técnico do DataPilot (o mapa do código está em [arquitetura.md](arquitetura.md)): como compilar, gerar os dados de exemplo e conferir cada funcionalidade. Os comandos são executados na raiz do repositório. Para a visão geral do produto, veja o [README](../README.md).
 
 ## Painel
 
@@ -34,7 +34,7 @@ dotnet run --project src/DataPilot.Wpf -- --pasta-status "$TEMP/datapilot-exempl
 
 Logo após gerar, a janela deve mostrar:
 
-- Barra superior: o alerta vermelho `2 precisam de atenção` com **Ir para a próxima**, e ao lado, em texto, `4 aguardando você` e `4 executando`.
+- Barra superior: o alerta vermelho `2 precisam de atenção`, e ao lado, em texto, `4 aguardando você` e `4 executando`.
 - Em **Sessões**: a ordem é precisa de atenção (vermelho), aguardando você (amarelo), executando (azul), ativa (verde), inativa e encerrada (cinza); dentro de cada status, a mais recente primeiro.
 - `ex-cwd-longo` com a pasta cortada em 260 caracteres (indicação `…`) e `ex-cwd-controle` sem quebras de linha.
 - Não aparecem: os arquivos inválidos (`ex-json-ruim`, `ex-status-ruim`, `ex-id-diferente`, `ex-sem-fuso`, `ex-grande`, `.tmp`).
@@ -55,9 +55,8 @@ A **linha da sessão** mostra, nesta ordem, um indicador redondo na cor do statu
 
 O trabalho selecionado e a rolagem não mudam sozinhos quando um status muda ou a ordem dos trabalhos muda, nem quando você filtra.
 
-### Alerta, "Ir para a próxima" e filtro
+### Alerta e filtro
 
-- **Ir para a próxima** (botão do alerta, tecla **F8**) seleciona o próximo item da lista, depois do selecionado e voltando ao início, que tenha sessão no status destacado no topo (atenção antes de aguardando). Uma sessão de **Sessões** nesse status leva a **Sessões**. Sessões excluídas não contam. Sem nada a destacar, a ação não fica disponível. Se o filtro esconde o destino, ele é limpo.
 - **Filtro** (**Ctrl+F** leva o foco ao campo; **Esc** limpa o texto): compara com o título, os nomes dos repositórios e as changes deles, sem diferenciar maiúsculas nem acentos (`relatorio` acha "Relatório mensal"). **Sessões** sempre continua na lista, e filtrar não muda o item selecionado.
 
 ### Menus "Mais ações" e atalhos
@@ -73,7 +72,7 @@ Cada linha e cada bloco mostra só a ação principal; o resto fica no menu "Mai
 | Trabalho | Vincular repositório | Editar, Arquivar ou Desarquivar |
 | Sessões | Nova sessão | (sem menu) |
 
-Atalhos: **Ctrl+N** (novo trabalho), **Ctrl+F** (filtro), **F8** (ir para a próxima). O foco do teclado sempre aparece como um contorno grafite de 2 px. Os diálogos não têm texto de ajuda permanente: **Enter** aciona o botão principal (que leva o nome da ação) e **Esc** cancela; uma restrição violada aparece como erro junto do campo, sem fechar o diálogo nem apagar o que foi digitado. As confirmações (excluir sessão, remover repositório, arquivar com sessão em andamento, abrir outra aba de uma sessão possivelmente aberta) são do próprio painel, têm o botão nomeado pela ação e **Cancelar** como padrão, então Enter não confirma uma exclusão.
+Atalhos: **Ctrl+N** (novo trabalho), **Ctrl+F** (filtro). O foco do teclado sempre aparece como um contorno grafite de 2 px. Os diálogos não têm texto de ajuda permanente: **Enter** aciona o botão principal (que leva o nome da ação) e **Esc** cancela; uma restrição violada aparece como erro junto do campo, sem fechar o diálogo nem apagar o que foi digitado. As confirmações (excluir sessão, remover repositório, arquivar com sessão em andamento, abrir outra aba de uma sessão possivelmente aberta) são do próprio painel, têm o botão nomeado pela ação e **Cancelar** como padrão, então Enter não confirma uma exclusão.
 
 Com o **alto contraste** do Windows ligado, a janela e os diálogos passam a usar as cores do sistema e cada sessão mostra o nome do status em texto. Os títulos e as contagens usam a fonte Bahnschrift (que acompanha o Windows 10); sem ela, o texto cai para a Segoe UI.
 
@@ -238,7 +237,7 @@ dotnet run --project src/DataPilot.Wpf -- --pasta-status "$TEMP/datapilot-exempl
 Confira na tela:
 
 - **Sem identificador:** nenhum texto da janela nem dos diálogos mostra o identificador de um trabalho. **Novo trabalho** (**Ctrl+N**) abre um diálogo só com o título, sem texto de ajuda; um título vazio mostra o erro junto do campo.
-- **Sessões:** a quantidade confere e a sessão excluída não aparece (nem em **Ir para a próxima** nem no alerta). Cada linha mostra o indicador, o agente, o repositório, o tempo, **Retomar**, a lixeira e o menu com **Vincular a um trabalho**.
+- **Sessões:** a quantidade confere e a sessão excluída não aparece (nem no alerta). Cada linha mostra o indicador, o agente, o repositório, o tempo, **Retomar**, a lixeira e o menu com **Vincular a um trabalho**.
 - **Linha de sessão num trabalho:** sem rótulo o lugar fica em branco, só **Retomar** e a lixeira, sem menu. O nome do status aparece na dica e, com o alto contraste ligado, em texto.
 - **Changes por repositório:** "Ajuste NF-e" mostra `ajuste-nfe` e uma barra em cada card, sem soma no topo; "Trabalho antigo" mostra `ajuste-nfe` em `Estoque` (herdada do campo antigo da demanda).
 - **Trocar change** (menu do repositório): lista as changes do repositório e **Nenhuma**.
@@ -263,7 +262,7 @@ dotnet run --project src/DataPilot.Wpf -- --pasta-status "$TEMP/datapilot-exempl
 ```
 
 - **Sem seleção:** a área da direita mostra só a orientação, sem botões, barra de progresso nem texto de trabalho.
-- **Alerta e F8:** o alerta vermelho mostra `2 precisam de atenção`. Com "Ajuste NF-e" selecionado, **F8** leva a **Sessões** (a outra sessão em atenção) e outro **F8** volta a "Ajuste NF-e".
+- **Alerta:** o alerta vermelho mostra `2 precisam de atenção`.
 - **Filtro:** **Ctrl+F** leva ao campo; `estoque` mostra "Ajuste NF-e" e **Sessões**; `relatorio` acha "Relatorio mensal" e a área continua em "Ajuste NF-e"; **Esc** limpa o filtro.
 - **Faixas:** só as sessões em atenção (faixa vermelha) e aguardando (faixa amarela) são destacadas; a linha `aguardando a primeira mensagem` mostra **Abrir** e o menu com **Cancelar**.
 - **Menus:** com o foco no cabeçalho de um repositório, **Shift+F10** abre "Mais ações" (Trocar change, Remover repositório).
@@ -273,6 +272,6 @@ dotnet run --project src/DataPilot.Wpf -- --pasta-status "$TEMP/datapilot-exempl
 
 Conferência manual (grupo 6 de `openspec/changes/archive/2026-11-18-design-e-usabilidade/tasks.md`):
 
-1. Use o painel com sessões reais por um dia: as sessões que precisam de você são a primeira coisa que se vê e **Ir para a próxima** leva a elas.
+1. Use o painel com sessões reais por um dia: as sessões que precisam de você são a primeira coisa que se vê.
 2. Percorra a janela e todos os diálogos só com o teclado: o foco é sempre visível e os atalhos e menus funcionam.
 3. Ligue o alto contraste do Windows com o painel aberto: a janela e os diálogos passam a usar as cores do sistema e os status continuam legíveis, agora com o nome em texto na linha.

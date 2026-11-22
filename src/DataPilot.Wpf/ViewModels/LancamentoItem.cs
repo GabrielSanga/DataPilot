@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DataPilot.Core.Display;
+using DataPilot.Core.Models;
 
 namespace DataPilot.Wpf.ViewModels;
 
@@ -23,17 +24,20 @@ public sealed partial class LancamentoItem : ObservableObject
     public IRelayCommand AbrirCommand { get; }
     public IRelayCommand CancelarCommand { get; }
 
-    public LancamentoItem(string id, Action<LancamentoItem> abrir, Action<LancamentoItem> cancelar)
+    private readonly MainViewModel _painel;
+
+    internal LancamentoItem(string id, MainViewModel painel)
     {
         Id = id;
-        AbrirCommand = new RelayCommand(() => abrir(this));
-        CancelarCommand = new RelayCommand(() => cancelar(this));
+        _painel = painel;
+        AbrirCommand = new RelayCommand(() => _painel.AbrirLancamento(this));
+        CancelarCommand = new RelayCommand(() => _painel.CancelarLancamento(this));
     }
 
     public void Atualizar(LancamentoNaVisao v, string pasta, bool emSessoes)
     {
         var l = v.Lancamento;
-        Agente = l.Agente == DataPilot.Core.Models.Agente.Claude ? "Claude" : "Codex";
+        Agente = Agentes.Nome(l.Agente);
         Rotulo = l.Rotulo is null ? "" : TextoExibicao.Limpar(l.Rotulo);
         Pasta = TextoExibicao.Limpar(pasta);
         EmSessoes = emSessoes;

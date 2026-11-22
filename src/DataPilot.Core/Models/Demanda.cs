@@ -1,5 +1,3 @@
-using DataPilot.Core.Persistence;
-
 namespace DataPilot.Core.Models;
 
 /// <summary>
@@ -67,17 +65,4 @@ public sealed record ResultadoOperacao(bool Ok, string? Mensagem = null)
 
     public static ResultadoOperacao Sucesso { get; } = new(true);
     public static ResultadoOperacao Falha(string mensagem) => new(false, mensagem);
-}
-
-/// <summary>Restrições da demanda fixa "Sem demanda" (a entrada "Sessões") e das demandas arquivadas, em um só lugar.</summary>
-public static class RegrasDemanda
-{
-    public static bool EhImplicita(string id)
-        => string.Equals(id, DadosPainel.IdDemandaImplicita, StringComparison.OrdinalIgnoreCase);
-
-    public static bool PodeEditar(Demanda d) => !EhImplicita(d.Id);
-    public static bool PodeArquivar(Demanda d) => !EhImplicita(d.Id) && !d.Arquivada;
-    public static bool PodeDesarquivar(Demanda d) => d.Arquivada;
-    public static bool PodeVincularRepositorio(Demanda d) => !d.Arquivada;
-    public static bool PodeAbrirNovaSessao(Demanda d) => !d.Arquivada && d.Repositorios.Count > 0;
 }
