@@ -18,6 +18,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <AssemblyName>DataPilot</AssemblyName>
+    <ApplicationIcon>../../assets/datapilot.ico</ApplicationIcon>
   </PropertyGroup>
 
 </Project>

@@ -8,6 +8,7 @@
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=local:MainViewModel}"
         Style="{StaticResource EstiloJanela}"
+        Icon="/Assets/aviao.png"
         Title="DataPilot" Height="680" Width="1140" MinWidth="820" MinHeight="420">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolParaVisibilidade"/>
