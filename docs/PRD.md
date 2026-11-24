@@ -12,7 +12,7 @@ O Painel de Demandas é um app desktop em WPF (.NET) que organiza sessões do Cl
 
 **Gatilho para construir:** usar por cerca de duas semanas só as ferramentas prontas dentro do usuário IA (`claude agents` para o Claude e `codex resume` para o Codex). Construir o painel apenas se continuarem faltando: visão por demanda que envolve vários repositórios, progresso do OpenSpec e Claude + Codex numa lista só.
 
-**Princípio:** o painel complementa os apps oficiais, não compete com eles. Ele só organiza e lança; quem roda os agentes é sempre o terminal.
+**Princípio:** o painel complementa os apps oficiais, não compete com eles. Ele só organiza e lança; quem roda os agentes é sempre o terminal. O isolamento pelo usuário `ia` (aba aberta por `ssh`) é o padrão; a tela de configurações do painel permite desligar o SSH ou trocar o usuário, e sem SSH o agente roda com os acessos de quem usa o painel.
 
 ## Contexto e problema
 
@@ -300,7 +300,7 @@ O painel roda como o usuário principal, com acesso aos servidores da empresa. N
 4. **RS-4:** o painel nunca escreve na pasta de status; o IA nunca escreve no `demandas.json` nem nos scripts `C:\Painel\*.ps1`.
 5. **RS-5:** ler arquivos de status com limite de tamanho (ex.: 16 KB) e ignorar os inválidos.
 6. **RS-6:** hooks sem saída padrão e com `exit 0` sempre; sem segredos nos arquivos de status.
-7. **RS-7:** manter o SSH como configurado (só localhost, só `ia`, só chave, sem túneis); chave com passphrase + `ssh-agent`; Windows Update em dia.
+7. **RS-7:** com o SSH ligado (padrão), mantê-lo como configurado (só `localhost`, usuário isolado `ia` por padrão e configurável no painel, só chave, sem túneis); chave com passphrase + `ssh-agent`; Windows Update em dia. O host é sempre `localhost`. Com "Abrir pelo SSH" desligado o agente roda sem o isolamento, com os acessos de quem usa o painel; o usuário informado é validado (`[A-Za-z0-9_][A-Za-z0-9_.-]{0,19}`, nunca começa com `-`) antes de entrar no comando.
 8. **RS-8:** o IA deve usar um clone próprio; o código chega ao usuário principal só via TFS (push em branch, revisão no PR, pull). Enquanto a pasta for compartilhada, revisar o diff antes de compilar como usuário principal, com atenção a `.csproj`, `Directory.Build.props`, `.targets`, `nuget.config`, scripts `.ps1`, `.git/hooks` e `.vscode/tasks.json`.
 9. **RS-9:** apresentar o desenho à TI ou à segurança da empresa (serviço SSH ativo pode ser sinalizado pelo EDR ou violar política).
 

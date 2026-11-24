@@ -84,6 +84,10 @@ public partial class MainWindow : Window
         _ViewModel.FiltroTexto = "";
     }
 
+    private void Configuracoes_Click(object sender, RoutedEventArgs e) => _ViewModel.AbrirConfiguracoes();
+
+    private void Inicio_Click(object sender, RoutedEventArgs e) => _ViewModel.DemandaSelecionada = null;
+
     private void NovaDemanda_Click(object sender, RoutedEventArgs e) => _ViewModel.NovaDemanda();
 
     private void ListaDemandas_SelectionChanged(object sender, SelectionChangedEventArgs e)

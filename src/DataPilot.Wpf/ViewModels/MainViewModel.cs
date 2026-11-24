@@ -24,6 +24,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly TimeProvider _relogio;
     private readonly Dispatcher _dispatcher;
     private readonly DadosPainel _dados;
+    private readonly string _pastaStatus;
     private readonly AberturaSessao _abertura;
     private readonly IInteracao _interacao;
     private readonly LeitorTasks _leitorTasks;
@@ -43,16 +44,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _semDemandas;
     [ObservableProperty] private bool _dadosDisponiveis = true;
     [ObservableProperty] private string _avisoDados = "";
-
-    // Alerta do topo (decisão 5 do design).
     [ObservableProperty] private NivelSinal _alertaNivel = NivelSinal.Neutro;
     [ObservableProperty] private string _alertaTexto = "Carregando…";
-    /// <summary>"4 aguardando você" ao lado do alerta vermelho; vazio quando não há ou quando o alerta já é esse status.</summary>
     [ObservableProperty] private string _contagemAtencao = "";
     [ObservableProperty] private string _contagemAguardando = "";
     [ObservableProperty] private string _contagemExecutando = "";
-
-    // Faixa de erros e mensagens, dentro da janela.
     [ObservableProperty] private string _mensagem = "";
     [ObservableProperty] private bool _mensagemEhErro;
     [ObservableProperty] private bool _temMensagem;
@@ -68,6 +64,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _sessoes = new DemandaItem(DemandaItem.ChaveSessoes, true, this);
         _vista = CollectionViewSource.GetDefaultView(Demandas);
         _vista.Filter = CasaComFiltro;
+        _pastaStatus = pasta;
         _monitor = new MonitorPasta(pasta);
         Aviso = $"Pasta de status indisponível: {TextoExibicao.Limpar(pasta)}";
         _monitor.RetratoAtualizado += r => _dispatcher.BeginInvoke(() => Receber(r));
@@ -75,6 +72,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     public void Iniciar() => _monitor.Iniciar();
+
+    public void AvisarScripts(string aviso) => MostrarErro(aviso);
+
+    public void AbrirConfiguracoes()
+    {
+        var estado = _dados.Carregar();
+        var semSalvar = estado.Disponivel ? null : $"Não é possível salvar: o arquivo de dados está ilegível ({TextoExibicao.Limpar(estado.Erro ?? "")}).";
+        _interacao.DialogoConfiguracoes(_pastaStatus, estado.Configuracoes, semSalvar, c =>
+        {
+            var r = _dados.SalvarConfiguracoes(c);
+            return r.Ok ? null : r.Mensagem;
+        });
+    }
 
     // -------------------- DEMANDA -------------------------- \\
 
@@ -116,8 +126,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 ? "\"Sessões\" não pode ser arquivada." : "O trabalho já está arquivado.");
             return;
         }
-        if (item.TemSessaoEmAndamento
-            && !_interacao.Confirmar("Arquivar o trabalho?", "Este trabalho tem sessões em andamento.", "Arquivar"))
+        if (item.TemSessaoEmAndamento && !_interacao.Confirmar("Arquivar o trabalho?", "Este trabalho tem sessões em andamento.", "Arquivar"))
             return;
         var r = _dados.ArquivarDemanda(demanda.Id);
         RecarregarEAplicar();

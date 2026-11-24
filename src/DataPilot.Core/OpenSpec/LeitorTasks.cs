@@ -44,8 +44,7 @@ public sealed class LeitorTasks
     private const int LimiteCache = 256;
 
     private readonly string _raiz;
-    private readonly Dictionary<string, (DateTime Modificado, long Tamanho, ContagemTarefas? Contagem)> _cache =
-        new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, (DateTime Modificado, long Tamanho, ContagemTarefas? Contagem)> _cache = new(StringComparer.OrdinalIgnoreCase);
 
     public LeitorTasks(string raiz) => _raiz = raiz;
 

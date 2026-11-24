@@ -15,17 +15,17 @@ public sealed class EntradaInvalidaException(string mensagem) : Exception(mensag
 /// </summary>
 public static class MontadorComando
 {
-    public static ComandoTerminal Novo(string demandaId, string? tituloDemanda, RepositorioCadastrado repo, Agente agente, string? sessionId, string? rotulo)
+    public static ComandoTerminal Novo(string demandaId, string? tituloDemanda, RepositorioCadastrado repo, Agente agente, string? sessionId, string? rotulo, Configuracoes? opcoes = null)
     {
         if (agente == Agente.Claude && sessionId is null)
             throw new EntradaInvalidaException("A sessão nova do Claude precisa de um identificador.");
         if (agente == Agente.Codex && sessionId is not null)
             throw new EntradaInvalidaException("A sessão nova do Codex não recebe identificador.");
-        return Montar(demandaId, tituloDemanda, agente, repo.Pasta, sessionId, "novo", rotulo);
+        return Montar(demandaId, tituloDemanda, agente, repo.Pasta, sessionId, "novo", rotulo, opcoes);
     }
 
-    public static ComandoTerminal Retomar(SessaoRegistrada sessao)
-        => Montar(sessao.DemandaId, sessao.DemandaTitulo, sessao.Agente, sessao.Pasta, sessao.SessionId, "retomar", sessao.Rotulo);
+    public static ComandoTerminal Retomar(SessaoRegistrada sessao, Configuracoes? opcoes = null)
+        => Montar(sessao.DemandaId, sessao.DemandaTitulo, sessao.Agente, sessao.Pasta, sessao.SessionId, "retomar", sessao.Rotulo, opcoes);
 
     public const int TamanhoMaximoTituloNaAba = 40;
 
@@ -53,8 +53,9 @@ public static class MontadorComando
         return texto[..corte];
     }
 
-    private static ComandoTerminal Montar(string demandaId, string? tituloDemanda, Agente agente, string pasta, string? sessionId, string modo, string? rotulo)
+    private static ComandoTerminal Montar(string demandaId, string? tituloDemanda, Agente agente, string pasta, string? sessionId, string modo, string? rotulo, Configuracoes? opcoes)
     {
+        opcoes ??= Configuracoes.Padrao;
         if (!Enum.IsDefined(agente)) throw new EntradaInvalidaException("Agente inválido.");
         if (!ValidadorEntrada.IdDemandaValido(demandaId))
             throw new EntradaInvalidaException($"Identificador de trabalho inválido: {TextoExibicao.Limpar(demandaId)}");
@@ -67,15 +68,17 @@ public static class MontadorComando
         if (rotulo is not null && !ValidadorEntrada.RotuloValido(rotulo))
             throw new EntradaInvalidaException(ValidadorEntrada.MensagemRotulo);
 
+        if (opcoes.UsarSsh && !ValidadorEntrada.UsuarioSshValido(opcoes.UsuarioSsh))
+            throw new EntradaInvalidaException(ValidadorEntrada.MensagemUsuarioSsh);
+
         var args = new List<string>
         {
             "-w", Constantes.JanelaTerminal, "nt",
             "--title", Titulo(demandaId, tituloDemanda, agente, pasta, rotulo), "--suppressApplicationTitle",
-            "ssh", "-t", Constantes.DestinoSsh,
-            "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", Constantes.ScriptAbrir,
-            "-Agente", Agentes.NoArquivo(agente),
-            "-Repo", pasta,
         };
+        if (opcoes.UsarSsh) args.AddRange(["ssh", "-t", $"{opcoes.UsuarioSsh}@{Constantes.HostSsh}"]);
+        args.AddRange(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", Constantes.ScriptAbrir,
+            "-Agente", Agentes.NoArquivo(agente), "-Repo", pasta]);
         if (sessionId is not null) { args.Add("-Sessao"); args.Add(sessionId); }
         args.Add("-Modo");
         args.Add(modo);

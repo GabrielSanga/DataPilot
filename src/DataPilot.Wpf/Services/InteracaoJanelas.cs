@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using DataPilot.Core.Models;
 using DataPilot.Wpf.Views;
 
 namespace DataPilot.Wpf.Services;
@@ -16,6 +17,8 @@ public sealed class InteracaoJanelas : IInteracao
     public bool DialogoRepositorio(string raiz, string? pastaFixa, string? changeAtual, Func<string, string?, string?> aplicar) => new VincularRepositorioWindow(raiz, pastaFixa, changeAtual, aplicar) { Owner = Dono }.ShowDialog() == true;
 
     public bool DialogoVincularSessao(string descricaoSessao, IReadOnlyList<OpcaoDemandaVinculo> demandas, Func<EscolhaVinculo, string?> aplicar) => new VincularSessaoWindow(descricaoSessao, demandas, aplicar) { Owner = Dono }.ShowDialog() == true;
+
+    public bool DialogoConfiguracoes(string pastaStatus, Configuracoes atual, string? semSalvar, Func<Configuracoes, string?> aplicar) => new ConfiguracoesWindow(pastaStatus, atual, semSalvar, aplicar) { Owner = Dono }.ShowDialog() == true;
 
     public NovaSessaoEscolha? PedirNovaSessao()
     {

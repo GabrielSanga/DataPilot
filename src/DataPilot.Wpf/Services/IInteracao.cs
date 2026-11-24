@@ -27,6 +27,12 @@ public interface IInteracao
     /// <summary>Diálogo de vínculo. <c>aplicar</c> devolve a mensagem de recusa; "" mantém o diálogo aberto sem mensagem (o usuário não confirmou o aviso).</summary>
     bool DialogoVincularSessao(string descricaoSessao, IReadOnlyList<OpcaoDemandaVinculo> demandas, Func<EscolhaVinculo, string?> aplicar);
 
+    /// <summary>
+    /// Diálogo de configurações. <c>semSalvar</c> não nulo é o motivo de não ser possível gravar (o botão fica
+    /// desabilitado); <c>aplicar</c> grava e devolve a mensagem de recusa (ou null).
+    /// </summary>
+    bool DialogoConfiguracoes(string pastaStatus, Configuracoes atual, string? semSalvar, Func<Configuracoes, string?> aplicar);
+
     NovaSessaoEscolha? PedirNovaSessao();
 
     /// <summary>Escolha de pasta do Windows, começando em <c>raiz</c>. Nulo quando o usuário cancela.</summary>

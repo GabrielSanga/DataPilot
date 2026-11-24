@@ -31,7 +31,7 @@ public sealed class AberturaSessao(DadosPainel dados, IDisparador disparador, Ti
 
         // Registrar antes de abrir garante que toda sessão aberta possa ser retomada.
         return Executar(
-            () => MontadorComando.Novo(demanda.Id, demanda.Titulo, repo, agente, claude ? id : null, rotulo),
+            () => MontadorComando.Novo(demanda.Id, demanda.Titulo, repo, agente, claude ? id : null, rotulo, estado.Configuracoes),
             () => claude
                 ? dados.RegistrarSessao(demanda.Id, repo.Pasta, agente, id, rotulo, relogio.GetUtcNow())
                 : dados.RegistrarLancamento(demanda.Id, repo.Pasta, agente, id, rotulo, relogio.GetUtcNow()),
@@ -82,7 +82,7 @@ public sealed class AberturaSessao(DadosPainel dados, IDisparador disparador, Ti
         var (demanda, repo, lancamento) = achado.Value;
 
         return Executar(
-            () => MontadorComando.Novo(demanda.Id, demanda.Titulo, repo, lancamento.Agente, null, lancamento.Rotulo),
+            () => MontadorComando.Novo(demanda.Id, demanda.Titulo, repo, lancamento.Agente, null, lancamento.Rotulo, estado.Configuracoes),
             () => dados.RenovarLancamento(lancamento.Id, agora),
             () => dados.RenovarLancamento(lancamento.Id, lancamento.CriadoEm));
     }
@@ -119,11 +119,11 @@ public sealed class AberturaSessao(DadosPainel dados, IDisparador disparador, Ti
             RegrasDemanda.IdDemandaImplicita, RegrasDemanda.TituloDemandaImplicita);
 
         return Executar(
-            () => MontadorComando.Retomar(sessao),
+            () => MontadorComando.Retomar(sessao, dados.Carregar().Configuracoes),
             () => dados.RegistrarRetomada(pedido, pasta, agora),
             () => dados.DesfazerRegistro(pedido.SessionId));
     }
 
     public ResultadoOperacao Retomar(SessaoRegistrada sessao)
-        => Executar(() => MontadorComando.Retomar(sessao), () => ResultadoOperacao.Sucesso, () => { });
+        => Executar(() => MontadorComando.Retomar(sessao, dados.Carregar().Configuracoes), () => ResultadoOperacao.Sucesso, () => { });
 }
