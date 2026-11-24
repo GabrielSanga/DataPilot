@@ -43,16 +43,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _semDemandas;
     [ObservableProperty] private bool _dadosDisponiveis = true;
     [ObservableProperty] private string _avisoDados = "";
-
-    // Alerta do topo (decisão 5 do design).
     [ObservableProperty] private NivelSinal _alertaNivel = NivelSinal.Neutro;
     [ObservableProperty] private string _alertaTexto = "Carregando…";
-    /// <summary>"4 aguardando você" ao lado do alerta vermelho; vazio quando não há ou quando o alerta já é esse status.</summary>
     [ObservableProperty] private string _contagemAtencao = "";
     [ObservableProperty] private string _contagemAguardando = "";
     [ObservableProperty] private string _contagemExecutando = "";
-
-    // Faixa de erros e mensagens, dentro da janela.
     [ObservableProperty] private string _mensagem = "";
     [ObservableProperty] private bool _mensagemEhErro;
     [ObservableProperty] private bool _temMensagem;
@@ -116,8 +111,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 ? "\"Sessões\" não pode ser arquivada." : "O trabalho já está arquivado.");
             return;
         }
-        if (item.TemSessaoEmAndamento
-            && !_interacao.Confirmar("Arquivar o trabalho?", "Este trabalho tem sessões em andamento.", "Arquivar"))
+        if (item.TemSessaoEmAndamento && !_interacao.Confirmar("Arquivar o trabalho?", "Este trabalho tem sessões em andamento.", "Arquivar"))
             return;
         var r = _dados.ArquivarDemanda(demanda.Id);
         RecarregarEAplicar();

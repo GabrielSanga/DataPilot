@@ -24,8 +24,7 @@ public sealed partial class DadosPainel(string caminho)
 
     public string Caminho { get; } = caminho;
 
-    public static string CaminhoPadrao => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Painel", "demandas.json");
+    public static string CaminhoPadrao => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Painel", "demandas.json");
 
     // ---------- leitura ----------
     private readonly record struct Leitura(JsonObject Raiz, string? Erro);
