@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using System.IO;
+using System.Windows;
 using DataPilot.Core.Models;
 using DataPilot.Core.OpenSpec;
 using DataPilot.Core.Persistence;
@@ -27,15 +28,23 @@ public partial class App : Application
         var caminhoSessoes = LerParametro(e.Args, "--pasta-status");
         var caminhoTrabalhos = LerParametro(e.Args, "--dados");
         var caminhoFontes = LerParametro(e.Args, "--raiz-fontes");
+        var caminhoScripts = LerParametro(e.Args, "--pasta-scripts");
+
+        // Instala/atualiza o abrir.ps1 e o hook.ps1; falha vira aviso e o painel segue funcionando.
+        var avisoScripts = ScriptsDoPainel.Instalar(caminhoScripts ?? Constantes.PastaScripts);
 
         // Montando os objetos
         var pasta = caminhoSessoes ?? Constantes.PastaStatusPadrao;
+        // Falha (sem permissão, caminho inválido) cai no aviso de pasta indisponível do leitor.
+        try { Directory.CreateDirectory(pasta); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException) { }
         var dados = new DadosPainel(caminhoTrabalhos ?? DadosPainel.CaminhoPadrao);
         var abertura = new AberturaSessao(dados, new DisparadorProcesso(), TimeProvider.System);
         var leitorTasks = new LeitorTasks(caminhoFontes ?? Constantes.RaizFontesPadrao);
 
         // Cria a ViewModel principal
         _ViewModel = new MainViewModel(pasta, TimeProvider.System, Dispatcher, dados, abertura, new InteracaoJanelas(), leitorTasks);
+
+        if (avisoScripts != null) _ViewModel.AvisarScripts(avisoScripts);
 
         // Cria o WPF principal com a ViewModel
         var janela = new MainWindow { DataContext = _ViewModel };

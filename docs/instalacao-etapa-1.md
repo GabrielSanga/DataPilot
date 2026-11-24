@@ -7,7 +7,7 @@ Resumo do que será criado:
 | Local | Conteúdo | Quem escreve |
 |---|---|---|
 | `C:\ProgramData\Painel\sessoes` | Um arquivo de status por sessão | Só o `ia` |
-| `C:\Painel` | `hook.ps1`, `abrir.ps1`, exemplos e testes | Só um administrador |
+| `C:\Painel` | `hook.ps1`, `abrir.ps1`, exemplos e testes | Administradores e a conta principal (o painel atualiza os dois scripts) |
 | `C:\Users\IA\.claude\settings.json` | Hooks do Claude Code | `ia` |
 | `C:\Users\IA\.codex\hooks.json` | Hooks do Codex | `ia` |
 
@@ -34,6 +34,8 @@ $principal = whoami
 
 Pasta de status: o `ia` modifica, a conta principal só lê.
 
+O painel cria a pasta de status ao abrir, se ela não existir, mas então a conta principal fica dona dela. Por isso, crie a pasta agora e aplique as permissões abaixo (reaplique-as se o painel tiver criado a pasta antes):
+
 ```powershell
 New-Item -ItemType Directory -Force C:\ProgramData\Painel\sessoes | Out-Null
 ```
@@ -42,19 +44,19 @@ New-Item -ItemType Directory -Force C:\ProgramData\Painel\sessoes | Out-Null
 icacls C:\ProgramData\Painel /inheritance:r /grant "*S-1-5-18:(OI)(CI)F" /grant "*S-1-5-32-544:(OI)(CI)F" /grant "ia:(OI)(CI)M" /grant "${principal}:(OI)(CI)RX"
 ```
 
-Pasta dos scripts: o `ia` e a conta principal só leem e executam.
+Pasta dos scripts: o `ia` só lê e executa; a conta principal grava, para o painel manter o `abrir.ps1` e o `hook.ps1` atualizados. O painel recusa gravar numa pasta que outra conta possa alterar.
 
 ```powershell
 New-Item -ItemType Directory -Force C:\Painel\testes, C:\Painel\exemplos | Out-Null
 ```
 
 ```powershell
-icacls C:\Painel /inheritance:r /grant "*S-1-5-18:(OI)(CI)F" /grant "*S-1-5-32-544:(OI)(CI)F" /grant "ia:(OI)(CI)RX" /grant "${principal}:(OI)(CI)RX"
+icacls C:\Painel /inheritance:r /grant "*S-1-5-18:(OI)(CI)F" /grant "*S-1-5-32-544:(OI)(CI)F" /grant "ia:(OI)(CI)RX" /grant "${principal}:(OI)(CI)M"
 ```
 
 `*S-1-5-18` é a conta SYSTEM e `*S-1-5-32-544` é o grupo de administradores; os SIDs funcionam em qualquer idioma do Windows.
 
-Confira o resultado. Na saída, o `ia` deve aparecer com `(M)` na primeira pasta e com `(RX)` na segunda.
+Confira o resultado. Na saída, o `ia` deve aparecer com `(M)` na primeira pasta e com `(RX)` na segunda; a conta principal deve aparecer com `(RX)` na primeira e com `(M)` na segunda.
 
 ```powershell
 icacls C:\ProgramData\Painel\sessoes
@@ -64,13 +66,13 @@ icacls C:\ProgramData\Painel\sessoes
 icacls C:\Painel
 ```
 
-## Passo 2: copiar os scripts
+## Passo 2: conferir os scripts
 
-No mesmo PowerShell de administrador, na raiz deste repositório:
+O painel instala o `abrir.ps1` e o `hook.ps1` em `C:\Painel` ao abrir e os substitui quando diferem da versão do painel. Abra o painel uma vez e confira que os dois arquivos existem. Se ele mostrar um aviso, siga o que o aviso diz (normalmente, o `icacls` do passo 1 para dar gravação à conta principal).
 
-```powershell
-Copy-Item scripts\hook.ps1, scripts\abrir.ps1 C:\Painel\ -Force
-```
+Mudanças nos scripts devem ir para o repositório (`scripts\`): uma alteração feita direto em `C:\Painel` é desfeita na próxima abertura do painel.
+
+O `verificar.ps1` e os exemplos continuam manuais. No mesmo PowerShell de administrador, na raiz deste repositório:
 
 ```powershell
 Copy-Item scripts\testes\verificar.ps1 C:\Painel\testes\ -Force
@@ -80,15 +82,7 @@ Copy-Item scripts\testes\verificar.ps1 C:\Painel\testes\ -Force
 Copy-Item scripts\exemplos\*.json C:\Painel\exemplos\ -Force
 ```
 
-Sempre que um script mudar no repositório, repita a cópia. Na Etapa 4d mudaram o `abrir.ps1` e o `verificar.ps1`: se você já instalou uma versão anterior, repita pelo menos estes dois comandos, como administrador, e rode de novo o passo 3:
-
-```powershell
-Copy-Item scripts\abrir.ps1 C:\Painel\ -Force
-```
-
-```powershell
-Copy-Item scripts\testes\verificar.ps1 C:\Painel\testes\ -Force
-```
+Repita esses comandos quando o `verificar.ps1` ou um exemplo mudar no repositório e rode de novo o passo 3.
 
 A raiz dos fontes do `ia` é a constante `$RaizFontes` no topo do `abrir.ps1` (`C:\Fontes`).
 

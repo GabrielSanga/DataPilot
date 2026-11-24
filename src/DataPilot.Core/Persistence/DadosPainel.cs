@@ -90,7 +90,7 @@ public sealed partial class DadosPainel(string caminho)
         var leitura = Ler();
         return leitura.Erro is not null
             ? new EstadoDados(false, [], leitura.Erro)
-            : new EstadoDados(true, Extrair(leitura.Raiz), null) { Excluidas = ExtrairExcluidas(leitura.Raiz) };
+            : new EstadoDados(true, Extrair(leitura.Raiz), null) { Excluidas = ExtrairExcluidas(leitura.Raiz), Configuracoes = ExtrairConfiguracoes(leitura.Raiz) };
     }
 
     private static Leitura Ilegivel(string motivo) => new(NovaRaiz(), motivo);

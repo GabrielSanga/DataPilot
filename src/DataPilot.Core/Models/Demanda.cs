@@ -56,6 +56,8 @@ public sealed record EstadoDados(bool Disponivel, IReadOnlyList<Demanda> Demanda
 
     /// <summary>Sessões que o usuário excluiu; o painel não as mostra nem as vincula.</summary>
     public IReadOnlyList<SessaoExcluida> Excluidas { get; init; } = [];
+
+    public Configuracoes Configuracoes { get; init; } = Configuracoes.Padrao;
 }
 
 public sealed record ResultadoOperacao(bool Ok, string? Mensagem = null)

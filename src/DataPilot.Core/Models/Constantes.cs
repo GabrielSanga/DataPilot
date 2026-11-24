@@ -6,8 +6,10 @@ public static class Constantes
     public const string RaizFontesPadrao = @"C:\Fontes";
     public const string ExecutavelTerminal = "wt.exe";
     public const string JanelaTerminal = "painel";
-    public const string DestinoSsh = "ia@localhost";
-    public const string ScriptAbrir = @"C:\Painel\abrir.ps1";
+    public const string UsuarioSshPadrao = "ia";
+    public const string HostSsh = "localhost";
+    public const string PastaScripts = @"C:\Painel";
+    public const string ScriptAbrir = PastaScripts + @"\abrir.ps1";
     public static readonly TimeSpan InatividadeAtiva = TimeSpan.FromMinutes(15);
     public static readonly TimeSpan InatividadeEspera = TimeSpan.FromHours(8);
     public static readonly TimeSpan IdadeSessaoAntiga = TimeSpan.FromDays(3);
