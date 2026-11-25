@@ -68,7 +68,7 @@ public sealed partial class SessaoItem : ObservableObject
         PodeVincular = true;
         Motivo = "";
         MostrarMotivo = false;
-        Aplicar(v.Status, v.Tempo, r.Pasta, r.Agente);
+        Aplicar(v.Status, v.Tempo, TextoExibicao.NomePasta(r.Pasta), r.Agente);
         Rotulo = r.Rotulo is null ? "" : TextoExibicao.Limpar(r.Rotulo);
         Dica = $"Status: {StatusTexto}\n" + (v.Lida is null ? "" : $"{TextoExibicao.Limpar(v.Lida.Cwd)}\n")
             + $"Sessão: {TextoExibicao.Limpar(r.SessionId)}\nRetomar abre em: {r.Pasta}";

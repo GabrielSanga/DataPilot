@@ -12,6 +12,8 @@ namespace DataPilot.Wpf.ViewModels;
 public sealed partial class CardItem : ObservableObject
 {
     public string Pasta { get; }
+    /// <summary>O que o cabeçalho mostra: o nome da pasta, mesmo quando o repositório é um caminho completo.</summary>
+    public string NomePasta => TextoExibicao.NomePasta(Pasta);
     public string DemandaId { get; private set; } = "";
     public ObservableCollection<SessaoItem> Sessoes { get; } = [];
     public ObservableCollection<LancamentoItem> Lancamentos { get; } = [];

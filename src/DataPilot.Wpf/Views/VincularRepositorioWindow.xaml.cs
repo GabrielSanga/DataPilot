@@ -5,7 +5,7 @@ using DataPilot.Wpf.Services;
 namespace DataPilot.Wpf.Views;
 
 /// <summary>
-/// "Vincular repositório" (abre a escolha de pasta do Windows na raiz dos fontes e só aceita uma pasta direta dela) e
+/// "Vincular repositório" (abre a escolha de pasta do Windows na raiz dos fontes; aceita qualquer pasta local) e
 /// "Trocar change" (pasta já conhecida). Lista as changes ativas do repositório e "Nenhuma". Só fecha quando
 /// <c>aplicar</c> grava sem recusa.
 /// </summary>

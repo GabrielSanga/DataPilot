@@ -321,6 +321,14 @@ public class VinculoSessaoTests
     public void Pasta_de_nome_diferente_nao_coincide(string cwd)
         => Assert.False(RegrasVinculo.PastaCoincide(cwd, "Faturamento"));
 
+    [Theory]
+    [InlineData(@"D:\Projetos\Faturamento", true)]
+    [InlineData(@"d:\projetos\FATURAMENTO\", true)]
+    [InlineData(@"C:\Fontes\Faturamento", false)]
+    [InlineData(@"D:\Projetos\Faturamento\src", false)]
+    public void Repositorio_fora_da_raiz_coincide_pelo_caminho_completo(string cwd, bool coincide)
+        => Assert.Equal(coincide, RegrasVinculo.PastaCoincide(cwd, @"D:\Projetos\Faturamento"));
+
     // ---------- Aviso de pasta divergente ----------
 
     [Fact]

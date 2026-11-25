@@ -141,17 +141,19 @@ public sealed class LeitorTasks
 
     private bool ArquivoAbertoEhEsperado(SafeFileHandle arquivo, IReadOnlyList<string> trechos)
     {
+        // Repositório fora da raiz: o primeiro trecho já é o caminho completo da pasta.
+        var foraDaRaiz = Path.IsPathRooted(trechos[0]);
         var final = CaminhoFinal(arquivo);
-        var raiz = CaminhoFinalDaRaiz();
-        if (final is null || raiz is null) return false;
-        var esperado = Path.Combine([raiz, .. trechos]);
+        var inicio = CaminhoFinalDaPasta(foraDaRaiz ? trechos[0] : _raiz);
+        if (final is null || inicio is null) return false;
+        var esperado = Path.Combine([inicio, .. foraDaRaiz ? trechos.Skip(1) : trechos]);
         return string.Equals(final, esperado, StringComparison.OrdinalIgnoreCase);
     }
 
-    private string? CaminhoFinalDaRaiz()
+    private static string? CaminhoFinalDaPasta(string pasta)
     {
         // FILE_FLAG_BACKUP_SEMANTICS permite abrir pasta; só atributos, sem acesso a dados.
-        using var h = CreateFileW(_raiz, 0, 7, IntPtr.Zero, 3, 0x02000000, IntPtr.Zero);
+        using var h = CreateFileW(pasta, 0, 7, IntPtr.Zero, 3, 0x02000000, IntPtr.Zero);
         return h.IsInvalid ? null : CaminhoFinal(h);
     }
 

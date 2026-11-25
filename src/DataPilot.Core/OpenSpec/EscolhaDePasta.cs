@@ -11,19 +11,19 @@ public sealed record ResultadoPasta(bool Ok, string? Pasta, string? Erro)
 }
 
 /// <summary>
-/// Valida a pasta escolhida para um repositório: só uma pasta filha direta da raiz dos fontes, com nome que siga a
-/// regra de pasta, é aceita (é o que o <c>abrir.ps1</c> abre). Só o nome é devolvido, e é só ele que se grava.
+/// Valida a pasta escolhida para um repositório. Uma pasta direta da raiz dos fontes, com nome que siga a regra de
+/// pasta, devolve só o nome (como sempre foi gravado); qualquer outra pasta local devolve o caminho completo.
 /// </summary>
 public static class EscolhaDePasta
 {
     private static readonly char[] Separadores = [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar];
 
-    public static string MensagemForaDaRaiz(string raiz)
-        => $"Só pastas diretas de {raiz} podem ser usadas.";
+    public const string MensagemAtalho = "A pasta escolhida é um atalho ou junção, ou não pode ser lida; escolha a pasta de destino.";
+    public const string MensagemInexistente = "A pasta escolhida não existe.";
 
     public static ResultadoPasta Validar(string raiz, string? caminhoEscolhido)
     {
-        if (string.IsNullOrWhiteSpace(caminhoEscolhido)) return ResultadoPasta.Recusada(MensagemForaDaRaiz(raiz));
+        if (string.IsNullOrWhiteSpace(caminhoEscolhido)) return ResultadoPasta.Recusada(ValidadorEntrada.MensagemRepositorio);
         string completo, raizCompleta;
         try
         {
@@ -32,17 +32,22 @@ public static class EscolhaDePasta
         }
         catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException)
         {
-            return ResultadoPasta.Recusada(MensagemForaDaRaiz(raiz));
+            return ResultadoPasta.Recusada(ValidadorEntrada.MensagemRepositorio);
         }
 
         var pai = Path.GetDirectoryName(completo)?.TrimEnd(Separadores);
-        if (pai is null || !string.Equals(pai, raizCompleta, StringComparison.OrdinalIgnoreCase))
-            return ResultadoPasta.Recusada(MensagemForaDaRaiz(raiz));
-
         var nome = Path.GetFileName(completo);
-        if (!ValidadorEntrada.PastaValida(nome))
-            return ResultadoPasta.Recusada(ValidadorEntrada.MensagemPasta);
-        return ResultadoPasta.Aceita(nome);
+        if (pai is not null && string.Equals(pai, raizCompleta, StringComparison.OrdinalIgnoreCase) && ValidadorEntrada.PastaValida(nome))
+            return ResultadoPasta.Aceita(nome);
+
+        if (!ValidadorEntrada.CaminhoValido(completo)) return ResultadoPasta.Recusada(ValidadorEntrada.MensagemRepositorio);
+        // O abrir.ps1 recusa atalho e junção; recusar aqui evita gravar um repositório que nunca abre.
+        return LeituraSegura.Tipo(completo) switch
+        {
+            LeituraSegura.TipoEntrada.Normal => ResultadoPasta.Aceita(completo),
+            LeituraSegura.TipoEntrada.Inexistente => ResultadoPasta.Recusada(MensagemInexistente),
+            _ => ResultadoPasta.Recusada(MensagemAtalho),
+        };
     }
 
     /// <summary>Pastas diretas da raiz dos fontes com nome válido e que não são atalhos nem junções, em ordem.</summary>

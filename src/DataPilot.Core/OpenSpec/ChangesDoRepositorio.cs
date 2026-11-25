@@ -15,7 +15,7 @@ public static class ChangesDoRepositorio
 
     public static IReadOnlyList<string> Listar(string raiz, string pasta)
     {
-        if (!ValidadorEntrada.PastaValida(pasta)) return [];
+        if (!ValidadorEntrada.RepositorioValido(pasta)) return [];
         var repo = Path.Combine(raiz, pasta);
         var changes = Path.Combine(repo, "openspec", "changes");
         foreach (var caminho in new[] { repo, Path.Combine(repo, "openspec"), changes })

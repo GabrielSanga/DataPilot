@@ -39,7 +39,7 @@ public sealed partial class LancamentoItem : ObservableObject
         var l = v.Lancamento;
         Agente = Agentes.Nome(l.Agente);
         Rotulo = l.Rotulo is null ? "" : TextoExibicao.Limpar(l.Rotulo);
-        Pasta = TextoExibicao.Limpar(pasta);
+        Pasta = TextoExibicao.NomePasta(pasta);
         EmSessoes = emSessoes;
         Tempo = v.Tempo.Length == 0 ? "—" : v.Tempo;
     }

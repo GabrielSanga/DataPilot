@@ -159,7 +159,7 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding Pasta}" Style="{StaticResource TextoInstrumento}" FontSize="{StaticResource TamTitulo}"
+                        <TextBlock Text="{Binding NomePasta}" ToolTip="{Binding Pasta}" Style="{StaticResource TextoInstrumento}" FontSize="{StaticResource TamTitulo}"
                                    FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
                         <TextBlock Text="{Binding Change}" Style="{StaticResource TextoInstrumento}"
                                    Foreground="{DynamicResource GrafiteClaro}" VerticalAlignment="Bottom" Margin="12,0,0,1"

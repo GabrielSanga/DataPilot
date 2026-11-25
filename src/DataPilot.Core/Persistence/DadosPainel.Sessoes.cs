@@ -22,7 +22,7 @@ public sealed partial class DadosPainel
     /// </summary>
     public ResultadoOperacao VincularSessao(PedidoVinculo pedido, string demandaId, string pasta, string? rotulo, DateTimeOffset vinculadaEm)
     {
-        if (!ValidadorEntrada.PastaValida(pasta)) return ResultadoOperacao.Falha(ValidadorEntrada.MensagemPasta);
+        if (!ValidadorEntrada.RepositorioValido(pasta)) return ResultadoOperacao.Falha(ValidadorEntrada.MensagemRepositorio);
         if (!ValidadorEntrada.IdentificadorValido(pedido.SessionId)) return ResultadoOperacao.Falha("Identificador de sessão inválido.");
         if (rotulo is not null && !ValidadorEntrada.RotuloValido(rotulo)) return ResultadoOperacao.Falha(ValidadorEntrada.MensagemRotulo);
 
@@ -93,7 +93,7 @@ public sealed partial class DadosPainel
     private ResultadoOperacao Registrar(string demandaId, string pasta, Agente agente, string sessionId, string? rotulo,
         DateTimeOffset criadaEm, DateTimeOffset? vinculadaEm, bool criarRepositorio)
     {
-        if (!ValidadorEntrada.PastaValida(pasta)) return ResultadoOperacao.Falha(ValidadorEntrada.MensagemPasta);
+        if (!ValidadorEntrada.RepositorioValido(pasta)) return ResultadoOperacao.Falha(ValidadorEntrada.MensagemRepositorio);
         if (!ValidadorEntrada.IdentificadorValido(sessionId)) return ResultadoOperacao.Falha("Identificador de sessão inválido.");
         if (rotulo is not null && !ValidadorEntrada.RotuloValido(rotulo)) return ResultadoOperacao.Falha(ValidadorEntrada.MensagemRotulo);
 

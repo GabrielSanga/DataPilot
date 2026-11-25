@@ -31,7 +31,7 @@ public static class LocalizadorTasks
 
     public static LocalTasks Localizar(string raiz, string pasta, string change)
     {
-        if (!ValidadorEntrada.PastaValida(pasta) || !ValidadorEntrada.OpenspecChangeValido(change)) return LocalTasks.Negado;
+        if (!ValidadorEntrada.RepositorioValido(pasta) || !ValidadorEntrada.OpenspecChangeValido(change)) return LocalTasks.Negado;
 
         var repo = Path.Combine(raiz, pasta);
         var inicio = Tipo(repo);
