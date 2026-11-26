@@ -51,6 +51,19 @@ public sealed class LeitorTasksTests : IDisposable
     }
 
     [Fact]
+    public void Repositorio_fora_da_raiz_pelo_caminho_completo()
+    {
+        using var fora = new PastaTemporaria();
+        var repo = Path.Combine(fora.Caminho, "meu repo");
+        var dir = Directory.CreateDirectory(Path.Combine(repo, "openspec", "changes", "ajuste")).FullName;
+        File.WriteAllText(Path.Combine(dir, "tasks.md"), Linhas(1, 2), new UTF8Encoding(false));
+
+        var r = Ler(repo);
+
+        Assert.Equal(new ProgressoRepositorio(repo, EstadoRepositorio.Lido, false, 1, 3), r);
+    }
+
+    [Fact]
     public void Repositorio_sem_a_change_fica_sem_progresso()
     {
         Directory.CreateDirectory(Pasta("Estoque", "openspec", "changes"));

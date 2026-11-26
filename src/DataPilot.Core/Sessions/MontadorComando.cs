@@ -39,7 +39,7 @@ public static class MontadorComando
         var prefixo = RegrasDemanda.EhImplicita(demandaId)
             ? Agentes.Nome(agente)
             : TituloNaAba(tituloDemanda);
-        var titulo = $"{prefixo} · {pasta}";
+        var titulo = $"{prefixo} · {TextoExibicao.NomePasta(pasta).Replace(';', ',')}";
         return rotulo is null ? titulo : $"{titulo} · {rotulo}";
     }
 
@@ -61,8 +61,8 @@ public static class MontadorComando
             throw new EntradaInvalidaException($"Identificador de trabalho inválido: {TextoExibicao.Limpar(demandaId)}");
         if (!RegrasDemanda.EhImplicita(demandaId) && !ValidadorEntrada.TituloValido(tituloDemanda))
             throw new EntradaInvalidaException("Título do trabalho inválido.");
-        if (!ValidadorEntrada.PastaValida(pasta))
-            throw new EntradaInvalidaException(ValidadorEntrada.MensagemPasta);
+        if (!ValidadorEntrada.RepositorioValido(pasta))
+            throw new EntradaInvalidaException(ValidadorEntrada.MensagemRepositorio);
         if (sessionId is not null && !ValidadorEntrada.IdentificadorValido(sessionId))
             throw new EntradaInvalidaException("Identificador de sessão inválido.");
         if (rotulo is not null && !ValidadorEntrada.RotuloValido(rotulo))
@@ -78,7 +78,10 @@ public static class MontadorComando
         };
         if (opcoes.UsarSsh) args.AddRange(["ssh", "-t", $"{opcoes.UsuarioSsh}@{Constantes.HostSsh}"]);
         args.AddRange(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", Constantes.ScriptAbrir,
-            "-Agente", Agentes.NoArquivo(agente), "-Repo", pasta]);
+            "-Agente", Agentes.NoArquivo(agente)]);
+        // Fora da raiz o caminho vai em Base64: a linha do ssh é reinterpretada e espaços ou "&" virariam outro comando.
+        if (ValidadorEntrada.PastaValida(pasta)) args.AddRange(["-Repo", pasta]);
+        else args.AddRange(["-Caminho", Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(pasta))]);
         if (sessionId is not null) { args.Add("-Sessao"); args.Add(sessionId); }
         args.Add("-Modo");
         args.Add(modo);

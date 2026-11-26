@@ -368,6 +368,15 @@ try {
     [void](Conferir-Recusa 'sem -Repo' @('-Agente', 'codex', '-Modo', 'novo'))
     [void](Conferir-Recusa 'argumento solto depois de -Repo' @('-Agente', 'codex', '-Repo', 'a', 'b', '-Modo', 'novo') @(1, 2))
 
+    Grupo 'abrir: validacao do caminho'
+    $b64 = { param($s) [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($s)) }
+    foreach ($c in @('Projetos\X', 'C:\', 'C:\Projetos\', 'C:\Projetos\..\Windows', 'C:\Projetos\\X', '\\servidor\pasta', 'C:\Pro*jetos')) {
+        [void](Conferir-Recusa ('-Caminho ' + $c) @('-Agente', 'codex', '-Caminho', (& $b64 $c), '-Modo', 'novo'))
+    }
+    [void](Conferir-Recusa '-Caminho fora de Base64' @('-Agente', 'codex', '-Caminho', 'nao-e-base64!', '-Modo', 'novo'))
+    [void](Conferir-Recusa '-Repo e -Caminho juntos' @('-Agente', 'codex', '-Repo', 'Faturamento', '-Caminho', (& $b64 'C:\Projetos\X'), '-Modo', 'novo'))
+    [void](Conferir-Recusa '-Caminho inexistente' @('-Agente', 'codex', '-Caminho', (& $b64 'C:\painel-verificar-inexistente\x'), '-Modo', 'novo') @(3))
+
     Grupo 'abrir: validacao da sessao'
     [void](Conferir-Recusa '-Sessao com 36 hifens' @('-Agente', 'claude', '-Repo', 'Faturamento', '-Sessao', ('-' * 36), '-Modo', 'retomar') @(1, 2))
     [void](Conferir-Recusa '-Sessao com 36 letras fora de hexadecimal' @('-Agente', 'claude', '-Repo', 'Faturamento', '-Sessao', 'zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz', '-Modo', 'retomar'))

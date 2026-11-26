@@ -13,8 +13,8 @@ public sealed partial class DadosPainel
     /// <summary>Vincula o repositório à demanda; <paramref name="openspecChange"/> é a change escolhida (ou nenhuma).</summary>
     public ResultadoOperacao VincularRepositorio(string demandaId, string pasta, string? openspecChange = null)
     {
-        if (!ValidadorEntrada.PastaValida(pasta))
-            return ResultadoOperacao.Falha(ValidadorEntrada.MensagemPasta);
+        if (!ValidadorEntrada.RepositorioValido(pasta))
+            return ResultadoOperacao.Falha(ValidadorEntrada.MensagemRepositorio);
         if (!string.IsNullOrEmpty(openspecChange) && !ValidadorEntrada.OpenspecChangeValido(openspecChange))
             return ResultadoOperacao.Falha(ValidadorEntrada.MensagemChange);
 

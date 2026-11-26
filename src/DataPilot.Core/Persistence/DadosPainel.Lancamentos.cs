@@ -18,7 +18,7 @@ public sealed partial class DadosPainel
     public ResultadoOperacao RegistrarLancamento(string demandaId, string pasta, Agente agente, string lancamentoId,
         string? rotulo, DateTimeOffset criadoEm)
     {
-        if (!ValidadorEntrada.PastaValida(pasta)) return ResultadoOperacao.Falha(ValidadorEntrada.MensagemPasta);
+        if (!ValidadorEntrada.RepositorioValido(pasta)) return ResultadoOperacao.Falha(ValidadorEntrada.MensagemRepositorio);
         if (!ValidadorEntrada.IdentificadorValido(lancamentoId)) return ResultadoOperacao.Falha("Identificador de lançamento inválido.");
         if (rotulo is not null && !ValidadorEntrada.RotuloValido(rotulo)) return ResultadoOperacao.Falha(ValidadorEntrada.MensagemRotulo);
 
@@ -94,7 +94,7 @@ public sealed partial class DadosPainel
     public ResultadoOperacao VincularPorLancamento(PedidoVinculo pedido, string demandaId, string pasta,
         string lancamentoId, DateTimeOffset vinculadaEm)
     {
-        if (!ValidadorEntrada.PastaValida(pasta)) return ResultadoOperacao.Falha(ValidadorEntrada.MensagemPasta);
+        if (!ValidadorEntrada.RepositorioValido(pasta)) return ResultadoOperacao.Falha(ValidadorEntrada.MensagemRepositorio);
         if (!ValidadorEntrada.IdentificadorValido(pedido.SessionId)) return ResultadoOperacao.Falha("Identificador de sessão inválido.");
 
         return Alterar(raiz =>

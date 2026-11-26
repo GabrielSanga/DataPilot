@@ -20,32 +20,64 @@ public class EscolhaDePastaTests
         Assert.Equal(nome, r.Pasta);
     }
 
+    [Fact]
+    public void Aceita_pasta_fora_da_raiz_e_devolve_o_caminho_completo()
+    {
+        using var pasta = new PastaTemporaria();
+        var repo = Directory.CreateDirectory(Path.Combine(pasta.Caminho, "meu repo & cia")).FullName;
+
+        var r = EscolhaDePasta.Validar(Raiz, repo + @"\");
+
+        Assert.True(r.Ok);
+        Assert.Equal(repo, r.Pasta);
+    }
+
+    [Fact]
+    public void Pasta_da_raiz_com_nome_fora_da_regra_vira_caminho_completo()
+    {
+        using var raiz = new PastaTemporaria();
+        var repo = Directory.CreateDirectory(Path.Combine(raiz.Caminho, "com espaço")).FullName;
+
+        var r = EscolhaDePasta.Validar(raiz.Caminho, repo);
+
+        Assert.True(r.Ok);
+        Assert.Equal(repo, r.Pasta);
+    }
+
     [Theory]
-    [InlineData(@"C:\Projetos\Faturamento")]
-    [InlineData(@"C:\Fontes\Faturamento\src")]
-    [InlineData(@"C:\Fontes")]
     [InlineData(@"C:\")]
-    [InlineData(@"D:\Fontes\Faturamento")]
-    [InlineData(@"C:\FontesOutra\Faturamento")]
-    [InlineData(@"C:\Fontes\..\Projetos\X")]
     [InlineData("")]
     [InlineData(null)]
-    public void Recusa_pasta_fora_da_raiz(string? caminho)
+    public void Recusa_caminho_invalido(string? caminho)
     {
         var r = EscolhaDePasta.Validar(Raiz, caminho);
         Assert.False(r.Ok);
         Assert.Null(r.Pasta);
-        Assert.Contains(@"C:\Fontes", r.Erro);
+        Assert.Equal(DataPilot.Core.Validation.ValidadorEntrada.MensagemRepositorio, r.Erro);
     }
 
-    [Theory]
-    [InlineData(@"C:\Fontes\com espaço")]
-    [InlineData(@"C:\Fontes\a;b")]
-    public void Recusa_nome_fora_da_regra_de_pasta(string caminho)
+    [Fact]
+    public void Recusa_pasta_que_nao_existe()
     {
-        var r = EscolhaDePasta.Validar(Raiz, caminho);
+        var r = EscolhaDePasta.Validar(Raiz, Path.Combine(Path.GetTempPath(), "datapilot-" + Guid.NewGuid().ToString("N")));
         Assert.False(r.Ok);
-        Assert.Contains("Nome de pasta inválido", r.Erro);
+        Assert.Equal(EscolhaDePasta.MensagemInexistente, r.Erro);
+    }
+
+    [Fact]
+    public void Recusa_juncao_fora_da_raiz()
+    {
+        using var pasta = new PastaTemporaria();
+        var alvo = Directory.CreateDirectory(Path.Combine(pasta.Caminho, "alvo")).FullName;
+        var link = Path.Combine(pasta.Caminho, "juncao");
+        var p = Process.Start(new ProcessStartInfo("cmd.exe", $"/c mklink /J \"{link}\" \"{alvo}\"")
+            { CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true })!;
+        p.WaitForExit();
+        Assert.Equal(0, p.ExitCode);
+
+        var r = EscolhaDePasta.Validar(Raiz, link);
+        Assert.False(r.Ok);
+        Assert.Equal(EscolhaDePasta.MensagemAtalho, r.Erro);
     }
 
     [Fact]

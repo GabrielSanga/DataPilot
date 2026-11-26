@@ -145,7 +145,7 @@ public sealed partial class DadosPainel(string caminho)
                 foreach (var repo in repos.OfType<JsonObject>())
                 {
                     var pasta = Texto(repo, "pasta");
-                    if (!ValidadorEntrada.PastaValida(pasta) || !pastas.Add(pasta!)) continue;
+                    if (!ValidadorEntrada.RepositorioValido(pasta) || !pastas.Add(pasta!)) continue;
 
                     var sessoes = new List<SessaoRegistrada>();
                     if (repo["sessoes"] is JsonArray lista)
@@ -237,7 +237,7 @@ public sealed partial class DadosPainel(string caminho)
     private static bool PastaIgual(JsonObject repo, string pasta)
     {
         var p = Texto(repo, "pasta");
-        return ValidadorEntrada.PastaValida(p) && string.Equals(p, pasta, StringComparison.OrdinalIgnoreCase);
+        return ValidadorEntrada.RepositorioValido(p) && string.Equals(p, pasta, StringComparison.OrdinalIgnoreCase);
     }
 
     private static JsonObject? EncontrarDemanda(JsonObject raiz, string id)

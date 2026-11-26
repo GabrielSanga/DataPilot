@@ -93,7 +93,7 @@ public sealed class AberturaSessao(DadosPainel dados, IDisparador disparador, Ti
     /// </summary>
     public ResultadoOperacao NovaEmSessoes(string pasta, Agente agente, string? rotulo)
     {
-        if (!ValidadorEntrada.PastaValida(pasta)) return ResultadoOperacao.Falha(ValidadorEntrada.MensagemPasta);
+        if (!ValidadorEntrada.RepositorioValido(pasta)) return ResultadoOperacao.Falha(ValidadorEntrada.MensagemRepositorio);
         var estado = dados.Carregar();
         if (!estado.Disponivel) return ResultadoOperacao.Falha($"Dados do painel indisponíveis: {dados.Caminho}");
 
@@ -113,7 +113,7 @@ public sealed class AberturaSessao(DadosPainel dados, IDisparador disparador, Ti
     /// </summary>
     public ResultadoOperacao RetomarNaoRegistrada(PedidoVinculo pedido, string pasta)
     {
-        if (!ValidadorEntrada.PastaValida(pasta)) return ResultadoOperacao.Falha(ValidadorEntrada.MensagemPasta);
+        if (!ValidadorEntrada.RepositorioValido(pasta)) return ResultadoOperacao.Falha(ValidadorEntrada.MensagemRepositorio);
         var agora = relogio.GetUtcNow();
         var sessao = new SessaoRegistrada(pedido.Agente, pedido.SessionId, pasta, null, agora,
             RegrasDemanda.IdDemandaImplicita, RegrasDemanda.TituloDemandaImplicita);

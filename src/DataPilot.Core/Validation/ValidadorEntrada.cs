@@ -15,7 +15,6 @@ public static partial class ValidadorEntrada
     public const int TamanhoMaximoTitulo = 80;
     public const int TamanhoMaximoOpenspecChange = 100;
 
-    public const string MensagemPasta = "Nome de pasta inválido: use apenas letras, dígitos, \"_\", \".\" e \"-\", e não só pontos.";
     public const string MensagemRotulo = "Rótulo inválido: use até 40 caracteres, sem \";\" nem caracteres de controle.";
     public const string MensagemTitulo = "Título inválido: use de 1 a 80 caracteres, sem caracteres de controle.";
     public const string MensagemChange = "Change do OpenSpec inválida: use letras, dígitos, \"_\", \".\" e \"-\", e não só pontos.";
@@ -39,6 +38,22 @@ public static partial class ValidadorEntrada
     /// <summary>Só <c>[A-Za-z0-9_.-]</c> e nunca formada apenas por pontos.</summary>
     public static bool PastaValida(string? pasta)
         => pasta is not null && PadraoPasta().IsMatch(pasta) && pasta.Any(c => c != '.');
+
+    public const int TamanhoMaximoCaminho = 260;
+    public const string MensagemRepositorio = "Pasta inválida: use uma pasta local com caminho completo (como D:\\Projetos\\Faturamento), de até 260 caracteres.";
+
+    // A mesma regra do -Caminho do abrir.ps1: unidade local, sem curingas, controle, "/" nem ":" fora da unidade.
+    [GeneratedRegex(@"\A[A-Za-z]:\\[^\x00-\x1f*?:""<>|/]+\z")]
+    private static partial Regex PadraoCaminho();
+
+    /// <summary>Caminho completo de unidade local, já normalizado: sem trechos <c>.</c> e <c>..</c>, sem <c>\\</c> e sem barra no fim.</summary>
+    public static bool CaminhoValido(string? caminho)
+        => caminho is not null && caminho.Length <= TamanhoMaximoCaminho && PadraoCaminho().IsMatch(caminho)
+           && !caminho.EndsWith('\\') && !caminho.Contains(@"\\")
+           && !caminho.Split('\\').Any(t => t is "." or "..");
+
+    /// <summary>Repositório gravado: nome de pasta da raiz dos fontes (como antes) ou caminho completo de uma pasta fora dela.</summary>
+    public static bool RepositorioValido(string? repositorio) => PastaValida(repositorio) || CaminhoValido(repositorio);
 
     /// <summary>Regra da pasta, com até 30 caracteres. O <c>id</c> vai para o título da aba, sem precisar de escape.</summary>
     public static bool IdDemandaValido(string? id)
