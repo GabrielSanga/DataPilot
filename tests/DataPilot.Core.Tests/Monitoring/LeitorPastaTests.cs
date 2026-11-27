@@ -8,6 +8,33 @@ namespace DataPilot.Core.Tests.Monitoring;
 public class LeitorPastaTests
 {
     [Fact]
+    public void Marcador_DefineAData_ESemEleValeADoArquivo()
+    {
+        using var p = new PastaTemporaria();
+        p.Escrever("s1.json", Fabrica.Json());
+        p.Escrever("s2.json", Fabrica.Json(id: "s2"));
+        p.Escrever("s1.criado", "");
+        var inicio = new DateTime(2026, 11, 1, 8, 0, 0, DateTimeKind.Utc);
+        var doArquivo = new DateTime(2026, 11, 2, 8, 0, 0, DateTimeKind.Utc);
+        File.SetCreationTimeUtc(Path.Combine(p.Caminho, "s1.criado"), inicio);
+        File.SetCreationTimeUtc(Path.Combine(p.Caminho, "s1.json"), doArquivo);
+        File.SetCreationTimeUtc(Path.Combine(p.Caminho, "s2.json"), doArquivo);
+
+        var sessoes = new LeitorPasta(p.Caminho).Ler().Sessoes.ToDictionary(s => s.SessionId, s => s.ArquivoCriadoEm!.Value.UtcDateTime);
+
+        Assert.Equal(inicio, sessoes["s1"]);
+        Assert.Equal(doArquivo, sessoes["s2"]);
+    }
+
+    [Fact]
+    public void Marcador_SemArquivoDeStatus_NaoGeraSessao()
+    {
+        using var p = new PastaTemporaria();
+        p.Escrever("s1.criado", "");
+        Assert.Empty(new LeitorPasta(p.Caminho).Ler().Sessoes);
+    }
+
+    [Fact]
     public void ArquivoValido_GeraSessao()
     {
         using var p = new PastaTemporaria();

@@ -59,7 +59,7 @@ public sealed partial class DemandaItem : ObservableObject
         ArquivarCommand = new RelayCommand(() => _painel.ArquivarDemanda(this));
         DesarquivarCommand = new RelayCommand(() => _painel.DesarquivarDemanda(this));
         VincularCommand = new RelayCommand(() => _painel.VincularRepositorio(this));
-        NovaSessaoCommand = new RelayCommand(() => _painel.NovaSessaoEmSessoes(this));
+        NovaSessaoCommand = new AsyncRelayCommand(() => _painel.NovaSessaoEmSessoes(this));
     }
 
     public void Atualizar(DemandaNaVisao v)

@@ -231,7 +231,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     // --------------------- SESSÕES -------------------------- \\
 
-    internal void NovaSessao(CardItem card)
+    // A verificação do container pode levar segundos: a abertura roda fora da thread de interface, e o comando
+    // assíncrono mantém o botão desabilitado até ela terminar.
+    private static Task<ResultadoOperacao> Abrir(Func<ResultadoOperacao> abertura) => Task.Run(abertura);
+
+    internal async Task NovaSessao(CardItem card)
     {
         if (!DadosDisponiveis) return;
         var demanda = DemandaSelecionada?.Demanda;
@@ -240,12 +244,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var escolha = _interacao.PedirNovaSessao();
         if (escolha is null) return;
 
-        var r = _abertura.Nova(card.DemandaId, card.Pasta, escolha.Agente, escolha.Rotulo);
+        var r = await Abrir(() => _abertura.Nova(card.DemandaId, card.Pasta, escolha.Agente, escolha.Rotulo));
         RecarregarEAplicar();
         if (!r.Ok) MostrarErro(r.Mensagem ?? "Não foi possível abrir a sessão.");
     }
 
-    internal void NovaSessaoEmSessoes(DemandaItem item)
+    internal async Task NovaSessaoEmSessoes(DemandaItem item)
     {
         if (!DadosDisponiveis) return;
         var caminho = _interacao.EscolherPasta(_leitorTasks.Raiz);
@@ -260,12 +264,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var escolha = _interacao.PedirNovaSessao();
         if (escolha is null) return;
 
-        var r = _abertura.NovaEmSessoes(pasta.Pasta!, escolha.Agente, escolha.Rotulo);
+        var r = await Abrir(() => _abertura.NovaEmSessoes(pasta.Pasta!, escolha.Agente, escolha.Rotulo));
         RecarregarEAplicar();
         if (!r.Ok) MostrarErro(r.Mensagem ?? "Não foi possível abrir a sessão.");
     }
 
-    internal void Retomar(SessaoItem item)
+    internal async Task Retomar(SessaoItem item)
     {
         if (!DadosDisponiveis) return;
 
@@ -276,14 +280,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         if (item.Registrada is { } registrada)
         {
-            var r = _abertura.Retomar(registrada);
+            var r = await Abrir(() => _abertura.Retomar(registrada));
             if (!r.Ok) MostrarErro(r.Mensagem ?? "Não foi possível retomar a sessão.");
             return;
         }
-        if (item.Lida is { } lida) RetomarNaoRegistrada(lida);
+        if (item.Lida is { } lida) await RetomarNaoRegistrada(lida);
     }
 
-    private void RetomarNaoRegistrada(Sessao lida)
+    private async Task RetomarNaoRegistrada(Sessao lida)
     {
         var pedido = PedidoVinculo.Criar(lida);
         if (pedido is null)
@@ -308,7 +312,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 + "A retomada pode não encontrar a conversa.", "Retomar"))
             return;
 
-        var r = _abertura.RetomarNaoRegistrada(pedido, escolhida);
+        var r = await Abrir(() => _abertura.RetomarNaoRegistrada(pedido, escolhida));
         RecarregarEAplicar();
         if (!r.Ok) MostrarErro(r.Mensagem ?? "Não foi possível retomar a sessão.");
     }
@@ -329,10 +333,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         => _estadoDados.Demandas.SelectMany(d => d.Repositorios).SelectMany(x => x.Lancamentos)
             .Any(l => string.Equals(l.Id, id, StringComparison.OrdinalIgnoreCase));
 
-    internal void AbrirLancamento(LancamentoItem item)
+    internal async Task AbrirLancamento(LancamentoItem item)
     {
         if (!DadosDisponiveis) return;
-        var r = _abertura.ReabrirLancamento(item.Id);
+        var r = await Abrir(() => _abertura.ReabrirLancamento(item.Id));
         RecarregarEAplicar();
         // Só é erro se o lançamento continua no arquivo, ou seja, se a falha foi ao gravar ou ao iniciar o terminal.
         if (!r.Ok && LancamentoExiste(item.Id)) MostrarErro(r.Mensagem ?? "Não foi possível abrir a sessão.");

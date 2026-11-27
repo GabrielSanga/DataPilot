@@ -16,7 +16,7 @@ public sealed partial class DadosPainel
     /// são removidos na mesma gravação.
     /// </summary>
     public ResultadoOperacao RegistrarLancamento(string demandaId, string pasta, Agente agente, string lancamentoId,
-        string? rotulo, DateTimeOffset criadoEm)
+        string? rotulo, DateTimeOffset criadoEm, Execucao execucao = Execucao.Windows)
     {
         if (!ValidadorEntrada.RepositorioValido(pasta)) return ResultadoOperacao.Falha(ValidadorEntrada.MensagemRepositorio);
         if (!ValidadorEntrada.IdentificadorValido(lancamentoId)) return ResultadoOperacao.Falha("Identificador de lançamento inválido.");
@@ -41,6 +41,7 @@ public sealed partial class DadosPainel
             {
                 ["id"] = lancamentoId,
                 ["agente"] = Agentes.NoArquivo(agente),
+                ["execucao"] = Execucoes.NoArquivo(execucao),
             };
             if (rotulo is not null) novo["rotulo"] = rotulo;
             novo["criadoEm"] = criadoEm.ToString("o", CultureInfo.InvariantCulture);
@@ -114,10 +115,13 @@ public sealed partial class DadosPainel
             if (SessoesComId(raiz, pedido.SessionId).Any())
                 return ResultadoOperacao.Falha("Esta sessão já está registrada.");
 
+            if (!TentarLerExecucao(lancamento, out var execucao))
+                return ResultadoOperacao.Falha("Ambiente de execução do lançamento inválido.");
+
             var rotulo = Texto(lancamento, "rotulo");
             if (!ValidadorEntrada.RotuloValido(rotulo)) rotulo = null;
 
-            AdicionarSessao(repo, pedido.Agente, pedido.SessionId, rotulo, vinculadaEm, vinculadaEm);
+            AdicionarSessao(repo, pedido.Agente, pedido.SessionId, rotulo, vinculadaEm, vinculadaEm, execucao);
             lista.Remove(lancamento);
             return ResultadoOperacao.Sucesso;
         });

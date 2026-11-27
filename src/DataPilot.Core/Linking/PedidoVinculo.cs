@@ -40,13 +40,17 @@ public static class RegrasVinculo
 
     /// <summary>
     /// Repositório da raiz: o último segmento da pasta de trabalho é o nome dele. Repositório fora da raiz: a pasta de
-    /// trabalho é o próprio caminho. Sem diferenciar maiúsculas. Só decide pré-seleção, aviso e vínculo automático;
+    /// trabalho é o próprio caminho, no Windows ou no container. Sem diferenciar maiúsculas. Só decide pré-seleção, aviso e vínculo automático;
     /// nunca é gravada.
     /// </summary>
     public static bool PastaCoincide(string pastaDeTrabalho, string repositorio)
-        => ValidadorEntrada.CaminhoValido(repositorio)
-            ? string.Equals(pastaDeTrabalho.TrimEnd('\\', '/'), repositorio, StringComparison.OrdinalIgnoreCase)
-            : string.Equals(TextoExibicao.NomePasta(pastaDeTrabalho), repositorio, StringComparison.OrdinalIgnoreCase);
+    {
+        if (!ValidadorEntrada.CaminhoValido(repositorio))
+            return string.Equals(TextoExibicao.NomePasta(pastaDeTrabalho), repositorio, StringComparison.OrdinalIgnoreCase);
+        var aparada = pastaDeTrabalho.TrimEnd('\\', '/');
+        return string.Equals(aparada, repositorio, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(aparada, LocaisContainer.Traduzir(repositorio), StringComparison.OrdinalIgnoreCase);
+    }
 
     /// <summary>Avisar antes de vincular quando a pasta informada pela sessão não coincide com o repositório escolhido.</summary>
     public static bool AvisarPastaDivergente(string pastaDeTrabalho, string repositorio) => !PastaCoincide(pastaDeTrabalho, repositorio);

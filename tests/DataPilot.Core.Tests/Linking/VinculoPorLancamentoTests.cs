@@ -50,7 +50,7 @@ public class VinculoPorLancamentoTests
         dados.VincularPorLancamento(Pedido(S1), "CHG-142", "Faturamento", L1, quando);
 
         var no = ((JsonObject)JsonNode.Parse(File.ReadAllText(dados.Caminho))!)["demandas"]![0]!["repositorios"]![0]!["sessoes"]![0]!.AsObject();
-        Assert.Equal(["agente", "sessionId", "rotulo", "criadaEm", "vinculadaEm"], no.Select(p => p.Key));
+        Assert.Equal(["agente", "sessionId", "execucao", "rotulo", "criadaEm", "vinculadaEm"], no.Select(p => p.Key));
         Assert.Equal("codex", (string)no["agente"]!);
         Assert.Equal(quando, DateTimeOffset.Parse((string)no["vinculadaEm"]!));
         Assert.DoesNotContain("Outra", File.ReadAllText(dados.Caminho));

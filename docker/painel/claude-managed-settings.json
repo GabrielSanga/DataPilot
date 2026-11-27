@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [{ "type": "command", "command": "node", "args": ["/opt/painel/hook.mjs", "claude"] }] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [{ "type": "command", "command": "node", "args": ["/opt/painel/hook.mjs", "claude"] }] }
+    ],
+    "PostToolUse": [
+      { "hooks": [{ "type": "command", "command": "node", "args": ["/opt/painel/hook.mjs", "claude"], "async": true }] }
+    ],
+    "PermissionRequest": [
+      { "hooks": [{ "type": "command", "command": "node", "args": ["/opt/painel/hook.mjs", "claude"] }] }
+    ],
+    "Notification": [
+      {
+        "matcher": "permission_prompt|elicitation_dialog",
+        "hooks": [{ "type": "command", "command": "node", "args": ["/opt/painel/hook.mjs", "claude"] }]
+      }
+    ],
+    "Stop": [
+      { "hooks": [{ "type": "command", "command": "node", "args": ["/opt/painel/hook.mjs", "claude"] }] }
+    ],
+    "SessionEnd": [
+      { "hooks": [{ "type": "command", "command": "node", "args": ["/opt/painel/hook.mjs", "claude"], "timeout": 10 }] }
+    ]
+  }
+}

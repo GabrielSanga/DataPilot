@@ -14,15 +14,15 @@ public class MontadorComandoSshTests
         => MontadorComando.Novo("CHG-142", "Ajuste", Repo, Agente.Claude, Id, null, c).Argumentos.Skip(6).Take(4).ToList();
 
     [Fact]
-    public void Ssh_com_usuario_padrao() => Assert.Equal(["ssh", "-t", "ia@localhost", "powershell"], Apos(new(true, "ia")));
+    public void Ssh_com_usuario_padrao() => Assert.Equal(["ssh", "-t", "ia@localhost", "powershell"], Apos(Fabrica.Ssh(true, "ia")));
 
     [Fact]
-    public void Ssh_com_outro_usuario() => Assert.Equal(["ssh", "-t", "agente-ia@localhost", "powershell"], Apos(new(true, "agente-ia")));
+    public void Ssh_com_outro_usuario() => Assert.Equal(["ssh", "-t", "agente-ia@localhost", "powershell"], Apos(Fabrica.Ssh(true, "agente-ia")));
 
     [Fact]
     public void Sem_ssh_o_powershell_vem_logo_depois_do_titulo()
     {
-        var args = MontadorComando.Novo("CHG-142", "Ajuste", Repo, Agente.Claude, Id, null, new(false, "ia")).Argumentos;
+        var args = MontadorComando.Novo("CHG-142", "Ajuste", Repo, Agente.Claude, Id, null, Fabrica.Ssh(false, "ia")).Argumentos;
         Assert.Equal("powershell", args[6]);
         Assert.DoesNotContain("ssh", args);
         Assert.DoesNotContain("-t", args);
@@ -30,7 +30,7 @@ public class MontadorComandoSshTests
 
     [Fact]
     public void Usuario_invalido_com_ssh_e_recusado()
-        => Assert.Throws<EntradaInvalidaException>(() => Apos(new(true, "-oProxyCommand=calc")));
+        => Assert.Throws<EntradaInvalidaException>(() => Apos(Fabrica.Ssh(true, "-oProxyCommand=calc")));
 
     [Fact]
     public void Abertura_usa_as_configuracoes_gravadas()
@@ -39,7 +39,7 @@ public class MontadorComandoSshTests
         var dados = new DadosPainel(Path.Combine(pasta.Caminho, "demandas.json"));
         dados.CriarDemanda("CHG-142", "Ajuste", null, Fabrica.Agora);
         dados.VincularRepositorio("CHG-142", "Faturamento");
-        dados.SalvarConfiguracoes(new Configuracoes(false, "ia"));
+        dados.SalvarConfiguracoes(Fabrica.Ssh(false, "ia"));
         var disparador = new DisparadorFalso();
         var abertura = new AberturaSessao(dados, disparador, new RelogioFalso(Fabrica.Agora));
         Assert.True(abertura.Nova("CHG-142", "Faturamento", Agente.Codex, null).Ok);

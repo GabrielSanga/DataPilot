@@ -21,6 +21,15 @@ public static partial class ValidadorEntrada
 
     public const string MensagemUsuarioSsh = "Usuário do SSH inválido: use de 1 a 20 caracteres entre letras, dígitos, \"_\", \".\" e \"-\", sem começar com \"-\" nem \".\".";
 
+    public const string MensagemContainer = "Nome do container inválido: use de 1 a 63 caracteres entre letras, dígitos, \"_\", \".\" e \"-\", começando por letra ou dígito.";
+
+    [GeneratedRegex(@"\A[A-Za-z0-9][A-Za-z0-9_.-]{0,62}\z")]
+    private static partial Regex PadraoContainer();
+
+    /// <summary>Começa por letra ou dígito, para o valor nunca virar uma opção do <c>docker</c>.</summary>
+    public static bool ContainerValido(string? nome)
+        => nome is not null && PadraoContainer().IsMatch(nome);
+
     [GeneratedRegex(@"\A[A-Za-z0-9_][A-Za-z0-9_.-]{0,19}\z")]
     private static partial Regex PadraoUsuarioSsh();
 

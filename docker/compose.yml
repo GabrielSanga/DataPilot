@@ -1,0 +1,68 @@
+name: datapilot
+
+services:
+# Agente do DataPilot: executa Claude Code e Codex, acessando o mundo externo apenas via proxy.
+  agente:
+    build: .
+    image: datapilot-agente
+    container_name: datapilot-agente
+    init: true
+    restart: unless-stopped
+    depends_on:
+      - proxy
+    environment:
+      TZ: ${TZ:-America/Sao_Paulo}
+      CLAUDE_CONFIG_DIR: /home/node/.claude
+      DISABLE_AUTOUPDATER: "1"
+      HTTP_PROXY: http://proxy:3128
+      HTTPS_PROXY: http://proxy:3128
+      http_proxy: http://proxy:3128
+      https_proxy: http://proxy:3128
+      NO_PROXY: localhost,127.0.0.1
+      no_proxy: localhost,127.0.0.1
+    # Pastas visiveis para o agente
+    volumes:
+      # Workspace
+      - type: bind
+        source: ${RAIZ_FONTES:-C:\Fontes}
+        target: /workspace
+      # OpenSpec ERP
+      - type: bind
+        source: C:\openspec\ERP
+        target: /openspec/ERP
+      # Status do agente (sessoes, logs, etc)
+      - type: bind
+        source: C:\ProgramData\Painel\sessoes
+        target: /status
+      - claude:/home/node/.claude
+      - codex:/home/node/.codex
+    # O agente não tem acesso a rede externa, apenas ao proxy. O proxy tem acesso a rede externa.
+    networks:
+      - interna
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+# Proxy Squid para acesso externo.
+  proxy:
+    image: ubuntu/squid:6.6-24.04_edge
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-America/Sao_Paulo}
+    volumes:
+      - ./proxy/squid.conf:/etc/squid/squid.conf:ro
+    networks:
+      - interna
+      - externa
+
+networks:
+  interna:
+    internal: true
+  externa:
+
+volumes:
+  claude:
+    name: datapilot-claude
+  codex:
+    name: datapilot-codex

@@ -1,0 +1,23 @@
+{
+  "description": "DataPilot: grava o status de cada sessao em /status",
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [{ "type": "command", "command": "node /opt/painel/hook.mjs codex" }] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [{ "type": "command", "command": "node /opt/painel/hook.mjs codex" }] }
+    ],
+    "PostToolUse": [
+      { "hooks": [{ "type": "command", "command": "node /opt/painel/hook.mjs codex", "async": true }] }
+    ],
+    "PermissionRequest": [
+      { "hooks": [{ "type": "command", "command": "node /opt/painel/hook.mjs codex" }] }
+    ],
+    "Stop": [
+      { "hooks": [{ "type": "command", "command": "node /opt/painel/hook.mjs codex" }] }
+    ],
+    "SessionEnd": [
+      { "hooks": [{ "type": "command", "command": "node /opt/painel/hook.mjs codex", "timeout": 3 }] }
+    ]
+  }
+}

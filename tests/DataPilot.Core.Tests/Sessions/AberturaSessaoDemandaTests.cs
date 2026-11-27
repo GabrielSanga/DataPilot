@@ -14,6 +14,7 @@ public class AberturaSessaoDemandaTests
     {
         var pasta = new PastaTemporaria();
         var dados = new DadosPainel(Path.Combine(pasta.Caminho, "demandas.json"));
+        dados.SalvarConfiguracoes(Fabrica.Windows);
         dados.CriarDemanda("A", "A", null, Fabrica.Agora);
         dados.CriarDemanda("B", "B", null, Fabrica.Agora);
         dados.VincularRepositorio("A", "Faturamento");

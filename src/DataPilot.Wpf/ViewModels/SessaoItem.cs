@@ -51,7 +51,7 @@ public sealed partial class SessaoItem : ObservableObject
     {
         SessionId = sessionId;
         _painel = painel;
-        RetomarCommand = new RelayCommand(() => _painel.Retomar(this));
+        RetomarCommand = new AsyncRelayCommand(() => _painel.Retomar(this));
         ExcluirCommand = new RelayCommand(() => _painel.ExcluirSessao(this));
         VincularCommand = new RelayCommand(() => _painel.VincularSessao(this));
     }

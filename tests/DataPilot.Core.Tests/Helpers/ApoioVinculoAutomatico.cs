@@ -17,6 +17,7 @@ internal static class ApoioVinculoAutomatico
     {
         var pasta = new PastaTemporaria();
         var dados = new DadosPainel(Path.Combine(pasta.Caminho, "demandas.json"));
+        dados.SalvarConfiguracoes(Fabrica.Windows);
         foreach (var d in demandas)
         {
             dados.CriarDemanda(d, d, null, Base);

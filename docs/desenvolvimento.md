@@ -14,6 +14,8 @@ dotnet run --project src/DataPilot.Wpf
 
 O painel lê `C:\ProgramData\Painel\sessoes` por padrão e nunca escreve nela.
 
+As sessões novas abrem no container Docker por padrão ([instalacao-container.md](instalacao-container.md), que também traz a verificação dos scripts do container). Onde este guia fala em `abrir.ps1`, SSH e usuário `ia`, trata-se do modo **Windows** das configurações.
+
 ### Nomes na tela e no arquivo
 
 Na tela, o que o arquivo de dados, o código e as specs chamam de **demanda** é o **trabalho**, e a entrada que reúne as sessões fora de trabalhos é **Sessões** (a demanda fixa `sem-demanda`, que o painel cria sozinho quando precisa). Neste README, "trabalho" e "Sessões" são os nomes da tela; `demandas.json`, `sem-demanda` e `openspecChange` são os do arquivo.

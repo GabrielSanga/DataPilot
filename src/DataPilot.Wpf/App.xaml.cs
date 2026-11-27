@@ -38,7 +38,7 @@ public partial class App : Application
         // Falha (sem permissão, caminho inválido) cai no aviso de pasta indisponível do leitor.
         try { Directory.CreateDirectory(pasta); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException) { }
         var dados = new DadosPainel(caminhoTrabalhos ?? DadosPainel.CaminhoPadrao);
-        var abertura = new AberturaSessao(dados, new DisparadorProcesso(), TimeProvider.System);
+        var abertura = new AberturaSessao(dados, new DisparadorContainer(new DisparadorProcesso(), new ExecutorProcesso()), TimeProvider.System);
         var leitorTasks = new LeitorTasks(caminhoFontes ?? Constantes.RaizFontesPadrao);
 
         // Cria a ViewModel principal
