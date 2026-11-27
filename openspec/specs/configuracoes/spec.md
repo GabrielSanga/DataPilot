@@ -1,17 +1,9 @@
-## ADDED Requirements
+# configuracoes Specification
 
-### Requirement: Validação do nome do container
-O nome do container SHALL ter de 1 a 63 caracteres entre letras, dígitos, `_`, `.` e `-`, e SHALL começar com letra ou dígito. Um valor fora da regra SHALL ser recusado com o erro junto do campo, sem gravar nada.
+## Purpose
+Permite ver, numa tela do próprio painel, a pasta de status das sessões de IA em uso e ajustar a forma de abrir os agentes (pelo SSH local, com o usuário escolhido, ou direto), sem recompilar.
 
-#### Scenario: Nome que vira opção do docker
-- **WHEN** o usuário informa `--privileged` como nome do container e salva
-- **THEN** o erro aparece junto do campo e nada é gravado
-
-#### Scenario: Nome vazio
-- **WHEN** o nome do container está vazio e o usuário salva
-- **THEN** o erro aparece junto do campo e nada é gravado
-
-## MODIFIED Requirements
+## Requirements
 
 ### Requirement: Tela de configurações
 O painel SHALL oferecer, na janela principal, a ação "Configurações", que abre um diálogo com a pasta de status das sessões de IA em uso, só para leitura; "Executar os agentes em", com as opções "Container Docker" e "Windows"; o nome do container; "Abrir pelo SSH" e o usuário do SSH. O nome do container SHALL ficar desabilitado quando "Windows" estiver escolhido. "Abrir pelo SSH" e o usuário do SSH SHALL continuar editáveis com "Container Docker" escolhido, porque valem para retomar as sessões abertas no Windows. O usuário do SSH SHALL ficar desabilitado quando "Abrir pelo SSH" estiver desligado. "Salvar" grava e fecha; "Cancelar" e Esc fecham sem gravar.
@@ -47,6 +39,17 @@ Sem configuração gravada, o painel SHALL usar "Container Docker" como ambiente
 - **WHEN** o arquivo de dados tem `usarSsh` e `usuarioSsh` gravados e não tem `execucao`
 - **THEN** o painel usa "Container Docker" e mantém os valores de SSH gravados
 
+### Requirement: Validação do usuário do SSH
+O usuário do SSH SHALL ter de 1 a 20 caracteres entre letras, dígitos, `_`, `.` e `-`, e SHALL NOT começar com `-` nem `.`. Um valor fora da regra SHALL ser recusado com o erro junto do campo, sem gravar nada.
+
+#### Scenario: Usuário que vira opção do ssh
+- **WHEN** o usuário informa `-oProxyCommand=calc` como usuário do SSH e salva
+- **THEN** o erro aparece junto do campo e nada é gravado
+
+#### Scenario: Usuário vazio com SSH ligado
+- **WHEN** "Abrir pelo SSH" está ligado, o usuário do SSH está vazio e o usuário salva
+- **THEN** o erro aparece junto do campo e nada é gravado
+
 ### Requirement: Configurações gravadas no arquivo de dados
 As configurações SHALL ser gravadas na seção `configuracoes` do arquivo de dados do painel (`execucao`, com `container` ou `windows`; `container`; `usarSsh`; `usuarioSsh`), com a gravação segura dos trabalhos. Ao carregar, um campo ausente ou inválido SHALL valer o padrão. Com o arquivo de dados ilegível, o painel SHALL usar os padrões e o diálogo SHALL NOT gravar.
 
@@ -76,3 +79,18 @@ O ambiente de execução e o nome do container SHALL valer a partir da próxima 
 #### Scenario: Retomar sessão do Windows com o container escolhido
 - **WHEN** "Container Docker" está escolhido e o usuário retoma uma sessão registrada no Windows
 - **THEN** a aba retoma no Windows, com as opções de SSH em uso
+
+#### Scenario: Desligar o SSH
+- **WHEN** o usuário desliga "Abrir pelo SSH", salva e aciona "Retomar" numa sessão registrada no Windows
+- **THEN** a aba chama o `abrir.ps1` direto, sem `ssh`
+
+### Requirement: Validação do nome do container
+O nome do container SHALL ter de 1 a 63 caracteres entre letras, dígitos, `_`, `.` e `-`, e SHALL começar com letra ou dígito. Um valor fora da regra SHALL ser recusado com o erro junto do campo, sem gravar nada.
+
+#### Scenario: Nome que vira opção do docker
+- **WHEN** o usuário informa `--privileged` como nome do container e salva
+- **THEN** o erro aparece junto do campo e nada é gravado
+
+#### Scenario: Nome vazio
+- **WHEN** o nome do container está vazio e o usuário salva
+- **THEN** o erro aparece junto do campo e nada é gravado

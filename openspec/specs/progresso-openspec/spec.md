@@ -4,20 +4,21 @@
 Mostra, na demanda selecionada, quantas tarefas da change do OpenSpec estão concluídas, lendo o `tasks.md` dos repositórios da demanda na pasta do usuário `ia` apenas para contar, sem seguir atalhos nem junções e sem que o conteúdo do arquivo vire ação ou texto exibido.
 
 ## Requirements
+
 ### Requirement: Localização do tasks.md
-Para cada repositório de uma demanda com `openspecChange`, o painel SHALL procurar `<raiz>\<pasta>\openspec\changes\<openspecChange>\tasks.md`, em que `<raiz>` é `C:\Fontes`, ou o valor de `--raiz-fontes` quando informado ao iniciar o painel. O caminho SHALL ser montado só com `pasta` e `openspecChange` do arquivo de dados, validados.
+Para cada repositório de uma demanda com change, própria ou herdada da demanda, o painel SHALL procurar `<raiz>\<pasta>\openspec\changes\<change>\tasks.md`, em que `<raiz>` é `C:\Fontes`, ou o valor de `--raiz-fontes` quando informado ao iniciar o painel. O caminho SHALL ser montado só com `pasta` e a change do arquivo de dados, validados.
 
 #### Scenario: Change ativa
-- **WHEN** a demanda `CHG-142` tem `openspecChange` `ajuste-boleto` e existe `C:\Fontes\Faturamento\openspec\changes\ajuste-boleto\tasks.md`
+- **WHEN** o repositório `Faturamento` tem a change `ajuste-boleto` e existe `C:\Fontes\Faturamento\openspec\changes\ajuste-boleto\tasks.md`
 - **THEN** o painel usa esse arquivo para o progresso do repositório `Faturamento`
 
 #### Scenario: Demanda sem change
-- **WHEN** a demanda não tem `openspecChange`
-- **THEN** o painel não procura nenhum `tasks.md` e não mostra progresso
+- **WHEN** o repositório não tem change, nem própria nem herdada
+- **THEN** o painel não procura nenhum `tasks.md` para ele e não mostra progresso no card
 
 #### Scenario: Repositório sem a change
-- **WHEN** a pasta da change não existe no repositório `Estoque` da demanda
-- **THEN** o repositório `Estoque` fica sem progresso, sem indicação de erro
+- **WHEN** o repositório `Estoque` tem uma change cuja pasta não existe nele, ativa nem arquivada
+- **THEN** o card `Estoque` indica que a change não foi encontrada
 
 ### Requirement: Change arquivada
 Quando a change ativa não existir num repositório, o painel SHALL usar o `tasks.md` da pasta de `openspec\changes\archive` cujo nome seja `AAAA-MM-DD-<openspecChange>`, com data válida, escolhendo a de data mais recente, e SHALL indicar que a change está arquivada. A change ativa SHALL ter prioridade sobre a arquivada.
@@ -65,27 +66,27 @@ O painel SHALL ler o `tasks.md` somente para contar, sem gravar, até 256 KB, se
 - **THEN** o painel lê sem impedir a gravação, ou tenta de novo na atualização seguinte
 
 ### Requirement: Exibição do progresso
-A demanda selecionada SHALL mostrar uma barra com a soma das tarefas concluídas e do total dos repositórios em que a change foi encontrada e lida, e cada card desses repositórios SHALL mostrar o progresso dele. Change arquivada SHALL ter a indicação "arquivada". Sem a change em nenhum repositório, SHALL mostrar "change não encontrada nos repositórios". Repositório ilegível SHALL ficar fora da soma, com "progresso indisponível".
+Cada card de repositório com change SHALL mostrar o nome da change, uma barra e o progresso dela. Change arquivada SHALL ter a indicação "arquivada"; change não encontrada, "change não encontrada"; arquivo ilegível, "progresso indisponível"; arquivo sem tarefas, "sem tarefas". A área do trabalho SHALL NOT mostrar soma nem change.
 
 #### Scenario: Change em dois repositórios
-- **WHEN** `Faturamento` tem 4 de 6 tarefas concluídas e `Estoque` tem 3 de 6
-- **THEN** a barra da demanda mostra 7 de 12 tarefas, o card `Faturamento` mostra 4 de 6 e o card `Estoque` mostra 3 de 6
+- **WHEN** `Faturamento` tem 4 de 6 tarefas concluídas na sua change e `Estoque` tem 3 de 6 na dele
+- **THEN** o card `Faturamento` mostra 4 de 6, o card `Estoque` mostra 3 de 6, e o topo do trabalho não mostra soma
 
 #### Scenario: Change não encontrada
-- **WHEN** a demanda tem `openspecChange` e nenhum repositório tem a change, ativa ou arquivada
-- **THEN** a área da demanda mostra "change não encontrada nos repositórios" e nenhum card mostra progresso
+- **WHEN** um repositório tem change e ela não existe nele, ativa nem arquivada
+- **THEN** o card dele mostra "change não encontrada", sem barra
 
 #### Scenario: Um repositório ilegível
-- **WHEN** `Faturamento` tem 4 de 6 e o `tasks.md` de `Estoque` é recusado
-- **THEN** a barra mostra 4 de 6 e o card `Estoque` mostra "progresso indisponível"
+- **WHEN** o `tasks.md` da change de `Estoque` é recusado
+- **THEN** o card `Estoque` mostra "progresso indisponível" e o card `Faturamento` continua com o progresso dele
 
 ### Requirement: Atualização do progresso
-O progresso da demanda selecionada SHALL refletir uma alteração no `tasks.md` em até 5 segundos e SHALL ser atualizado ao selecionar outra demanda, sem vigiar as pastas do usuário `ia` e sem mudar a demanda selecionada.
+O progresso dos repositórios do trabalho selecionado SHALL refletir uma alteração no `tasks.md` em até 5 segundos e SHALL ser atualizado ao selecionar outro trabalho ou trocar a change de um repositório, sem vigiar as pastas do usuário `ia` e sem mudar o item selecionado.
 
 #### Scenario: Tarefa marcada pelo agente
-- **WHEN** o agente marca uma tarefa no `tasks.md` com a demanda selecionada
-- **THEN** a barra e o card passam a mostrar uma tarefa concluída a mais em até 5 segundos
+- **WHEN** o agente marca uma tarefa no `tasks.md` com o trabalho selecionado
+- **THEN** o card do repositório passa a mostrar uma tarefa concluída a mais em até 5 segundos
 
 #### Scenario: Troca de demanda
-- **WHEN** o usuário seleciona outra demanda com `openspecChange`
-- **THEN** o progresso dessa demanda aparece sem esperar o ciclo seguinte
+- **WHEN** o usuário seleciona outro trabalho com repositórios que têm change
+- **THEN** o progresso de cada repositório aparece sem esperar o ciclo seguinte

@@ -66,19 +66,23 @@ O painel SHALL permitir remover um repositório de uma demanda. Se o repositóri
 - **THEN** o repositório e as sessões da outra demanda permanecem
 
 ### Requirement: Registro das sessões abertas pelo painel
-Ao abrir uma sessão nova do Claude, o painel SHALL registrar no repositório escolhido o agente, o identificador da sessão, o rótulo e a data de criação, antes de iniciar o terminal. Ao abrir uma sessão nova do Codex, cujo identificador ainda não existe, o painel SHALL registrar no repositório um lançamento pendente com o agente, o rótulo e a data, antes de iniciar o terminal. Se o terminal não puder ser iniciado, o registro SHALL ser desfeito.
+Ao abrir uma sessão nova do Claude, o painel SHALL registrar no repositório escolhido o agente, o identificador da sessão, o rótulo, a data de criação e o ambiente de execução, antes de iniciar o terminal. Ao abrir uma sessão nova do Codex, cujo identificador ainda não existe, o painel SHALL registrar no repositório um lançamento pendente com o agente, o rótulo, a data e o ambiente de execução, antes de iniciar o terminal. Se o terminal não puder ser iniciado, o registro SHALL ser desfeito.
 
 #### Scenario: Sessão nova do Claude
-- **WHEN** o usuário abre uma sessão nova do Claude no repositório `Faturamento`
-- **THEN** o arquivo de dados passa a ter, nesse repositório, uma sessão com `agente` `claude` e o identificador gerado
+- **WHEN** o usuário abre uma sessão nova do Claude no repositório `Faturamento`, com "Container Docker" escolhido
+- **THEN** o arquivo de dados passa a ter, nesse repositório, uma sessão com `agente` `claude`, o identificador gerado e `execucao` `container`
 
 #### Scenario: Terminal não inicia
 - **WHEN** o painel registra a sessão e a abertura do terminal falha
 - **THEN** a sessão registrada é removida do arquivo de dados
 
+#### Scenario: Container indisponível
+- **WHEN** o painel registra a sessão e o ambiente do container está indisponível
+- **THEN** a sessão registrada é removida do arquivo de dados
+
 #### Scenario: Sessão nova do Codex
 - **WHEN** o usuário abre uma sessão nova do Codex no repositório `Faturamento` da demanda `CHG-142`
-- **THEN** nenhuma sessão é registrada no arquivo de dados, e o repositório `Faturamento` de `CHG-142` passa a ter um lançamento pendente com `agente` `codex`, o rótulo informado e a data
+- **THEN** nenhuma sessão é registrada no arquivo de dados, e o repositório `Faturamento` de `CHG-142` passa a ter um lançamento pendente com `agente` `codex`, o rótulo informado, a data e o ambiente de execução em uso
 
 #### Scenario: Terminal do Codex não inicia
 - **WHEN** o painel registra o lançamento e a abertura do terminal falha
@@ -89,19 +93,23 @@ Ao abrir uma sessão nova do Claude, o painel SHALL registrar no repositório es
 - **THEN** nenhum lançamento é registrado
 
 ### Requirement: Dados de status nunca são gravados
-O painel SHALL NOT copiar para o arquivo de dados nenhum valor lido de arquivos de status, com uma única exceção: no vínculo de uma sessão, acionado pelo usuário ou feito por correspondência com um lançamento pendente, o identificador da sessão, validado como GUID canônico, e o agente SHALL poder ser gravados.
+O painel SHALL NOT copiar para o arquivo de dados nenhum valor lido de arquivos de status, com duas exceções: no vínculo de uma sessão, acionado pelo usuário, feito por correspondência com um lançamento pendente ou ao retomar uma sessão não registrada, o identificador, validado como GUID canônico, e o agente; e, na exclusão acionada pelo usuário, o identificador e o agente da sessão excluída.
 
 #### Scenario: Sessão desconhecida aparece na pasta de status
-- **WHEN** surge um arquivo de status de uma sessão que o painel não abriu, sem lançamento pendente que corresponda a ela, e o usuário não aciona o vínculo
+- **WHEN** surge um arquivo de status de uma sessão que o painel não abriu, sem lançamento pendente que corresponda a ela, e o usuário não aciona nenhuma ação sobre ela
 - **THEN** o arquivo de dados permanece inalterado
 
 #### Scenario: Vínculo acionado pelo usuário
-- **WHEN** o usuário vincula uma sessão não vinculada
+- **WHEN** o usuário vincula uma sessão de "Sessões" a um trabalho
 - **THEN** o arquivo de dados passa a ter o identificador e o agente dessa sessão, e nenhum outro valor do arquivo de status
 
 #### Scenario: Vínculo por lançamento
 - **WHEN** o painel vincula uma sessão por correspondência com um lançamento pendente
 - **THEN** o arquivo de dados passa a ter o identificador e o agente dessa sessão, e nenhum outro valor do arquivo de status
+
+#### Scenario: Exclusão
+- **WHEN** o usuário exclui uma sessão
+- **THEN** o arquivo de dados passa a ter o identificador e o agente dela em `excluidas`, e nenhum outro valor do arquivo de status
 
 ### Requirement: Validação ao carregar
 Ao carregar o arquivo de dados, o painel SHALL desconsiderar repositórios cuja `pasta` não siga a regra do cadastro ou repita a de um repositório anterior da mesma demanda, e sessões cujo `sessionId` não seja um GUID canônico ou cujo `agente` não seja `claude` nem `codex`. As entradas desconsideradas SHALL NOT ser usadas em nenhum comando.
@@ -137,37 +145,37 @@ Cada alteração SHALL ser gravada de modo que o arquivo de dados contenha sempr
 - **THEN** o campo desconhecido continua no arquivo depois da gravação
 
 ### Requirement: Campos da demanda
-Cada demanda do arquivo de dados SHALL ter `id`, `titulo`, `arquivada` e `repositorios`, e SHALL poder ter `openspecChange` e `criadaEm`. Demandas criadas pelo painel SHALL ser gravadas com `criadaEm`. Na carga, a ausência de `openspecChange`, `criadaEm` ou `arquivada` SHALL ser aceita, tratando `arquivada` ausente como falso.
+Cada demanda do arquivo de dados SHALL ter `id`, `titulo`, `arquivada` e `repositorios`, e SHALL poder ter `criadaEm`. Demandas criadas pelo painel SHALL ser gravadas com `criadaEm` e sem `openspecChange`. Na carga, a ausência de `openspecChange`, `criadaEm` ou `arquivada` SHALL ser aceita, tratando `arquivada` ausente como falso, e um `openspecChange` presente SHALL ser preservado ao gravar.
 
 #### Scenario: Demanda criada pelo painel
-- **WHEN** o usuário cria uma demanda
-- **THEN** o arquivo de dados passa a ter um objeto com `id`, `titulo`, `criadaEm`, `arquivada` falso e `repositorios` vazio
+- **WHEN** o usuário cria um trabalho
+- **THEN** o arquivo de dados passa a ter um objeto com `id` gerado, `titulo`, `criadaEm`, `arquivada` falso e `repositorios` vazio, sem `openspecChange`
 
 #### Scenario: Arquivo gravado por versão anterior
 - **WHEN** o arquivo de dados tem a demanda `sem-demanda` sem `criadaEm` nem `openspecChange`
 - **THEN** a demanda é carregada normalmente, com seus repositórios e sessões
 
 ### Requirement: Sessão única no arquivo
-Um mesmo identificador de sessão SHALL constar no máximo uma vez no arquivo de dados. Na carga, se um identificador aparecer mais de uma vez, apenas a primeira ocorrência SHALL ser considerada.
+Um mesmo identificador de sessão SHALL constar no máximo uma vez entre as sessões registradas do arquivo de dados. Na carga, se um identificador aparecer mais de uma vez, apenas a primeira ocorrência SHALL ser considerada.
 
 #### Scenario: Identificador repetido em duas demandas
 - **WHEN** o arquivo de dados, editado à mão, traz o mesmo `sessionId` em duas demandas
 - **THEN** a sessão aparece só na primeira delas
 
 #### Scenario: Mover sessão
-- **WHEN** uma sessão é movida para outra demanda
-- **THEN** o identificador dela consta apenas na demanda de destino
+- **WHEN** uma sessão registrada em "Sessões" é vinculada a um trabalho
+- **THEN** o identificador dela passa a constar apenas no trabalho de destino
 
 ### Requirement: Validação das demandas ao carregar
-Ao carregar o arquivo de dados, o painel SHALL desconsiderar demandas cujo `id` ou `titulo` não sigam as regras de criação ou cujo `id` repita o de uma demanda anterior. Um `openspecChange` inválido SHALL ser tratado como ausente. Demandas desconsideradas SHALL NOT aparecer no painel nem ser usadas em comandos.
+Ao carregar o arquivo de dados, o painel SHALL desconsiderar demandas cujo `id` ou `titulo` não sigam as regras ou cujo `id` repita o de uma demanda anterior. Um `openspecChange` inválido, na demanda ou no repositório, SHALL ser tratado como ausente. Demandas desconsideradas SHALL NOT aparecer no painel nem ser usadas em comandos.
 
 #### Scenario: Demanda com identificador inválido
 - **WHEN** o arquivo de dados contém uma demanda cujo `id` tem `;`
 - **THEN** essa demanda não aparece no painel e nada dela é usado em comandos
 
 #### Scenario: Change do OpenSpec inválida
-- **WHEN** uma demanda do arquivo de dados tem `openspecChange` com caracteres fora do permitido
-- **THEN** a demanda é carregada sem `openspecChange`
+- **WHEN** um repositório do arquivo de dados tem `openspecChange` com caracteres fora do permitido
+- **THEN** o repositório é carregado sem change própria
 
 ### Requirement: Registro de lançamentos pendentes
 O arquivo de dados SHALL guardar, em cada repositório de uma demanda, a lista `lancamentos` dos lançamentos pendentes, cada um com `id`, `agente`, `criadoEm` e, quando informado, `rotulo`. Um lançamento SHALL ser removido na mesma gravação em que vincula uma sessão. Na carga, lançamentos com `id` que não seja um GUID canônico, agente desconhecido, data inválida ou rótulo inválido SHALL ser desconsiderados. Lançamentos com mais de 24 horas SHALL poder ser removidos pelo painel ao gravar.
@@ -187,3 +195,52 @@ O arquivo de dados SHALL guardar, em cada repositório de uma demanda, a lista `
 #### Scenario: Lançamento vencido removido
 - **WHEN** o painel grava um lançamento novo num repositório que tem outro registrado há mais de 24 horas
 - **THEN** o lançamento antigo é removido do arquivo
+
+### Requirement: Change do OpenSpec no repositório
+Cada repositório de uma demanda SHALL poder ter `openspecChange`, validado com a regra de nome de pasta e até 100 caracteres. Na carga, um `openspecChange` inválido no repositório SHALL ser tratado como ausente, e um repositório sem change própria SHALL usar o `openspecChange` válido da demanda, se o arquivo tiver um. O painel SHALL NOT gravar `openspecChange` na demanda.
+
+#### Scenario: Change gravada no repositório
+- **WHEN** o usuário escolhe a change `ajuste-boleto` para o repositório `Faturamento`
+- **THEN** o objeto do repositório no arquivo de dados passa a ter `openspecChange` `ajuste-boleto`, e a demanda não ganha esse campo
+
+#### Scenario: Arquivo com a change na demanda
+- **WHEN** o arquivo de dados, gravado por versão anterior, tem `openspecChange` na demanda e não nos repositórios
+- **THEN** os repositórios da demanda usam essa change
+
+#### Scenario: Repositório com change própria
+- **WHEN** a demanda tem `openspecChange` antiga e o repositório tem a própria
+- **THEN** o repositório usa a própria
+
+### Requirement: Sessões excluídas
+O arquivo de dados SHALL guardar na lista `excluidas` as sessões excluídas pelo usuário, cada uma com `agente`, `sessionId` e `excluidaEm`, com `sessionId` de 1 a 100 caracteres de `[A-Za-z0-9_-]`. A exclusão e a remoção do registro SHALL acontecer na mesma gravação. Sessões excluídas SHALL NOT aparecer no painel nem ser vinculadas automaticamente. Itens inválidos SHALL ser desconsiderados na carga.
+
+#### Scenario: Exclusão gravada
+- **WHEN** o usuário exclui uma sessão registrada
+- **THEN** a mesma gravação remove o registro e acrescenta o agente, o identificador e a data à lista `excluidas`
+
+#### Scenario: Sessão excluída com lançamento pendente
+- **WHEN** uma sessão excluída corresponderia a um lançamento pendente
+- **THEN** ela não é vinculada e o lançamento continua pendente
+
+#### Scenario: Arquivo sem a lista
+- **WHEN** o arquivo de dados foi gravado por versão anterior e não tem `excluidas`
+- **THEN** ele é carregado normalmente
+
+### Requirement: Ambiente de execução nos registros
+Cada sessão registrada e cada lançamento pendente SHALL guardar o ambiente em que foi aberto, no campo `execucao`, com `container` ou `windows`. Na carga, um registro sem `execucao` SHALL valer como `windows`, e um registro com valor desconhecido SHALL ser desconsiderado. O vínculo de uma sessão por lançamento pendente SHALL passar à sessão o `execucao` do lançamento.
+
+#### Scenario: Sessão registrada por uma versão anterior
+- **WHEN** o arquivo de dados tem uma sessão sem `execucao`
+- **THEN** ela é carregada com o ambiente `windows`
+
+#### Scenario: Ambiente desconhecido editado à mão
+- **WHEN** o arquivo de dados tem uma sessão com `execucao` igual a `wsl`
+- **THEN** essa sessão é desconsiderada na carga e nada dela é usado em comandos
+
+#### Scenario: Lançamento de uma versão anterior
+- **WHEN** o arquivo de dados tem um lançamento sem `execucao`
+- **THEN** ele é carregado com o ambiente `windows`
+
+#### Scenario: Vínculo por lançamento do container
+- **WHEN** o painel vincula uma sessão por um lançamento pendente com `execucao` `container`
+- **THEN** a sessão registrada fica com `execucao` `container`
