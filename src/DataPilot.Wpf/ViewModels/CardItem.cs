@@ -40,7 +40,7 @@ public sealed partial class CardItem : ObservableObject
     {
         Pasta = pasta;
         _painel = painel;
-        NovaSessaoCommand = new RelayCommand(() => _painel.NovaSessao(this));
+        NovaSessaoCommand = new AsyncRelayCommand(() => _painel.NovaSessao(this));
         TrocarChangeCommand = new RelayCommand(() => _painel.TrocarChange(this));
         RemoverRepositorioCommand = new RelayCommand(() => _painel.RemoverRepositorio(this));
     }

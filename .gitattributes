@@ -1,0 +1,2 @@
+# Os arquivos do container rodam no Linux: com CRLF o bash e o squid falham.
+docker/** text eol=lf

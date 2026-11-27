@@ -30,7 +30,7 @@ public sealed partial class LancamentoItem : ObservableObject
     {
         Id = id;
         _painel = painel;
-        AbrirCommand = new RelayCommand(() => _painel.AbrirLancamento(this));
+        AbrirCommand = new AsyncRelayCommand(() => _painel.AbrirLancamento(this));
         CancelarCommand = new RelayCommand(() => _painel.CancelarLancamento(this));
     }
 

@@ -24,6 +24,10 @@ public sealed partial class DadosPainel(string caminho)
 
     public string Caminho { get; } = caminho;
 
+    // A abertura roda fora da thread de interface (a verificação do container demora); a trava impede que duas
+    // operações do painel releiam e regravem o arquivo ao mesmo tempo.
+    private readonly Lock _trava = new();
+
     public static string CaminhoPadrao => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Painel", "demandas.json");
 
     // ---------- leitura ----------
@@ -31,6 +35,7 @@ public sealed partial class DadosPainel(string caminho)
 
     private ResultadoOperacao Alterar(Func<JsonObject, ResultadoOperacao> mudanca)
     {
+        using var _ = _trava.EnterScope();
         var leitura = Ler();
         if (leitura.Erro is not null)
             return ResultadoOperacao.Falha($"Arquivo de dados ilegível ({leitura.Erro}): {Caminho}");
@@ -87,6 +92,7 @@ public sealed partial class DadosPainel(string caminho)
 
     public EstadoDados Carregar()
     {
+        using var _ = _trava.EnterScope();
         var leitura = Ler();
         return leitura.Erro is not null
             ? new EstadoDados(false, [], leitura.Erro)
@@ -154,11 +160,12 @@ public sealed partial class DadosPainel(string caminho)
                         {
                             if (!Agentes.TentarLer(Texto(s, "agente"), out var agente)) continue;
                             var sessionId = Texto(s, "sessionId");
+                            if (!TentarLerExecucao(s, out var execucao)) continue;
                             if (!ValidadorEntrada.IdentificadorValido(sessionId) || !idsSessao.Add(sessionId!)) continue;
                             var rotulo = Texto(s, "rotulo");
                             if (!ValidadorEntrada.RotuloValido(rotulo)) rotulo = null;
                             var criada = DateTimeOffset.TryParse(Texto(s, "criadaEm"), CultureInfo.InvariantCulture, DateTimeStyles.None, out var c) ? c : DateTimeOffset.MinValue;
-                            sessoes.Add(new SessaoRegistrada(agente, sessionId!, pasta!, rotulo, criada, id, tituloDemanda));
+                            sessoes.Add(new SessaoRegistrada(agente, sessionId!, pasta!, rotulo, criada, id, tituloDemanda, execucao));
                         }
                     }
                     var lancamentos = new List<LancamentoPendente>();
@@ -173,8 +180,9 @@ public sealed partial class DadosPainel(string caminho)
                             var rotuloLancamento = Texto(l, "rotulo");
                             // Rótulo ausente vale; rótulo presente e inválido invalida o lançamento.
                             if (l.ContainsKey("rotulo") && l["rotulo"] is not null && !ValidadorEntrada.RotuloValido(rotuloLancamento)) continue;
+                            if (!TentarLerExecucao(l, out var execucaoLancamento)) continue;
                             if (!idsLancamento.Add(idLancamento!)) continue;
-                            lancamentos.Add(new LancamentoPendente(idLancamento!, agenteLancamento, criadoEm, rotuloLancamento));
+                            lancamentos.Add(new LancamentoPendente(idLancamento!, agenteLancamento, criadoEm, rotuloLancamento, execucaoLancamento));
                         }
                     }
                     var changeRepo = Texto(repo, "openspecChange");
@@ -197,6 +205,13 @@ public sealed partial class DadosPainel(string caminho)
 
     private static string? Texto(JsonObject o, string nome)
         => o[nome] is JsonValue v && v.TryGetValue<string>(out var t) ? t : null;
+
+    /// <summary>Registro sem <c>execucao</c> é de uma versão anterior, que só abria no Windows; valor desconhecido invalida.</summary>
+    private static bool TentarLerExecucao(JsonObject registro, out Execucao execucao)
+    {
+        execucao = Execucao.Windows;
+        return registro["execucao"] is null || Execucoes.TentarLer(Texto(registro, "execucao"), out execucao);
+    }
 
     private static bool EstaArquivada(JsonObject demanda)
         => demanda["arquivada"] is JsonValue v && v.TryGetValue<bool>(out var arquivada) && arquivada;

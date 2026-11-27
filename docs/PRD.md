@@ -6,13 +6,15 @@
 
 ## Resumo e status
 
-O Painel de Demandas é um app desktop em WPF (.NET) que organiza sessões do Claude Code e do Codex por **demanda**, mostra o status de cada sessão e o progresso do OpenSpec, e abre ou retoma as sessões em abas do Windows Terminal via SSH no usuário isolado IA.
+O Painel de Demandas é um app desktop em WPF (.NET) que organiza sessões do Claude Code e do Codex por **demanda**, mostra o status de cada sessão e o progresso do OpenSpec, e abre ou retoma as sessões em abas do Windows Terminal. Os agentes rodam num container Docker isolado; o modo Windows (SSH no usuário isolado IA) é a alternativa.
 
 **Status atual:** isolamento pronto (usuário IA sem administrador + servidor SSH local configurado). Nenhum código do painel foi escrito.
 
 **Gatilho para construir:** usar por cerca de duas semanas só as ferramentas prontas dentro do usuário IA (`claude agents` para o Claude e `codex resume` para o Codex). Construir o painel apenas se continuarem faltando: visão por demanda que envolve vários repositórios, progresso do OpenSpec e Claude + Codex numa lista só.
 
-**Princípio:** o painel complementa os apps oficiais, não compete com eles. Ele só organiza e lança; quem roda os agentes é sempre o terminal. O isolamento pelo usuário `ia` (aba aberta por `ssh`) é o padrão; a tela de configurações do painel permite desligar o SSH ou trocar o usuário, e sem SSH o agente roda com os acessos de quem usa o painel.
+**Princípio:** o painel complementa os apps oficiais, não compete com eles. Ele só organiza e lança; quem roda os agentes é sempre o terminal. O isolamento é feito pelo **container Docker** (padrão): sem rota de rede própria, com saída só pelos destinos liberados no proxy, sem o perfil e as credenciais do Windows. O usuário `ia` (aba aberta por `ssh`) passa a ser a alternativa "Windows" das configurações; nela, desligar o SSH faz o agente rodar com os acessos de quem usa o painel. Instalação: [instalacao-container.md](instalacao-container.md).
+
+> As seções "Ambiente", "Arquitetura" e "Modelo de dados" abaixo descrevem o modo Windows, o desenho original.
 
 ## Contexto e problema
 
@@ -61,7 +63,7 @@ Dores atuais:
 | Agentes | Claude Code e Codex | Os dois têm hooks com payload parecido (`session_id`, `cwd`, `hook_event_name`) |
 | Status | Hooks gravam arquivos; o painel lê | Confiável e simples; não depende de interpretar a tela do terminal |
 | Persistência | Arquivos JSON (um por sessão + `demandas.json`) | Sem banco, sem serviço, sem concorrência entre sessões |
-| Execução | Agentes rodam como usuário IA, acessado por SSH local | Isola os agentes do acesso do usuário principal aos servidores da empresa |
+| Execução | Agentes rodam num container Docker, com rede interna e proxy; alternativa: usuário IA por SSH local | O usuário IA não limita a rede; o container corta o acesso aos servidores da empresa e às credenciais do Windows |
 | Arquitetura | Core separado da UI | Permite trocar WPF por Avalonia ou web no futuro |
 
 ### Alternativas avaliadas e por que não bastam sozinhas
@@ -300,7 +302,7 @@ O painel roda como o usuário principal, com acesso aos servidores da empresa. N
 4. **RS-4:** o painel nunca escreve na pasta de status; o IA nunca escreve no `demandas.json` nem nos scripts `C:\Painel\*.ps1`.
 5. **RS-5:** ler arquivos de status com limite de tamanho (ex.: 16 KB) e ignorar os inválidos.
 6. **RS-6:** hooks sem saída padrão e com `exit 0` sempre; sem segredos nos arquivos de status.
-7. **RS-7:** com o SSH ligado (padrão), mantê-lo como configurado (só `localhost`, usuário isolado `ia` por padrão e configurável no painel, só chave, sem túneis); chave com passphrase + `ssh-agent`; Windows Update em dia. O host é sempre `localhost`. Com "Abrir pelo SSH" desligado o agente roda sem o isolamento, com os acessos de quem usa o painel; o usuário informado é validado (`[A-Za-z0-9_][A-Za-z0-9_.-]{0,19}`, nunca começa com `-`) antes de entrar no comando.
+7. **RS-7:** no container (padrão), o agente roda sem privilégios nem capabilities, numa rede sem saída direta; só vê `C:\Fontes`, `C:\openspec\ERP`, a pasta de status e os próprios volumes, nunca o socket do Docker nem o perfil do Windows; o proxy libera só a lista de destinos; scripts e hooks do Claude ficam na imagem, sem escrita para o agente; o nome do container é validado (`[A-Za-z0-9][A-Za-z0-9_.-]{0,62}`) antes de entrar no comando. No modo Windows, com o SSH ligado, mantê-lo como configurado (só `localhost`, usuário isolado `ia` por padrão e configurável no painel, só chave, sem túneis); chave com passphrase + `ssh-agent`; Windows Update em dia. O host é sempre `localhost`. Com "Abrir pelo SSH" desligado o agente roda sem o isolamento, com os acessos de quem usa o painel; o usuário informado é validado (`[A-Za-z0-9_][A-Za-z0-9_.-]{0,19}`, nunca começa com `-`) antes de entrar no comando.
 8. **RS-8:** o IA deve usar um clone próprio; o código chega ao usuário principal só via TFS (push em branch, revisão no PR, pull). Enquanto a pasta for compartilhada, revisar o diff antes de compilar como usuário principal, com atenção a `.csproj`, `Directory.Build.props`, `.targets`, `nuget.config`, scripts `.ps1`, `.git/hooks` e `.vscode/tasks.json`.
 9. **RS-9:** apresentar o desenho à TI ou à segurança da empresa (serviço SSH ativo pode ser sinalizado pelo EDR ou violar política).
 

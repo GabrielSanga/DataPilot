@@ -230,7 +230,7 @@ public class VinculoSessaoTests
         Assert.DoesNotContain("cwd", texto, StringComparison.OrdinalIgnoreCase);
 
         var no = JsonNode.Parse(texto)!["demandas"]![0]!["repositorios"]![0]!["sessoes"]![0]!.AsObject();
-        Assert.Equal(["agente", "sessionId", "criadaEm", "vinculadaEm"], no.Select(p => p.Key));
+        Assert.Equal(["agente", "sessionId", "execucao", "criadaEm", "vinculadaEm"], no.Select(p => p.Key));
     }
 
     [Fact]

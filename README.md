@@ -87,14 +87,15 @@ Os diálogos são diretos: pedem só o que é necessário e mostram o erro junto
 - **Teclado em primeiro lugar.** **Ctrl+N** cria um trabalho e **Ctrl+F** filtra a lista. As ações secundárias ficam num menu, aberto pelo botão direito ou por **Shift+F10**.
 - **Calmo por padrão.** A janela usa cor só para sinalizar o que pede ação. O resto fica neutro.
 - **Acessível.** Com o alto contraste do Windows ligado, o painel adota as cores do sistema e mostra o nome do status em texto.
-- **Separação de papéis.** Os agentes de IA rodam isolados do usuário que usa o painel. O painel só lê o status das sessões e nunca executa nada que venha delas.
+- **Separação de papéis.** Os agentes de IA rodam num container Docker, isolados da rede e das credenciais de quem usa o painel. O painel só lê o status das sessões e nunca executa nada que venha delas.
 
 ## Requisitos
 
 - Windows 10 ou 11, com o Windows Terminal
-- Claude Code, Codex ou os dois
+- Docker Desktop com WSL2: o ambiente já traz o Claude Code e o Codex
+- Sem Docker, no modo "Windows": Claude Code, Codex ou os dois, e o usuário isolado `ia` com SSH local
 
-A preparação do ambiente está em [docs/instalacao-etapa-1.md](docs/instalacao-etapa-1.md). A compilação, os dados de exemplo e os roteiros de verificação estão em [docs/desenvolvimento.md](docs/desenvolvimento.md). O mapa do código está em [docs/arquitetura.md](docs/arquitetura.md).
+A preparação do ambiente está em [docs/instalacao-container.md](docs/instalacao-container.md) (ou, no modo Windows, em [docs/instalacao-etapa-1.md](docs/instalacao-etapa-1.md)). A compilação, os dados de exemplo e os roteiros de verificação estão em [docs/desenvolvimento.md](docs/desenvolvimento.md). O mapa do código está em [docs/arquitetura.md](docs/arquitetura.md).
 
 ## Licença
 

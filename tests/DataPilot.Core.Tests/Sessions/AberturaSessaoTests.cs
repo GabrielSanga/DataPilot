@@ -13,6 +13,7 @@ public class AberturaSessaoTests
     {
         var pasta = new PastaTemporaria();
         var dados = new DadosPainel(Path.Combine(pasta.Caminho, "demandas.json"));
+        dados.SalvarConfiguracoes(Fabrica.Windows);
         dados.CriarDemanda("CHG-142", "Ajuste NF-e", null, Fabrica.Agora);
         if (cadastrar) dados.VincularRepositorio("CHG-142", "Faturamento");
         var disparador = new DisparadorFalso();

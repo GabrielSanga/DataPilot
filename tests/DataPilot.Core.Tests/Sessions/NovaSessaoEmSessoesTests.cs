@@ -15,6 +15,7 @@ public class NovaSessaoEmSessoesTests
     {
         var pasta = new PastaTemporaria();
         var dados = new DadosPainel(Path.Combine(pasta.Caminho, "demandas.json"));
+        dados.SalvarConfiguracoes(Fabrica.Windows);
         var disparador = new DisparadorFalso();
         var abertura = new AberturaSessao(dados, disparador, new RelogioFalso(Fabrica.Agora), () => Guid.Parse(IdFixo));
         return (abertura, dados, disparador, pasta);

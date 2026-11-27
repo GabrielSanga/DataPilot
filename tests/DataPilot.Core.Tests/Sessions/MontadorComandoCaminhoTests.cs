@@ -1,6 +1,7 @@
 using System.Text;
 using DataPilot.Core.Models;
 using DataPilot.Core.Sessions;
+using DataPilot.Core.Tests.Helpers;
 
 namespace DataPilot.Core.Tests.Sessions;
 
@@ -9,7 +10,7 @@ public class MontadorComandoCaminhoTests
     private const string Id = "0b6f1c2e-5d1a-4c8e-9f3a-2b7d4e6a8c10";
 
     private static IReadOnlyList<string> Args(string pasta, string? titulo = "Ajuste")
-        => MontadorComando.Novo("CHG-142", titulo, new RepositorioCadastrado(pasta, []), Agente.Claude, Id, null).Argumentos;
+        => MontadorComando.Novo("CHG-142", titulo, new RepositorioCadastrado(pasta, []), Agente.Claude, Id, null, Fabrica.Windows).Argumentos;
 
     [Fact]
     public void Repositorio_da_raiz_continua_com_Repo()

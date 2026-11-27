@@ -10,6 +10,10 @@ public static class Constantes
     public const string HostSsh = "localhost";
     public const string PastaScripts = @"C:\Painel";
     public const string ScriptAbrir = PastaScripts + @"\abrir.ps1";
+    public const string PastaOpenspec = @"C:\openspec\ERP";
+    public const string ContainerPadrao = "datapilot-agente";
+    public const string ExecutavelDocker = "docker";
+    public const string ScriptAbrirContainer = "/opt/painel/abrir.sh";
     public static readonly TimeSpan InatividadeAtiva = TimeSpan.FromMinutes(15);
     public static readonly TimeSpan InatividadeEspera = TimeSpan.FromHours(8);
     public static readonly TimeSpan IdadeSessaoAntiga = TimeSpan.FromDays(3);

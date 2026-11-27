@@ -1,5 +1,6 @@
 using DataPilot.Core.Models;
 using DataPilot.Core.Sessions;
+using DataPilot.Core.Tests.Helpers;
 
 namespace DataPilot.Core.Tests.Sessions;
 
@@ -20,7 +21,7 @@ public class TituloDaAbaTests
     public void Titulo_do_trabalho_nao_vai_com_ponto_e_virgula_no_comando()
     {
         var repo = new RepositorioCadastrado("App", []);
-        var c = MontadorComando.Novo("t1", "a;b", repo, Agente.Claude, "0b6f1c2e-5d1a-4c8e-9f3a-2b7d4e6a8c10", null);
+        var c = MontadorComando.Novo("t1", "a;b", repo, Agente.Claude, "0b6f1c2e-5d1a-4c8e-9f3a-2b7d4e6a8c10", null, Fabrica.Windows);
         Assert.DoesNotContain(";", c.Argumentos[4]);
     }
 
@@ -28,15 +29,15 @@ public class TituloDaAbaTests
     public void Titulo_do_trabalho_invalido_e_recusado()
     {
         var repo = new RepositorioCadastrado("App", []);
-        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("t1", "", repo, Agente.Codex, null, null));
-        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("t1", null, repo, Agente.Codex, null, null));
+        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("t1", "", repo, Agente.Codex, null, null, Fabrica.Windows));
+        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("t1", null, repo, Agente.Codex, null, null, Fabrica.Windows));
     }
 
     [Fact]
     public void Em_sessoes_o_titulo_nao_e_exigido()
     {
         var repo = new RepositorioCadastrado("App", []);
-        var c = MontadorComando.Novo("sem-demanda", null, repo, Agente.Codex, null, null);
+        var c = MontadorComando.Novo("sem-demanda", null, repo, Agente.Codex, null, null, Fabrica.Windows);
         Assert.Equal("Codex · App", c.Argumentos[4]);
     }
 }

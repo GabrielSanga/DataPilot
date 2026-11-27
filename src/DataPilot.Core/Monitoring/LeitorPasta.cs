@@ -88,7 +88,7 @@ public sealed class LeitorPasta
             arq.Refresh();
             if (!arq.Exists || (arq.Attributes & FileAttributes.ReparsePoint) != 0) return null;
             var modificado = arq.LastWriteTimeUtc;
-            var criado = arq.CreationTimeUtc;
+            var criado = DataDeInicio(arq);
             var tamanho = arq.Length;
             if (_cache.TryGetValue(arq.Name, out var c) && c.Modificado == modificado && c.Criado == criado && c.Tamanho == tamanho)
                 return c.Sessao;
@@ -104,6 +104,18 @@ public sealed class LeitorPasta
             _cache.Remove(arq.Name);
             return null;
         }
+    }
+
+    /// <summary>
+    /// A montagem do container não preserva a data de criação na troca do arquivo; o hook de lá guarda o início da
+    /// sessão no marcador <c>&lt;id&gt;.criado</c>. Só a data dele é consultada, nunca o conteúdo.
+    /// </summary>
+    private static DateTime DataDeInicio(FileInfo arq)
+    {
+        var marcador = new FileInfo(Path.ChangeExtension(arq.FullName, ".criado"));
+        return marcador.Exists && (marcador.Attributes & FileAttributes.ReparsePoint) == 0
+            ? marcador.CreationTimeUtc
+            : arq.CreationTimeUtc;
     }
 
     private static Sessao? LerEValidar(FileInfo arq)
