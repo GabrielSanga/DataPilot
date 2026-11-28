@@ -73,7 +73,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public void Iniciar() => _monitor.Iniciar();
 
-    public void AvisarScripts(string aviso) => MostrarErro(aviso);
 
     public void AbrirConfiguracoes()
     {

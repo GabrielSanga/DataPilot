@@ -48,8 +48,8 @@ public static partial class ValidadorStatus
             if (!DateTimeOffset.TryParse(dataTxt, CultureInfo.InvariantCulture, DateTimeStyles.None, out var atualizado))
                 return false;
 
-            var cwd = raiz.TryGetProperty("cwd", out var c) && c.ValueKind == JsonValueKind.String
-                ? c.GetString() ?? "" : "";
+            // Só sessões do container: o cwd de lá começa com "/", o do antigo hook do Windows não.
+            if (!Texto(raiz, "cwd", out var cwd) || !cwd.StartsWith('/')) return false;
 
             sessao = new Sessao(agente, id, cwd, status, atualizado);
             return true;

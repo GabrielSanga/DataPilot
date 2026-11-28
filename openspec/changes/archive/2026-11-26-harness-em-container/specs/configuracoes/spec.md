@@ -76,3 +76,7 @@ O ambiente de execução e o nome do container SHALL valer a partir da próxima 
 #### Scenario: Retomar sessão do Windows com o container escolhido
 - **WHEN** "Container Docker" está escolhido e o usuário retoma uma sessão registrada no Windows
 - **THEN** a aba retoma no Windows, com as opções de SSH em uso
+
+#### Scenario: Desligar o SSH
+- **WHEN** o usuário desliga "Abrir pelo SSH", salva e aciona "Retomar" numa sessão registrada no Windows
+- **THEN** a aba chama o `abrir.ps1` direto, sem `ssh`

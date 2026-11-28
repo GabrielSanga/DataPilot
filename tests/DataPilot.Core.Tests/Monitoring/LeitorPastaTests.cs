@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Text;
+using DataPilot.Core.Linking;
 using DataPilot.Core.Models;
 using DataPilot.Core.Monitoring;
 using DataPilot.Core.Tests.Helpers;
@@ -8,22 +10,40 @@ namespace DataPilot.Core.Tests.Monitoring;
 public class LeitorPastaTests
 {
     [Fact]
-    public void Marcador_DefineAData_ESemEleValeADoArquivo()
+    public void Marcador_DefineAData_ESemEleNaoHaData()
     {
         using var p = new PastaTemporaria();
         p.Escrever("s1.json", Fabrica.Json());
         p.Escrever("s2.json", Fabrica.Json(id: "s2"));
         p.Escrever("s1.criado", "");
         var inicio = new DateTime(2026, 11, 1, 8, 0, 0, DateTimeKind.Utc);
-        var doArquivo = new DateTime(2026, 11, 2, 8, 0, 0, DateTimeKind.Utc);
         File.SetCreationTimeUtc(Path.Combine(p.Caminho, "s1.criado"), inicio);
-        File.SetCreationTimeUtc(Path.Combine(p.Caminho, "s1.json"), doArquivo);
-        File.SetCreationTimeUtc(Path.Combine(p.Caminho, "s2.json"), doArquivo);
 
-        var sessoes = new LeitorPasta(p.Caminho).Ler().Sessoes.ToDictionary(s => s.SessionId, s => s.ArquivoCriadoEm!.Value.UtcDateTime);
+        var sessoes = new LeitorPasta(p.Caminho).Ler().Sessoes.ToDictionary(s => s.SessionId);
 
-        Assert.Equal(inicio, sessoes["s1"]);
-        Assert.Equal(doArquivo, sessoes["s2"]);
+        Assert.Equal(new DateTimeOffset(inicio, TimeSpan.Zero), sessoes["s1"].ArquivoCriadoEm);
+        Assert.Null(sessoes["s2"].ArquivoCriadoEm);
+
+        var lancamento = new LancamentoPendente("aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa", Agente.Claude, new DateTimeOffset(inicio, TimeSpan.Zero), null);
+        var demanda = new Demanda("A", "A", null, null, false, [new RepositorioCadastrado("App", [], [lancamento])]);
+        var semData = sessoes["s2"] with { SessionId = "11111111-2222-3333-4444-555555555555" };
+        Assert.Empty(VinculoAutomatico.Calcular([demanda], [semData], new DateTimeOffset(inicio, TimeSpan.Zero).AddHours(1)));
+    }
+
+    [Fact]
+    public void Marcador_QueEAtalho_ContaComoAusente()
+    {
+        using var p = new PastaTemporaria();
+        p.Escrever("s1.json", Fabrica.Json());
+        // Junção não exige privilégio, ao contrário de um link de arquivo.
+        var alvo = Directory.CreateDirectory(Path.Combine(p.Caminho, "alvo")).FullName;
+        var link = Path.Combine(p.Caminho, "s1.criado");
+        var mklink = Process.Start(new ProcessStartInfo("cmd.exe", $"/c mklink /J \"{link}\" \"{alvo}\"")
+            { CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true })!;
+        mklink.WaitForExit();
+        Assert.Equal(0, mklink.ExitCode);
+
+        Assert.Null(Assert.Single(new LeitorPasta(p.Caminho).Ler().Sessoes).ArquivoCriadoEm);
     }
 
     [Fact]
@@ -184,7 +204,7 @@ public class LeitorPastaTests
     public void CwdEstranho_ApenasLido_NaoAcessado()
     {
         using var p = new PastaTemporaria();
-        p.Escrever("s1.json", Fabrica.Json(cwd: @"\\\\servidor-inexistente\\share\\malware.exe"));
+        p.Escrever("s1.json", Fabrica.Json(cwd: "//servidor-inexistente/share/malware.exe"));
         var s = Assert.Single(new LeitorPasta(p.Caminho).Ler().Sessoes);
         Assert.Contains("malware.exe", s.Cwd);
     }
@@ -203,7 +223,7 @@ public class LeitorPastaTests
             Mode = FileMode.Open, Access = FileAccess.Read, Share = FileShare.ReadWrite | FileShare.Delete,
         }))
         {
-            File.Replace(tmp, destino, null); // mesma operação do hook.ps1
+            File.Replace(tmp, destino, null); // mesma troca que o hook faz
             var lido = new StreamReader(aberto, new UTF8Encoding(false)).ReadToEnd();
             Assert.True(ValidadorStatus.TentarLer(lido, "s1", out var anterior));
             Assert.Equal(StatusGravado.Executando, anterior!.Status);
@@ -212,15 +232,15 @@ public class LeitorPastaTests
     }
 
     [Fact]
-    public void DataDeCriacao_VemDoSistemaDeArquivos_ENaoDoUltimoEvento()
+    public void DataDeCriacao_VemDoMarcador_ENaoDoUltimoEvento()
     {
         using var p = new PastaTemporaria();
-        var caminho = p.Escrever("s1.json", Fabrica.Json());
+        var marcador = p.Escrever("s1.criado", "");
         var criacao = new DateTime(2026, 11, 10, 8, 30, 0, DateTimeKind.Utc);
-        File.SetCreationTimeUtc(caminho, criacao);
-        // Evento posterior: muda a modificação e o conteúdo, não a criação.
+        File.SetCreationTimeUtc(marcador, criacao);
+        var caminho = p.Escrever("s1.json", Fabrica.Json());
+        // Evento posterior: muda a modificação e o conteúdo do arquivo de status.
         File.WriteAllText(caminho, Fabrica.Json(status: "aguardando", atualizado: "2026-11-14T10:00:00-03:00"));
-        File.SetCreationTimeUtc(caminho, criacao);
         File.SetLastWriteTimeUtc(caminho, criacao.AddDays(4));
 
         var sessao = Assert.Single(new LeitorPasta(p.Caminho).Ler().Sessoes);
@@ -228,10 +248,11 @@ public class LeitorPastaTests
     }
 
     [Fact]
-    public void DataDeCriacao_DeArquivoRecemCriado_EOMomentoEmQueSurgiu()
+    public void DataDeCriacao_DeSessaoRecemCriada_EOMomentoEmQueOMarcadorSurgiu()
     {
         using var p = new PastaTemporaria();
         var antes = DateTime.UtcNow.AddSeconds(-2);
+        p.Escrever("s1.criado", "");
         p.Escrever("s1.json", Fabrica.Json());
         var depois = DateTime.UtcNow.AddSeconds(2);
 
@@ -241,18 +262,17 @@ public class LeitorPastaTests
     }
 
     [Fact]
-    public void DataDeCriacao_NaoEAlteradaPeloConteudo_EAtualizaSeOArquivoForRecriado()
+    public void DataDeCriacao_AtualizaQuandoOMarcadorMuda_SemMudarOArquivo()
     {
         using var p = new PastaTemporaria();
-        var caminho = p.Escrever("s1.json", Fabrica.Json());
+        p.Escrever("s1.json", Fabrica.Json());
         var leitor = new LeitorPasta(p.Caminho);
-        var primeira = leitor.Ler().Sessoes[0].ArquivoCriadoEm;
+        Assert.Null(leitor.Ler().Sessoes[0].ArquivoCriadoEm);
 
-        File.SetCreationTimeUtc(caminho, new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc));
-        var segunda = leitor.Ler().Sessoes[0].ArquivoCriadoEm;
+        var criacao = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        File.SetCreationTimeUtc(p.Escrever("s1.criado", ""), criacao);
 
-        Assert.NotEqual(primeira, segunda);
-        Assert.Equal(new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero), segunda);
+        Assert.Equal(new DateTimeOffset(criacao, TimeSpan.Zero), leitor.Ler().Sessoes[0].ArquivoCriadoEm);
     }
 
     [Fact]

@@ -25,7 +25,7 @@ public class MontadorComandoDemandaTests
     [Fact]
     public void Novo_do_codex_em_trabalho_usa_o_titulo_na_aba()
     {
-        var c = MontadorComando.Novo("CHG-142", "Ajuste NF-e", new RepositorioCadastrado("Estoque", []), Agente.Codex, null, "teste", Fabrica.Windows);
+        var c = MontadorComando.Novo("CHG-142", "Ajuste NF-e", new RepositorioCadastrado("Estoque", []), Agente.Codex, null, "teste");
         Assert.Equal("Ajuste NF-e · Estoque · teste", c.Argumentos[4]);
     }
 
@@ -38,7 +38,7 @@ public class MontadorComandoDemandaTests
     public void Identificador_de_trabalho_invalido_e_recusado(string demandaId)
     {
         Assert.Throws<EntradaInvalidaException>(() =>
-            MontadorComando.Novo(demandaId, "Ajuste NF-e", new RepositorioCadastrado("App", []), Agente.Claude, Id, null, Fabrica.Windows));
+            MontadorComando.Novo(demandaId, "Ajuste NF-e", new RepositorioCadastrado("App", []), Agente.Claude, Id, null));
         Assert.Throws<EntradaInvalidaException>(() =>
             MontadorComando.Retomar(new SessaoRegistrada(Agente.Claude, Id, "App", null, Fabrica.Agora, demandaId, "Ajuste NF-e")));
     }

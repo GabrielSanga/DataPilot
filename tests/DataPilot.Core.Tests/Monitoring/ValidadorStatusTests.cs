@@ -14,7 +14,7 @@ public class ValidadorStatusTests
         Assert.True(Ler(Fabrica.Json(), "s1", out var s));
         Assert.Equal(Agente.Claude, s!.Agente);
         Assert.Equal("s1", s.SessionId);
-        Assert.Equal(@"C:\Fontes\App", s.Cwd);
+        Assert.Equal("/workspace/App", s.Cwd);
         Assert.Equal(StatusGravado.Executando, s.Status);
         Assert.Equal(new DateTimeOffset(2026, 11, 14, 9, 0, 0, TimeSpan.FromHours(-3)).AddTicks(1234567), s.Atualizado);
     }
@@ -50,6 +50,7 @@ public class ValidadorStatusTests
     [Theory]
     [InlineData("agente")]
     [InlineData("session_id")]
+    [InlineData("cwd")]
     [InlineData("status")]
     [InlineData("atualizado")]
     public void CampoObrigatorioAusente_Descartado(string campo)
@@ -58,6 +59,16 @@ public class ValidadorStatusTests
         obj.Remove(campo);
         Assert.False(Ler(obj.ToJsonString(), "s1", out _));
     }
+
+    [Theory]
+    [InlineData(@"C:\\Fontes\\Faturamento")]
+    [InlineData("workspace/Faturamento")]
+    [InlineData("")]
+    public void PastaDeTrabalhoDoWindows_OuSemBarraInicial_Descartada(string cwd) => Assert.False(Ler(Fabrica.Json(cwd: cwd), "s1", out _));
+
+    [Fact]
+    public void PastaDeTrabalhoQueNaoETexto_Descartada()
+        => Assert.False(Ler(Fabrica.Json().Replace("\"/workspace/App\"", "7"), "s1", out _));
 
     [Fact]
     public void CampoAdicional_Ignorado() => Assert.True(Ler(Fabrica.Json(extra: ",\"novo\":{\"a\":1}"), "s1", out _));

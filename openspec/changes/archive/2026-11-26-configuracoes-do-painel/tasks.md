@@ -15,7 +15,7 @@ Tarefas marcadas com **[manual]** são executadas pelo usuário, porque exigem a
 ## 3. Tela
 
 - [x] 3.1 Criar o `ConfiguracoesWindow` (pasta de status em `TextBox` só para leitura, "Abrir pelo SSH" e usuário desabilitado com o SSH desligado, erro junto do campo, Enter salva, Esc cancela) e `IInteracao.DialogoConfiguracoes`; com o arquivo ilegível, mostrar que não é possível salvar
-- [ ] 3.2 Acrescentar a ação "Configurações" (ícone de engrenagem com nome acessível) na barra superior da janela principal; abrir o painel com os dados de exemplo e conferir o diálogo, a pasta só para leitura, o campo desabilitado e o erro de usuário inválido
+- [x] 3.2 Acrescentar a ação "Configurações" (ícone de engrenagem com nome acessível) na barra superior da janela principal; abrir o painel com os dados de exemplo e conferir o diálogo, a pasta só para leitura, o campo desabilitado e o erro de usuário inválido
 
 ## 4. Documentação
 
@@ -24,9 +24,9 @@ Tarefas marcadas com **[manual]** são executadas pelo usuário, porque exigem a
 
 ## 5. Verificação manual
 
-- [ ] 5.1 **[manual]** Com a pasta de status removida (ou renomeada), abrir o painel e conferir que ela foi criada e que a tela de configurações mostra o caminho
-- [ ] 5.2 **[manual]** Com o SSH ligado e o usuário `ia`, abrir e retomar uma sessão do Claude e uma do Codex; conferir que rodam como `ia`
-- [ ] 5.3 **[manual]** Desligar "Abrir pelo SSH", abrir uma sessão e conferir que a aba roda como o usuário principal, sem `ssh`; religar e conferir que a próxima sessão volta a usar o SSH
+- [x] 5.1 **[manual]** Com a pasta de status removida (ou renomeada), abrir o painel e conferir que ela foi criada e que a tela de configurações mostra o caminho
+- [x] 5.2 **[manual]** Com o SSH ligado e o usuário `ia`, abrir e retomar uma sessão do Claude e uma do Codex; conferir que rodam como `ia`
+- [x] 5.3 **[manual]** Desligar "Abrir pelo SSH", abrir uma sessão e conferir que a aba roda como o usuário principal, sem `ssh`; religar e conferir que a próxima sessão volta a usar o SSH
 
 ## Workflow follow-up
 

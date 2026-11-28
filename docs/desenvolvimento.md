@@ -14,7 +14,7 @@ dotnet run --project src/DataPilot.Wpf
 
 O painel lê `C:\ProgramData\Painel\sessoes` por padrão e nunca escreve nela.
 
-As sessões novas abrem no container Docker por padrão ([instalacao-container.md](instalacao-container.md), que também traz a verificação dos scripts do container). Onde este guia fala em `abrir.ps1`, SSH e usuário `ia`, trata-se do modo **Windows** das configurações.
+As sessões abrem no container Docker ([instalacao-container.md](instalacao-container.md), que também traz a verificação dos scripts do container).
 
 ### Nomes na tela e no arquivo
 
@@ -22,7 +22,7 @@ Na tela, o que o arquivo de dados, o código e as specs chamam de **demanda** é
 
 ### Pasta de exemplo e roteiro de conferência
 
-Para ver o painel sem a conta `ia`, gere os dados de exemplo (datas relativas ao momento da geração). O script cria a pasta de status, uma raiz de fontes de exemplo e os arquivos de dados, tudo em `$TEMP`:
+Para ver o painel sem o container, gere os dados de exemplo (datas relativas ao momento da geração). O script cria a pasta de status, uma raiz de fontes de exemplo e os arquivos de dados, tudo em `$TEMP`:
 
 ```bash
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/exemplos/gerar-sessoes-exemplo.ps1
@@ -82,21 +82,21 @@ Com o **alto contraste** do Windows ligado, a janela e os diálogos passam a usa
 
 - **Novo trabalho** (lista, **Ctrl+N**): só o título (1 a 80 caracteres). O painel gera o identificador interno (`t` e 8 dígitos hexadecimais), que não aparece na tela. **Editar** (menu do trabalho) altera só o título.
 - **Arquivar** e **Desarquivar** (menu do trabalho). Arquivar um trabalho com sessão em andamento pede confirmação. **Mostrar arquivados** (pé da lista) exibe os arquivados; eles não oferecem "Nova sessão" nem "Vincular repositório", mas "Retomar" continua disponível. **Sessões** não pode ser editada nem arquivada.
-- **Vincular repositório** (topo do trabalho): abre a escolha de pasta do Windows, já em `C:\Fontes`, e aceita qualquer pasta local. Uma pasta **direta** de `C:\Fontes` com nome `[A-Za-z0-9_.-]` é gravada só pelo nome, como antes; qualquer outra é gravada pelo caminho completo (unidade local, até 260 caracteres, sem atalho nem junção). Uma pasta recusada mostra o erro e nada é vinculado (**Escolher pasta…** tenta de novo; cancelar a escolha fecha o diálogo). Pelo SSH, o agente roda como `ia` e só abre pastas que o `ia` consegue acessar. Escolhida a pasta, o diálogo lista as **changes ativas** do repositório (`openspec\changes`, sem `archive`) e **Nenhuma**; a escolhida fica gravada no repositório. O mesmo repositório pode estar em vários trabalhos, cada um com as próprias sessões e a própria change. **Remover repositório** (menu do repositório) pede confirmação quando há sessões registradas no trabalho e não afeta o mesmo repositório em outros trabalhos.
+- **Vincular repositório** (topo do trabalho): abre a escolha de pasta do Windows, já em `C:\Fontes`, e aceita só pastas dentro de `C:\Fontes` ou `C:\openspec\ERP`, que o container enxerga. Uma pasta **direta** de `C:\Fontes` com nome `[A-Za-z0-9_.-]` é gravada só pelo nome, como antes; outra pasta desses locais é gravada pelo caminho completo (até 260 caracteres, sem atalho nem junção). Uma pasta recusada mostra o erro e nada é vinculado (**Escolher pasta…** tenta de novo; cancelar a escolha fecha o diálogo). Escolhida a pasta, o diálogo lista as **changes ativas** do repositório (`openspec\changes`, sem `archive`) e **Nenhuma**; a escolhida fica gravada no repositório. O mesmo repositório pode estar em vários trabalhos, cada um com as próprias sessões e a própria change. **Remover repositório** (menu do repositório) pede confirmação quando há sessões registradas no trabalho e não afeta o mesmo repositório em outros trabalhos.
 - **Trocar change** (menu do repositório): a mesma lista de changes, para o repositório já vinculado; só o repositório é alterado.
-- **Nova sessão** (cabeçalho do repositório): o diálogo pede só o agente (Claude ou Codex) e um rótulo opcional (até 40 caracteres, sem `;`) e abre uma aba do Windows Terminal que chama o `abrir.ps1` como o usuário `ia`, pelo SSH local. Todas as abas ficam na janela `painel`. O título da aba é `título do trabalho · repositório [· rótulo]`: o título entra com até 40 caracteres e cada `;` vira `,` (o Windows Terminal trata `;` como separador de comandos). Para sessões de **Sessões**, o nome do agente ocupa o lugar do título. A sessão nova do Claude fica registrada no repositório desse trabalho.
+- **Nova sessão** (cabeçalho do repositório): o diálogo pede só o agente (Claude ou Codex) e um rótulo opcional (até 40 caracteres, sem `;`) e abre uma aba do Windows Terminal que chama o `abrir.sh` no container, pelo `docker exec`. Todas as abas ficam na janela `painel`. O título da aba é `título do trabalho · repositório [· rótulo]`: o título entra com até 40 caracteres e cada `;` vira `,` (o Windows Terminal trata `;` como separador de comandos). Para sessões de **Sessões**, o nome do agente ocupa o lugar do título. A sessão nova do Claude fica registrada no repositório desse trabalho.
 - **Retomar** (linha da sessão). Pede confirmação se a sessão não estiver encerrada, inativa nem sem status.
 - **Excluir** (lixeira na linha de toda sessão): depois de confirmar, tira a sessão do painel de vez. O registro sai de `demandas.json` e o identificador entra na lista `excluidas`; ela não aparece mais em lugar nenhum nem é vinculada sozinha. A conversa e a pasta de status não são tocadas. Não há "desfazer" na tela: para trazer a sessão de volta, apague o item de `excluidas` no arquivo.
 
 Sessões registradas aparecem sempre no seu trabalho, sem esconder as antigas; as que não têm arquivo de status aparecem com o indicador cinza (sem status; ficam por último e fora do alerta do topo).
 
-O comando é montado só com dados do arquivo de dados ou da escolha na tela, nunca com valores lidos de arquivos de status, com uma única exceção: o identificador e o agente de uma sessão que você retoma ou vincula a partir de **Sessões** (ver abaixo). O comando é iniciado como lista de argumentos, sem shell. Requer o Windows Terminal (`wt.exe`) e o SSH local da Etapa 1.
+O comando é montado só com dados do arquivo de dados ou da escolha na tela, nunca com valores lidos de arquivos de status, com uma única exceção: o identificador e o agente de uma sessão que você retoma ou vincula a partir de **Sessões** (ver abaixo). O comando é iniciado como lista de argumentos, sem shell. Requer o Windows Terminal (`wt.exe`) e o ambiente do container.
 
 ### Sessões
 
 **Sessões** reúne as sessões que não estão em nenhum trabalho: as abertas sem trabalho (**Nova sessão** nessa área), as que o painel não abriu (as do Codex e a sessão nova que o Claude cria depois de um `/clear`) e os lançamentos pendentes delas. Cada linha mostra o repositório. A opção **Mostrar antigas** fica nessa área e vale só para as sessões não registradas (encerradas ou inativas há mais de 3 dias ficam ocultas por padrão).
 
-- **Nova sessão** (topo da área): abre a escolha de pasta do Windows (mesma regra de **Vincular repositório**: qualquer pasta local), depois o diálogo do agente e do rótulo. A pasta é vinculada a **Sessões**, se ainda não estiver, e a sessão abre e fica registrada nela.
+- **Nova sessão** (topo da área): abre a escolha de pasta do Windows (mesma regra de **Vincular repositório**), depois o diálogo do agente e do rótulo. A pasta é vinculada a **Sessões**, se ainda não estiver, e a sessão abre e fica registrada nela.
 - **Retomar** numa sessão registrada em Sessões: abre no repositório do registro. Numa sessão que o painel não registrou, o painel pergunta o **repositório** entre as pastas diretas de `C:\Fontes` (vem pré-selecionada a de mesmo nome que o último segmento da pasta de trabalho da sessão), registra a sessão em Sessões, nesse repositório, com `vinculadaEm`, e abre a conversa. Se o repositório escolhido não coincide com a pasta de trabalho, o painel avisa que a retomada pode não encontrar a conversa e só segue se você confirmar. Só identificadores no formato GUID (8-4-4-4-12) podem ser retomados ou vinculados; para os demais os botões ficam desabilitados, com o motivo na própria linha, e **Excluir** continua disponível.
 - **Vincular a um trabalho** (menu da linha): escolha o trabalho (não arquivado), o repositório (os do trabalho ou um novo) e, opcionalmente, um rótulo. O trabalho e o repositório vêm pré-selecionados quando o nome do último segmento da pasta de trabalho coincide com um repositório cadastrado. Uma sessão já registrada em Sessões é **movida** para o trabalho escolhido (o identificador passa a constar só lá); uma não registrada é registrada nele. Se não houver trabalho, o painel orienta a criar um e não grava nada.
 - Do arquivo de status cruzam para `demandas.json` apenas o **identificador** e o **agente**: ao retomar ou vincular uma sessão, por correspondência com um lançamento e ao **excluir** (aí vale a regra do hook, `[A-Za-z0-9_-]` até 100 caracteres, e o identificador só é comparado). A pasta de trabalho, o status, o evento e a data do arquivo de status nunca são gravados.
@@ -105,7 +105,7 @@ O comando é montado só com dados do arquivo de dados ou da escolha na tela, nu
 
 O Codex cria o identificador da sessão depois de aberto, então o painel não o conhece ao abrir a aba. Em **Nova sessão** com o Codex, o painel grava no repositório do card um **lançamento pendente** (agente, rótulo e data) em `demandas.json`, antes de abrir o terminal; se o terminal não abrir, o lançamento é desfeito. "Nova sessão" do Claude e **Retomar** não geram lançamento.
 
-O Codex só cria o arquivo de status ao receber a primeira mensagem. Quando surge uma sessão do Codex ainda não registrada, com identificador GUID, cuja pasta de trabalho termina no nome do repositório (sem diferenciar maiúsculas) e cujo arquivo de status foi **criado** na data do lançamento ou depois, o painel a registra naquele trabalho e repositório, com o rótulo do lançamento e `vinculadaEm`, sem outra ação. A data de criação do arquivo é lida do sistema de arquivos e o hook a preserva (verificado em `verificar.ps1`). Sessões excluídas nunca são vinculadas.
+O Codex só cria o arquivo de status ao receber a primeira mensagem. Quando surge uma sessão do Codex ainda não registrada, com identificador GUID, cuja pasta de trabalho termina no nome do repositório (sem diferenciar maiúsculas) e cujo marcador `<id>.criado` foi criado na data do lançamento ou depois, o painel a registra naquele trabalho e repositório, com o rótulo do lançamento e `vinculadaEm`, sem outra ação. A data de criação do marcador é lida do sistema de arquivos; sem o marcador, a sessão não é vinculada sozinha (o hook que o cria é verificado em `docker/testes/verificar.sh`). Sessões excluídas nunca são vinculadas.
 
 Limites:
 
@@ -115,7 +115,7 @@ Limites:
 - Uma sessão antiga do Codex na mesma pasta, criada antes do clique, continua em **Sessões**.
 - Uma sessão do Codex aberta à mão na mesma pasta, depois do clique e antes da sessão do painel, pode ocupar o lançamento; **Excluir** e o vínculo manual corrigem.
 - Continuam manuais: sessões abertas fora do painel, a criada por `/clear` no Claude e a segunda conversa no mesmo terminal do Codex.
-- Do arquivo de status só o identificador e o agente são gravados; o nome da pasta e a data de criação do arquivo apenas são comparados com o lançamento, nunca gravados nem usados em comandos.
+- Do arquivo de status só o identificador e o agente são gravados; o nome da pasta e a data de criação do marcador apenas são comparados com o lançamento, nunca gravados nem usados em comandos.
 
 #### Roteiro do vínculo automático (Etapa 4c)
 
@@ -144,7 +144,7 @@ Uma sessão que ainda não recebeu a primeira mensagem se comporta de um jeito d
 - **Abrir** abre o Codex de novo no mesmo repositório, com o rótulo do lançamento. Serve para a aba fechada antes da primeira mensagem: como ainda não existe conversa, é o equivalente a retomar. O lançamento é reaproveitado, então o card continua com uma linha só, e a data dele passa a ser a desse clique (as 24 horas recomeçam). Se a aba anterior ainda estiver aberta, a primeira das duas a receber mensagem fica no card e a outra vai para **Sessões**.
 - **Cancelar** remove só aquele lançamento de `demandas.json`, sem confirmar e sem fechar a aba. Se a aba continuar aberta e receber uma mensagem, a sessão vai para **Sessões** e pode ser vinculada à mão. Cancelar um lançamento que outra janela do painel acabou de usar não altera nada.
 
-**Claude: retomar uma sessão fechada antes da primeira mensagem.** O Claude só grava a conversa depois da primeira mensagem, então `claude --resume` não encontra uma sessão fechada antes disso e termina com erro. O `abrir.ps1` trata esse caso: se a retomada do Claude terminar com código diferente de 0 em menos de 30 segundos, ele avisa "A conversa ainda nao tem mensagens" e inicia o Claude com `--session-id` e o mesmo identificador, de modo que o registro e o arquivo de status continuam valendo. Uma retomada que falha depois de 30 segundos e a retomada do Codex nunca têm segunda tentativa. O comando montado pelo painel não muda; basta copiar o `abrir.ps1` novo para `C:\Painel` (veja `docs/instalacao-etapa-1.md`).
+**Claude: retomar uma sessão fechada antes da primeira mensagem.** O Claude só grava a conversa depois da primeira mensagem, então `claude --resume` não encontra uma sessão fechada antes disso e termina com erro. O `abrir.sh` trata esse caso: se a retomada do Claude terminar com código diferente de 0 em menos de 30 segundos, ele avisa "A conversa ainda nao tem mensagens" e inicia o Claude com `--session-id` e o mesmo identificador, de modo que o registro e o arquivo de status continuam valendo. Uma retomada que falha depois de 30 segundos e a retomada do Codex nunca têm segunda tentativa. O comando montado pelo painel não muda.
 
 #### Roteiro da linha do lançamento pendente (Etapa 4d)
 
@@ -158,12 +158,12 @@ dotnet run --project src/DataPilot.Wpf -- --pasta-status "$TEMP/datapilot-exempl
 
 - Selecione "Ajuste NF-e": o card `Estoque` mostra as duas sessões e, depois delas, duas linhas do Codex "aguardando a primeira mensagem" (`5 min` com o rótulo `aguardando exemplo`, depois `3 h`), cada uma com **Abrir** e, no menu "Mais ações", **Cancelar**. O resumo do trabalho continua `2 repositórios, 3 sessões` e o alerta do topo não muda.
 - **Cancelar** (menu da linha) a linha de `5 min`: só ela some, a de `3 h` continua, o trabalho continua selecionado e o arquivo copiado perde só aquele lançamento.
-- Para ver a substituição pela sessão, com o painel aberto crie na pasta de status um arquivo de uma sessão do Codex com `cwd` `C:\Fontes\Estoque` (GUID novo, `status` `ativa`, `atualizado` agora): a linha restante é substituída pela sessão, sem o lançamento no arquivo, e o trabalho selecionado não muda.
+- Para ver a substituição pela sessão, com o painel aberto crie na pasta de status um arquivo de uma sessão do Codex com `cwd` `/workspace/Estoque` (GUID novo, `status` `ativa`, `atualizado` agora) e, antes dele, o marcador `<GUID>.criado` vazio: a linha restante é substituída pela sessão, sem o lançamento no arquivo, e o trabalho selecionado não muda.
 - Com `datapilot-exemplo-varias-demandas.json` (sem lançamento) o card `Estoque` não mostra nenhuma linha de lançamento.
 
 #### Roteiro da retomada sem mensagem (Etapa 4d)
 
-1. Copie `abrir.ps1` e `verificar.ps1` para `C:\Painel`, como administrador, e rode a verificação como `ia` (`docs/instalacao-etapa-1.md`, passos 2 e 3): a última linha deve terminar com `Falhas: 0`.
+1. Rode a verificação dos scripts do container ([instalacao-container.md](instalacao-container.md), passo 6): a última linha deve terminar com `Falhas: 0`.
 2. No painel, abra uma sessão **nova do Claude** pelo card, feche a aba **sem digitar nada** (não use `/exit`) e acione **Retomar**: o terminal avisa que a conversa ainda não tem mensagens, o Claude abre com o mesmo identificador, o status volta a `ativa` e a mesma linha do card continua valendo.
 3. Numa sessão do Claude com mensagens, feche a aba e acione **Retomar**: a conversa volta com o histórico e não há aviso.
 
@@ -175,7 +175,7 @@ Cada **repositório** de um trabalho pode ter a própria change do OpenSpec (cam
 - "arquivada" quando só existe `openspec\changes\archive\AAAA-MM-DD-<change>` (a mais recente; a change ativa tem prioridade);
 - "change não encontrada" (a pasta da change não existe no repositório), "sem tarefas" (nenhuma linha `- [ ]`/`- [x]`) e "progresso indisponível" (arquivo recusado, acima de 256 KB ou com UTF-8 inválido), cada uma só no card do repositório afetado.
 
-São contadas as linhas `- [ ]`, `- [x]` e `- [X]` (com indentação). O progresso do trabalho selecionado é relido a cada atualização da tela (até 5 segundos), ao trocar de trabalho e ao trocar a change; as pastas do `ia` não são vigiadas. O `tasks.md` é só lido, nunca gravado, e o painel recusa atalhos e junções em qualquer trecho do caminho. A lista de changes oferecida ao vincular lê os nomes das pastas de `openspec\changes` (só pastas comuns, nome válido, até 200, em ordem alfabética, sem `archive`); os nomes só são exibidos e, escolhido um, passam pela mesma validação antes de gravar. Para usar outra raiz de fontes, sem tocar em `C:\Fontes` (vale também para a escolha de pasta):
+São contadas as linhas `- [ ]`, `- [x]` e `- [X]` (com indentação). O progresso do trabalho selecionado é relido a cada atualização da tela (até 5 segundos), ao trocar de trabalho e ao trocar a change; as pastas dos repositórios não são vigiadas. O `tasks.md` é só lido, nunca gravado, e o painel recusa atalhos e junções em qualquer trecho do caminho. A lista de changes oferecida ao vincular lê os nomes das pastas de `openspec\changes` (só pastas comuns, nome válido, até 200, em ordem alfabética, sem `archive`); os nomes só são exibidos e, escolhido um, passam pela mesma validação antes de gravar. Para usar outra raiz de fontes, sem tocar em `C:\Fontes` (vale também para a escolha de pasta):
 
 ```bash
 dotnet run --project src/DataPilot.Wpf -- --raiz-fontes "$TEMP/datapilot-exemplo-fontes"
@@ -197,7 +197,7 @@ dotnet run --project src/DataPilot.Wpf -- --pasta-status "$TEMP/datapilot-exempl
 
 ### Arquivo de dados
 
-O painel guarda trabalhos, repositórios, sessões abertas por ele e as sessões excluídas em `%APPDATA%\Painel\demandas.json`. O arquivo só é criado na primeira alteração. Cada repositório pode ter `openspecChange`; a lista `excluidas` guarda, para cada sessão excluída, `agente`, `sessionId` e `excluidaEm`. O arquivo gravado pelas versões anteriores é lido sem conversão: a change gravada na demanda continua valendo para os repositórios que não têm a própria (e nunca é gravada de novo), e o arquivo sem `excluidas` é carregado normalmente. Recomenda-se copiar o arquivo antes do primeiro uso da versão nova. Se existir e não puder ser lido, o painel mostra um aviso com o caminho, não grava nada e desabilita criar e alterar trabalhos, abrir e retomar (a lista continua funcionando). Para usar outro arquivo, sem tocar nos dados reais:
+O painel guarda trabalhos, repositórios, sessões abertas por ele e as sessões excluídas em `%APPDATA%\Painel\demandas.json`. O arquivo só é criado na primeira alteração. Cada repositório pode ter `openspecChange`; a lista `excluidas` guarda, para cada sessão excluída, `agente`, `sessionId` e `excluidaEm`. O arquivo gravado pelas versões anteriores é lido sem conversão: a change gravada na demanda continua valendo para os repositórios que não têm a própria (e nunca é gravada de novo), e o arquivo sem `excluidas` é carregado normalmente. Sessões e lançamentos sem `execucao` igual a `container` não são carregados, mas continuam no arquivo. Recomenda-se copiar o arquivo antes do primeiro uso da versão nova. Se existir e não puder ser lido, o painel mostra um aviso com o caminho, não grava nada e desabilita criar e alterar trabalhos, abrir e retomar (a lista continua funcionando). Para usar outro arquivo, sem tocar nos dados reais:
 
 ```bash
 dotnet run --project src/DataPilot.Wpf -- --dados "$TEMP/meus-dados.json"
@@ -221,10 +221,7 @@ dotnet run --project src/DataPilot.Wpf -- --pasta-status "$TEMP/datapilot-exempl
 - Para ver o aviso de dados indisponíveis, aponte `--dados` para um arquivo com texto que não seja JSON: **Novo trabalho** e as ações dos trabalhos ficam desabilitados e o arquivo não é alterado.
 - Para ver o estado de nenhum trabalho, aponte `--dados` para um arquivo que não existe: a janela orienta a criar um trabalho ou usar **Sessões**.
 
-Verificação com a conta `ia` das etapas anteriores (grupo 6 de `openspec/changes/etapa-4a-demandas/tasks.md`):
-
-1. Copie o `demandas.json` real, abra o painel novo com `--dados` apontando para a cópia e confira que **Sessões** traz os repositórios e as sessões de antes, e que **Retomar** abre a conversa certa.
-2. Confirme que o `ia` não lê o arquivo de dados (deve ser negado), executando como usuário principal: `ssh ia@localhost powershell -NoProfile -Command Get-Content $env:APPDATA\Painel\demandas.json`.
+Com os dados reais (grupo 6 de `openspec/changes/etapa-4a-demandas/tasks.md`): copie o `demandas.json`, abra o painel com `--dados` apontando para a cópia e confira que **Sessões** traz os repositórios e as sessões do container, e que **Retomar** abre a conversa certa.
 
 ### Roteiro de trabalhos e sessões
 
@@ -245,11 +242,11 @@ Confira na tela:
 - **Trocar change** (menu do repositório): lista as changes do repositório e **Nenhuma**.
 - **Excluir:** a lixeira abre a confirmação "Excluir esta sessão?" com os botões **Excluir sessão** e **Cancelar**; **Enter** cancela.
 
-Conferência manual com a conta `ia` e sessões reais (grupo 5 de `openspec/changes/trabalhos-e-sessoes/tasks.md`):
+Conferência manual com sessões reais (grupo 5 de `openspec/changes/trabalhos-e-sessoes/tasks.md`):
 
 1. Crie um trabalho só com o título, vincule um repositório de `C:\Fontes` pela escolha de pasta e escolha uma change: o progresso aparece no card e nenhum identificador aparece.
 2. Tente vincular uma pasta fora de `C:\Fontes` (por exemplo `C:\Windows`): o painel mostra o erro e nada é vinculado.
-3. Em **Sessões**, use **Nova sessão** para abrir uma sessão do Claude e uma do Codex: as duas aparecem lá e **Retomar** abre a conversa certa. Abra uma sessão à mão, pelo SSH, e retome-a por **Sessões** escolhendo o repositório.
+3. Em **Sessões**, use **Nova sessão** para abrir uma sessão do Claude e uma do Codex: as duas aparecem lá e **Retomar** abre a conversa certa. Abra uma sessão à mão, pelo `docker exec`, e retome-a por **Sessões** escolhendo o repositório.
 4. Exclua uma sessão de um trabalho e uma de **Sessões**: elas somem do painel, inclusive depois de reabri-lo, e **Enter** na confirmação não exclui.
 5. Abra uma sessão por um trabalho cujo título contém `;`: o título da aba usa `,` no lugar.
 

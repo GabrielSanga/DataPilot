@@ -1,14 +1,16 @@
 # lista-de-sessoes Specification
+
 ## Purpose
 
 Mostra numa única janela todas as sessões do Claude Code e do Codex e o estado de cada uma, para que o usuário veja de relance o que precisa dele sem percorrer as abas do terminal.
 
 ## Requirements
+
 ### Requirement: Lista de sessões
 A janela SHALL mostrar cada sessão conhecida com o agente, o nome da pasta (último segmento da pasta de trabalho), o status exibido e o tempo decorrido desde a última atualização. Sessões registradas SHALL aparecer no card do seu repositório, dentro da sua demanda; as demais SHALL aparecer em "Não vinculadas". A pasta de trabalho completa e o identificador da sessão SHALL estar disponíveis para consulta na própria linha.
 
 #### Scenario: Sessão do Claude em andamento
-- **WHEN** existe uma sessão do Claude com pasta de trabalho `C:\Fontes\Faturamento` e status `executando` atualizado há 2 minutos
+- **WHEN** existe uma sessão do Claude com pasta de trabalho `/workspace/Faturamento` e status `executando` atualizado há 2 minutos
 - **THEN** a linha dela mostra agente Claude, pasta `Faturamento`, status "executando" e a indicação de 2 minutos
 
 #### Scenario: Sessões dos dois agentes
@@ -47,15 +49,15 @@ O status exibido SHALL ser o status gravado, exceto: `ativa` ou `executando` sem
 - **THEN** a sessão é tratada como atualizada agora
 
 ### Requirement: Cores por status
-Cada status exibido SHALL ter uma cor: vermelho para "precisa de atenção", azul para "executando", amarelo para "aguardando você", verde para "ativa" e cinza para "encerrada" e "inativa". O nome do status SHALL aparecer em texto, de modo que a cor não seja a única indicação.
+Cada status exibido SHALL ter uma cor no indicador da linha: vermelho para "precisa de atenção", azul para "executando", amarelo para "aguardando você", verde para "ativa" e cinza para "encerrada" e "inativa". O nome do status SHALL estar na dica da linha e no nome acessível do indicador, e SHALL aparecer em texto quando o alto contraste do Windows estiver ligado.
 
 #### Scenario: Sessão pedindo permissão
 - **WHEN** uma sessão é exibida como "precisa de atenção"
-- **THEN** o indicador de status dela é vermelho e traz o texto do status
+- **THEN** o indicador dela é vermelho e a dica e o nome acessível trazem "precisa de atenção"
 
 #### Scenario: Sessão inativa
 - **WHEN** uma sessão é exibida como "inativa"
-- **THEN** o indicador de status dela é cinza e traz o texto do status
+- **THEN** o indicador dela é cinza e a dica e o nome acessível trazem "inativa"
 
 ### Requirement: Ordem por urgência
 As sessões de um card de repositório e as de "Não vinculadas" SHALL ser ordenadas pelo status exibido, nesta ordem: precisa de atenção, aguardando você, executando, ativa, inativa, encerrada, sem status. Dentro do mesmo status, a sessão atualizada mais recentemente SHALL vir primeiro.
@@ -117,7 +119,7 @@ Quando a pasta de status não puder ser lida, a janela SHALL mostrar um aviso qu
 - **THEN** a janela indica que não há sessões, sem o aviso de pasta indisponível
 
 ### Requirement: Pasta de status definida na inicialização
-O painel SHALL ler `C:\ProgramData\Painel\sessoes` por padrão e SHALL aceitar outra pasta informada pelo usuário na linha de comando ao iniciar.
+O painel SHALL ler `C:\ProgramData\Painel\sessoes` por padrão e SHALL aceitar outra pasta informada pelo usuário na linha de comando ao iniciar. Se a pasta não existir, o painel SHALL criá-la antes de começar a ler; se não conseguir, SHALL mostrar o aviso de pasta indisponível. O painel SHALL NOT criar arquivos dentro dela.
 
 #### Scenario: Início sem parâmetros
 - **WHEN** o painel é iniciado sem parâmetros
@@ -127,20 +129,28 @@ O painel SHALL ler `C:\ProgramData\Painel\sessoes` por padrão e SHALL aceitar o
 - **WHEN** o painel é iniciado com `--pasta-status` seguido de um caminho
 - **THEN** ele lê as sessões dessa pasta
 
+#### Scenario: Pasta que não existe
+- **WHEN** o painel é iniciado e a pasta de status não existe
+- **THEN** a pasta é criada, vazia, e a janela indica que não há sessões
+
+#### Scenario: Pasta que não pode ser criada
+- **WHEN** a pasta de status não existe e o usuário não tem permissão para criá-la
+- **THEN** a janela mostra o aviso de pasta indisponível
+
 ### Requirement: Ação de retomar na linha
-A linha de uma sessão SHALL oferecer a ação "Retomar" somente quando o identificador e o agente dessa sessão corresponderem a uma sessão registrada no arquivo de dados do painel. As demais linhas SHALL NOT oferecer a ação.
+A linha de uma sessão registrada SHALL oferecer "Retomar" com o repositório do registro. A linha de uma sessão de "Sessões" sem registro SHALL oferecer "Retomar" quando o identificador for um GUID canônico, pedindo o repositório antes. Com o arquivo de dados ilegível, nenhuma linha SHALL oferecer "Retomar".
 
 #### Scenario: Sessão aberta pelo painel
 - **WHEN** a lista mostra uma sessão do Claude cujo identificador está registrado no arquivo de dados
-- **THEN** a linha oferece "Retomar"
+- **THEN** a linha oferece "Retomar", que abre no repositório do registro
 
 #### Scenario: Sessão do Codex
-- **WHEN** a lista mostra uma sessão do Codex, que o painel não registra
-- **THEN** a linha não oferece "Retomar"
+- **WHEN** a lista mostra em "Sessões" uma sessão do Codex que o painel não registrou
+- **THEN** a linha oferece "Retomar", que pede o repositório antes de abrir
 
 #### Scenario: Sessão criada por /clear
 - **WHEN** o usuário executa `/clear` numa sessão do Claude aberta pelo painel e surge uma sessão com outro identificador
-- **THEN** a linha da sessão nova não oferece "Retomar", e a da sessão original continua oferecendo
+- **THEN** a sessão nova aparece em "Sessões" com "Retomar", e a original continua com "Retomar" no seu lugar
 
 #### Scenario: Arquivo de dados ilegível
 - **WHEN** o arquivo de dados do painel não pode ser lido
@@ -158,19 +168,19 @@ A linha de uma sessão registrada SHALL indicar o repositório em que ela foi re
 - **THEN** a linha indica `Faturamento` como o repositório em que "Retomar" vai abrir
 
 ### Requirement: Tela agrupada por demanda
-A janela SHALL ter duas áreas: uma lista de demandas e a demanda selecionada. A demanda selecionada SHALL mostrar o `id`, o título, o `openspecChange` quando houver, e um card por repositório com as sessões registradas nele.
+A janela SHALL ter duas áreas: a lista, com os trabalhos e a entrada "Sessões", e o item selecionado. O trabalho selecionado SHALL mostrar o título e um card por repositório com a change e o progresso dele e as sessões registradas nele.
 
 #### Scenario: Demanda com dois repositórios e os dois agentes
-- **WHEN** a demanda selecionada tem `Faturamento` com uma sessão do Claude e `Estoque` com uma sessão do Codex
-- **THEN** a área da demanda mostra dois cards, cada um com a sessão do seu repositório
+- **WHEN** o trabalho selecionado tem `Faturamento` com uma sessão do Claude e `Estoque` com uma sessão do Codex
+- **THEN** a área do trabalho mostra dois cards, cada um com a sessão do seu repositório
 
 #### Scenario: Demanda sem repositórios
-- **WHEN** a demanda selecionada não tem repositórios
-- **THEN** a área da demanda orienta o usuário a vincular um repositório
+- **WHEN** o trabalho selecionado não tem repositórios
+- **THEN** a área do trabalho orienta o usuário a vincular um repositório
 
 #### Scenario: Nenhuma demanda
-- **WHEN** o arquivo de dados não tem demandas
-- **THEN** a janela orienta o usuário a criar uma demanda
+- **WHEN** o arquivo de dados não tem trabalhos
+- **THEN** a janela orienta o usuário a criar um trabalho ou a usar "Sessões"
 
 ### Requirement: Resumo e ordem das demandas
 Cada demanda da lista SHALL mostrar a quantidade de repositórios, a quantidade de sessões e o status exibido mais urgente entre suas sessões. A lista SHALL ser ordenada pelo status mais urgente de cada demanda e, em caso de empate, pela atualização mais recente; demandas sem sessões com status SHALL vir depois, e as arquivadas por último.
@@ -193,25 +203,6 @@ Toda sessão registrada SHALL aparecer no card do seu repositório, independente
 #### Scenario: Sessão sem arquivo de status
 - **WHEN** uma sessão está registrada no arquivo de dados e não existe arquivo de status para ela
 - **THEN** ela aparece no card do repositório como "sem status" e pode ser retomada
-
-### Requirement: Entrada "Não vinculadas"
-A lista de demandas SHALL ter uma entrada "Não vinculadas" que mostra as sessões lidas da pasta de status que não correspondem a nenhuma sessão registrada, com a quantidade delas. Essas sessões SHALL oferecer a ação "Vincular" e nenhuma outra.
-
-#### Scenario: Sessão do Codex
-- **WHEN** existe uma sessão do Codex na pasta de status que o painel não registrou
-- **THEN** ela aparece em "Não vinculadas", com a ação "Vincular" e sem "Retomar"
-
-#### Scenario: Sessão criada por /clear
-- **WHEN** o usuário executa `/clear` numa sessão registrada e surge uma sessão com outro identificador
-- **THEN** a sessão nova aparece em "Não vinculadas", com a ação "Vincular", e a original continua na sua demanda
-
-#### Scenario: Nenhuma sessão não vinculada
-- **WHEN** todas as sessões da pasta de status estão registradas
-- **THEN** a entrada "Não vinculadas" indica zero sessões
-
-#### Scenario: Sessão vinculada sai da entrada
-- **WHEN** o usuário vincula uma sessão de "Não vinculadas"
-- **THEN** ela deixa de aparecer nessa entrada e a contagem diminui
 
 ### Requirement: Seleção preservada nas atualizações
 A demanda selecionada e a posição da lista SHALL ser mantidas quando a tela é atualizada por mudança de status, por releitura periódica ou por alteração de outra demanda.
@@ -278,38 +269,38 @@ O topo da janela SHALL destacar em vermelho a quantidade de sessões em "precisa
 - **THEN** o topo mostra "Nada precisa de você agora", sem destaque e sem "Ir para a próxima"
 
 ### Requirement: Ir para a próxima sessão que precisa do usuário
-"Ir para a próxima", e a tecla F8, SHALL selecionar a próxima demanda da lista, depois da selecionada e voltando ao início, que tenha sessão no status destacado no topo. Uma sessão não vinculada nesse status SHALL levar a "Não vinculadas". Sem sessão no status destacado, a ação SHALL NOT estar disponível.
+"Ir para a próxima", e a tecla F8, SHALL selecionar o próximo item da lista, depois do selecionado e voltando ao início, que tenha sessão no status destacado no topo. Uma sessão de "Sessões" nesse status SHALL levar a "Sessões". Sessões excluídas SHALL NOT contar. Sem sessão no status destacado, a ação SHALL NOT estar disponível.
 
 #### Scenario: Duas demandas pedindo atenção
-- **WHEN** `CHG-142` e `CHG-160` têm sessões em "precisa de atenção", `CHG-142` está selecionada e o usuário aciona "Ir para a próxima"
-- **THEN** `CHG-160` passa a ser a demanda selecionada
+- **WHEN** dois trabalhos têm sessões em "precisa de atenção", o primeiro está selecionado e o usuário aciona "Ir para a próxima"
+- **THEN** o segundo trabalho passa a ser o selecionado
 
 #### Scenario: Fim da lista
-- **WHEN** a última demanda com sessão em "precisa de atenção" está selecionada e o usuário pressiona F8
-- **THEN** a primeira demanda da lista com sessão nesse status passa a ser a selecionada
+- **WHEN** o último item com sessão em "precisa de atenção" está selecionado e o usuário pressiona F8
+- **THEN** o primeiro item da lista com sessão nesse status passa a ser o selecionado
 
 #### Scenario: Sessão não vinculada pedindo atenção
-- **WHEN** a única sessão em "precisa de atenção" é uma sessão não vinculada
-- **THEN** "Ir para a próxima" seleciona "Não vinculadas"
+- **WHEN** a única sessão em "precisa de atenção" está em "Sessões"
+- **THEN** "Ir para a próxima" seleciona "Sessões"
 
 ### Requirement: Filtro de demandas
-Um campo acima da lista de demandas SHALL filtrar as demandas exibidas pelo texto digitado, comparando com o identificador, o título, a change do OpenSpec e os nomes dos repositórios, sem diferenciar maiúsculas nem acentos. "Não vinculadas" SHALL continuar visível. Ctrl+F SHALL levar o foco ao campo e Esc, no campo, SHALL limpar o filtro. Filtrar SHALL NOT mudar a demanda selecionada.
+Um campo acima da lista SHALL filtrar os trabalhos exibidos pelo texto digitado, comparando com o título, os nomes dos repositórios e as changes deles, sem diferenciar maiúsculas nem acentos. "Sessões" SHALL continuar visível. Ctrl+F SHALL levar o foco ao campo e Esc, no campo, SHALL limpar o filtro. Filtrar SHALL NOT mudar o item selecionado.
 
 #### Scenario: Filtro pelo repositório
 - **WHEN** o usuário digita "estoque" no filtro
-- **THEN** a lista mostra só as demandas que têm o repositório `Estoque` ou esse texto no identificador, no título ou na change, e "Não vinculadas"
+- **THEN** a lista mostra só os trabalhos que têm o repositório `Estoque` ou esse texto no título ou numa change, e "Sessões"
 
 #### Scenario: Filtro sem acento
-- **WHEN** o usuário digita "relatorio" e existe a demanda "Relatório mensal"
-- **THEN** essa demanda aparece na lista
+- **WHEN** o usuário digita "relatorio" e existe o trabalho "Relatório mensal"
+- **THEN** esse trabalho aparece na lista
 
 #### Scenario: Limpar o filtro
 - **WHEN** o foco está no filtro e o usuário pressiona Esc
-- **THEN** o filtro fica vazio e todas as demandas voltam a aparecer
+- **THEN** o filtro fica vazio e todos os trabalhos voltam a aparecer
 
 #### Scenario: Demanda selecionada fora do filtro
-- **WHEN** o usuário digita um texto que não casa com a demanda selecionada
-- **THEN** a área da demanda continua mostrando a demanda selecionada
+- **WHEN** o usuário digita um texto que não casa com o trabalho selecionado
+- **THEN** a área continua mostrando o trabalho selecionado
 
 ### Requirement: Nenhuma demanda selecionada
 Com nenhuma demanda selecionada, a área da demanda SHALL mostrar só a orientação para selecionar ou criar uma demanda, sem ações, sem progresso e sem textos de uma demanda.
@@ -319,31 +310,61 @@ Com nenhuma demanda selecionada, a área da demanda SHALL mostrar só a orienta�
 - **THEN** a área da demanda mostra só a orientação, sem botões, barra de progresso ou o texto de demanda sem repositórios
 
 ### Requirement: Destaque das sessões que precisam do usuário
-As linhas de sessões em "precisa de atenção" e "aguardando você" SHALL ter uma faixa na cor do status junto à borda esquerda e o nome do status em destaque. As linhas nos demais status SHALL mostrar o status em texto com um indicador pequeno na cor dele, sem faixa. Uma demanda da lista com sessão em um desses dois status SHALL ter a mesma faixa, na cor do status mais urgente.
+As linhas de sessões em "precisa de atenção" e "aguardando você" SHALL ter uma faixa na cor do status junto à borda esquerda. As linhas nos demais status SHALL ter só o indicador, sem faixa. Um item da lista com sessão em um desses dois status SHALL ter a mesma faixa, na cor do status mais urgente.
 
 #### Scenario: Card com sessões em vários status
 - **WHEN** um card tem uma sessão "precisa de atenção", uma "aguardando você" e uma "executando"
-- **THEN** as duas primeiras têm faixa vermelha e amarela, e a terceira mostra "executando" com um indicador azul, sem faixa
+- **THEN** as duas primeiras têm faixa vermelha e amarela, e a terceira tem só o indicador azul, sem faixa
 
 #### Scenario: Demanda pedindo atenção na lista
-- **WHEN** uma demanda tem uma sessão em "precisa de atenção"
-- **THEN** o item dela na lista de demandas tem a faixa vermelha
+- **WHEN** um trabalho tem uma sessão em "precisa de atenção"
+- **THEN** o item dele na lista tem a faixa vermelha
 
 ### Requirement: Ação principal e menu de ações
-Cada linha e cada bloco SHALL mostrar só a ação principal e reunir as demais num menu "Mais ações": sessão registrada com "Retomar" e, no menu, "Mover para outra demanda" e "Remover registro"; lançamento pendente com "Abrir" e, no menu, "Cancelar"; repositório com "Nova sessão" e, no menu, "Remover repositório"; demanda com "Vincular repositório" e, no menu, "Editar" e "Arquivar" ou "Desarquivar".
+Sessões SHALL mostrar "Retomar" e "Excluir"; as de "Sessões" SHALL ter, no menu "Mais ações", "Vincular a um trabalho", e as de um trabalho SHALL NOT ter menu. Lançamento pendente SHALL mostrar "Abrir" e, no menu, "Cancelar"; repositório, "Nova sessão" e, no menu, "Trocar change" e "Remover repositório"; trabalho, "Vincular repositório" e, no menu, "Editar" e "Arquivar" ou "Desarquivar".
 
 #### Scenario: Linha de sessão registrada
-- **WHEN** a lista mostra uma sessão registrada
-- **THEN** a linha mostra "Retomar" e o botão de mais ações, e "Remover registro" só aparece no menu
+- **WHEN** a lista mostra uma sessão registrada num trabalho
+- **THEN** a linha mostra "Retomar" e o botão "Excluir", sem menu de mais ações
 
 #### Scenario: Menu pelo teclado
-- **WHEN** o foco está numa linha de sessão registrada e o usuário pressiona Shift+F10
-- **THEN** o menu de mais ações da linha abre e pode ser percorrido pelas setas
+- **WHEN** o foco está no cabeçalho de um repositório e o usuário pressiona Shift+F10
+- **THEN** o menu de mais ações do repositório abre e pode ser percorrido pelas setas
 
 #### Scenario: Sessão não vinculada
-- **WHEN** a lista mostra uma sessão em "Não vinculadas"
-- **THEN** a linha mostra só "Vincular", sem menu de mais ações
+- **WHEN** a lista mostra uma sessão em "Sessões"
+- **THEN** a linha mostra "Retomar", "Excluir" e o menu com "Vincular a um trabalho"
 
 #### Scenario: Vincular indisponível
-- **WHEN** uma sessão não vinculada tem identificador fora do formato GUID
-- **THEN** "Vincular" aparece desabilitado e o motivo aparece em texto na própria linha
+- **WHEN** uma sessão de "Sessões" tem identificador fora do formato GUID
+- **THEN** "Retomar" e "Vincular a um trabalho" ficam indisponíveis, o motivo aparece em texto na linha e "Excluir" continua disponível
+
+### Requirement: Entrada "Sessões"
+A lista SHALL ter, no fim, a entrada "Sessões", com a quantidade e as linhas das sessões registradas na demanda `sem-demanda`, com o repositório de cada uma, dos lançamentos pendentes dela e das sessões da pasta de status não registradas em nenhuma demanda nem excluídas. A área SHALL oferecer "Nova sessão", que pede a pasta do repositório antes do agente.
+
+#### Scenario: Sessão do Codex aberta fora do painel
+- **WHEN** existe uma sessão do Codex na pasta de status que o painel não registrou
+- **THEN** ela aparece em "Sessões", com "Retomar" e "Excluir"
+
+#### Scenario: Sessão aberta sem trabalho
+- **WHEN** o usuário aciona "Nova sessão" em "Sessões", escolhe a pasta `Faturamento` e o Claude
+- **THEN** a sessão abre no terminal e aparece em "Sessões", indicando `Faturamento`
+
+#### Scenario: Sessão vinculada a um trabalho sai da entrada
+- **WHEN** o usuário vincula uma sessão de "Sessões" a um trabalho
+- **THEN** ela deixa de aparecer em "Sessões" e a contagem diminui
+
+#### Scenario: Nenhuma sessão fora de trabalhos
+- **WHEN** todas as sessões estão em trabalhos ou foram excluídas
+- **THEN** "Sessões" indica zero sessões e orienta a usar "Nova sessão"
+
+### Requirement: Linha da sessão
+A linha de uma sessão SHALL mostrar, nesta ordem, um indicador redondo na cor do status, o agente, o rótulo, o tempo decorrido e as ações. Sem rótulo, o lugar dele SHALL ficar em branco.
+
+#### Scenario: Sessão sem rótulo
+- **WHEN** a lista mostra uma sessão sem rótulo
+- **THEN** o lugar do rótulo fica vazio, sem texto como "sem rótulo"
+
+#### Scenario: Sessão com rótulo
+- **WHEN** a lista mostra uma sessão com o rótulo "implementação"
+- **THEN** a linha mostra o indicador, o agente, "implementação", o tempo e as ações

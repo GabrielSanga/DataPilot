@@ -6,15 +6,14 @@ namespace DataPilot.Core.Sessions;
 
 /// <summary>
 /// Comando a iniciar: executável e lista de argumentos já separados. Nunca passa por shell. <see cref="Container"/> é
-/// o container que precisa estar de pé antes (null no Windows).
+/// o container que precisa estar de pé antes.
 /// </summary>
-public sealed record ComandoTerminal(string Executavel, IReadOnlyList<string> Argumentos, string? Container = null);
+public sealed record ComandoTerminal(string Executavel, IReadOnlyList<string> Argumentos, string Container);
 
 public sealed class EntradaInvalidaException(string mensagem) : Exception(mensagem);
 
 /// <summary>
-/// Monta, como função pura, o comando <c>wt</c> + <c>docker exec</c> + <c>abrir.sh</c> (container) ou
-/// <c>wt</c> + <c>ssh</c> + <c>abrir.ps1</c> (Windows). Só aceita tipos do arquivo de dados
+/// Monta, como função pura, o comando <c>wt</c> + <c>docker exec</c> + <c>abrir.sh</c>. Só aceita tipos do arquivo de dados
 /// do painel (nunca <see cref="Sessao"/>, que vem da pasta de status) e valida de novo cada valor.
 /// </summary>
 public static class MontadorComando
@@ -28,10 +27,8 @@ public static class MontadorComando
         return Montar(demandaId, tituloDemanda, agente, repo.Pasta, sessionId, "novo", rotulo, opcoes);
     }
 
-    /// <summary>Retoma no ambiente do registro, qualquer que seja o das configurações.</summary>
     public static ComandoTerminal Retomar(SessaoRegistrada sessao, Configuracoes? opcoes = null)
-        => Montar(sessao.DemandaId, sessao.DemandaTitulo, sessao.Agente, sessao.Pasta, sessao.SessionId, "retomar", sessao.Rotulo,
-            (opcoes ?? Configuracoes.Padrao) with { Execucao = sessao.Execucao });
+        => Montar(sessao.DemandaId, sessao.DemandaTitulo, sessao.Agente, sessao.Pasta, sessao.SessionId, "retomar", sessao.Rotulo, opcoes);
 
     public const int TamanhoMaximoTituloNaAba = 40;
 
@@ -74,37 +71,16 @@ public static class MontadorComando
         if (rotulo is not null && !ValidadorEntrada.RotuloValido(rotulo))
             throw new EntradaInvalidaException(ValidadorEntrada.MensagemRotulo);
 
-        if (!Enum.IsDefined(opcoes.Execucao)) throw new EntradaInvalidaException("Ambiente de execução inválido.");
+        if (!ValidadorEntrada.ContainerValido(opcoes.Container))
+            throw new EntradaInvalidaException(ValidadorEntrada.MensagemContainer);
 
         var args = new List<string>
         {
             "-w", Constantes.JanelaTerminal, "nt",
             "--title", Titulo(demandaId, tituloDemanda, agente, pasta, rotulo), "--suppressApplicationTitle",
+            Constantes.ExecutavelDocker, "exec", "--interactive", "--tty", opcoes.Container, Constantes.ScriptAbrirContainer,
+            "--agente", Agentes.NoArquivo(agente),
         };
-        if (opcoes.Execucao == Execucao.Container)
-            return NoContainer(args, opcoes.Container, agente, pasta, sessionId, modo);
-
-        if (opcoes.UsarSsh && !ValidadorEntrada.UsuarioSshValido(opcoes.UsuarioSsh))
-            throw new EntradaInvalidaException(ValidadorEntrada.MensagemUsuarioSsh);
-        if (opcoes.UsarSsh) args.AddRange(["ssh", "-t", $"{opcoes.UsuarioSsh}@{Constantes.HostSsh}"]);
-        args.AddRange(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", Constantes.ScriptAbrir,
-            "-Agente", Agentes.NoArquivo(agente)]);
-        // Fora da raiz o caminho vai em Base64: a linha do ssh é reinterpretada e espaços ou "&" virariam outro comando.
-        if (ValidadorEntrada.PastaValida(pasta)) args.AddRange(["-Repo", pasta]);
-        else args.AddRange(["-Caminho", Base64(pasta)]);
-        if (sessionId is not null) { args.Add("-Sessao"); args.Add(sessionId); }
-        args.Add("-Modo");
-        args.Add(modo);
-        return new ComandoTerminal(Constantes.ExecutavelTerminal, args);
-    }
-
-    private static ComandoTerminal NoContainer(List<string> args, string container, Agente agente, string pasta,
-        string? sessionId, string modo)
-    {
-        if (!ValidadorEntrada.ContainerValido(container))
-            throw new EntradaInvalidaException(ValidadorEntrada.MensagemContainer);
-        args.AddRange([Constantes.ExecutavelDocker, "exec", "--interactive", "--tty", container, Constantes.ScriptAbrirContainer,
-            "--agente", Agentes.NoArquivo(agente)]);
         if (ValidadorEntrada.PastaValida(pasta)) args.AddRange(["--repo", pasta]);
         else
         {
@@ -114,7 +90,7 @@ public static class MontadorComando
         }
         if (sessionId is not null) args.AddRange(["--sessao", sessionId]);
         args.AddRange(["--modo", modo]);
-        return new ComandoTerminal(Constantes.ExecutavelTerminal, args, container);
+        return new ComandoTerminal(Constantes.ExecutavelTerminal, args, opcoes.Container);
     }
 
     private static string Base64(string texto) => Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(texto));

@@ -1,4 +1,4 @@
-// Hook de status do DataPilot no container. Mesmo contrato do scripts/hook.ps1.
+// Hook de status do DataPilot no container.
 //
 //   node /opt/painel/hook.mjs <claude|codex> [pasta de status]
 //
@@ -26,7 +26,7 @@ const STATUS = new Map([
 // So pedidos de permissao e perguntas; o aviso de ociosidade (idle_prompt) e ignorado.
 const NOTIFICACOES = ['permission_prompt', 'elicitation_dialog'];
 
-// ISO 8601 com o deslocamento local, como o hook.ps1.
+// ISO 8601 com o deslocamento local.
 function isoLocal(data) {
     const desvio = -data.getTimezoneOffset();
     const local = new Date(data.getTime() + desvio * 60000).toISOString().slice(0, -1);

@@ -63,7 +63,7 @@ public class SessoesNaVisaoTests
     {
         var lanc = new LancamentoPendente("11111111-2222-3333-4444-555555555555", Agente.Codex, Fabrica.Agora.AddMinutes(-5), null);
         var d = Dem("t1", new RepositorioCadastrado("App", [], [lanc]));
-        var lida = new Sessao(Agente.Codex, IdA, @"C:\Fontes\App", StatusGravado.Ativa, Fabrica.Agora, Fabrica.Agora.AddMinutes(-1));
+        var lida = new Sessao(Agente.Codex, IdA, "/workspace/App", StatusGravado.Ativa, Fabrica.Agora, Fabrica.Agora.AddMinutes(-1));
 
         Assert.Single(VinculoAutomatico.Calcular([d], [lida], Fabrica.Agora));
         var excluidas = new[] { new SessaoExcluida(Agente.Codex, IdA, Fabrica.Agora) };

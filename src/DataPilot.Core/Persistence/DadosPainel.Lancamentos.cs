@@ -16,7 +16,7 @@ public sealed partial class DadosPainel
     /// são removidos na mesma gravação.
     /// </summary>
     public ResultadoOperacao RegistrarLancamento(string demandaId, string pasta, Agente agente, string lancamentoId,
-        string? rotulo, DateTimeOffset criadoEm, Execucao execucao = Execucao.Windows)
+        string? rotulo, DateTimeOffset criadoEm)
     {
         if (!ValidadorEntrada.RepositorioValido(pasta)) return ResultadoOperacao.Falha(ValidadorEntrada.MensagemRepositorio);
         if (!ValidadorEntrada.IdentificadorValido(lancamentoId)) return ResultadoOperacao.Falha("Identificador de lançamento inválido.");
@@ -34,14 +34,15 @@ public sealed partial class DadosPainel
             if (lista is null) repo["lancamentos"] = lista = new JsonArray();
             for (var i = lista.Count - 1; i >= 0; i--)
             {
-                if (lista[i] is JsonObject l && LancamentoVencido(l, criadoEm)) lista.RemoveAt(i);
+                // Registros desconsiderados (do antigo modo Windows) ficam no arquivo, mesmo vencidos.
+                if (lista[i] is JsonObject l && DoContainer(l) && LancamentoVencido(l, criadoEm)) lista.RemoveAt(i);
             }
 
             var novo = new JsonObject
             {
                 ["id"] = lancamentoId,
                 ["agente"] = Agentes.NoArquivo(agente),
-                ["execucao"] = Execucoes.NoArquivo(execucao),
+                ["execucao"] = ExecucaoContainer,
             };
             if (rotulo is not null) novo["rotulo"] = rotulo;
             novo["criadoEm"] = criadoEm.ToString("o", CultureInfo.InvariantCulture);
@@ -115,13 +116,13 @@ public sealed partial class DadosPainel
             if (SessoesComId(raiz, pedido.SessionId).Any())
                 return ResultadoOperacao.Falha("Esta sessão já está registrada.");
 
-            if (!TentarLerExecucao(lancamento, out var execucao))
+            if (!DoContainer(lancamento))
                 return ResultadoOperacao.Falha("Ambiente de execução do lançamento inválido.");
 
             var rotulo = Texto(lancamento, "rotulo");
             if (!ValidadorEntrada.RotuloValido(rotulo)) rotulo = null;
 
-            AdicionarSessao(repo, pedido.Agente, pedido.SessionId, rotulo, vinculadaEm, vinculadaEm, execucao);
+            AdicionarSessao(repo, pedido.Agente, pedido.SessionId, rotulo, vinculadaEm, vinculadaEm);
             lista.Remove(lancamento);
             return ResultadoOperacao.Sucesso;
         });

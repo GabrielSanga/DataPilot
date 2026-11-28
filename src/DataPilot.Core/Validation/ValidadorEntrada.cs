@@ -19,8 +19,6 @@ public static partial class ValidadorEntrada
     public const string MensagemTitulo = "Título inválido: use de 1 a 80 caracteres, sem caracteres de controle.";
     public const string MensagemChange = "Change do OpenSpec inválida: use letras, dígitos, \"_\", \".\" e \"-\", e não só pontos.";
 
-    public const string MensagemUsuarioSsh = "Usuário do SSH inválido: use de 1 a 20 caracteres entre letras, dígitos, \"_\", \".\" e \"-\", sem começar com \"-\" nem \".\".";
-
     public const string MensagemContainer = "Nome do container inválido: use de 1 a 63 caracteres entre letras, dígitos, \"_\", \".\" e \"-\", começando por letra ou dígito.";
 
     [GeneratedRegex(@"\A[A-Za-z0-9][A-Za-z0-9_.-]{0,62}\z")]
@@ -30,14 +28,7 @@ public static partial class ValidadorEntrada
     public static bool ContainerValido(string? nome)
         => nome is not null && PadraoContainer().IsMatch(nome);
 
-    [GeneratedRegex(@"\A[A-Za-z0-9_][A-Za-z0-9_.-]{0,19}\z")]
-    private static partial Regex PadraoUsuarioSsh();
-
-    /// <summary>Não começa com <c>-</c>, para o valor nunca virar uma opção do <c>ssh</c>.</summary>
-    public static bool UsuarioSshValido(string? usuario)
-        => usuario is not null && PadraoUsuarioSsh().IsMatch(usuario);
-
-    // As duas primeiras repetem as regras do abrir.ps1; \z evita aceitar uma quebra de linha final.
+    // As duas primeiras repetem as regras do abrir.sh; \z evita aceitar uma quebra de linha final.
     [GeneratedRegex(@"\A[A-Za-z0-9_.-]+\z")]
     private static partial Regex PadraoPasta();
 
@@ -49,9 +40,9 @@ public static partial class ValidadorEntrada
         => pasta is not null && PadraoPasta().IsMatch(pasta) && pasta.Any(c => c != '.');
 
     public const int TamanhoMaximoCaminho = 260;
-    public const string MensagemRepositorio = "Pasta inválida: use uma pasta local com caminho completo (como D:\\Projetos\\Faturamento), de até 260 caracteres.";
+    public const string MensagemRepositorio = "Pasta inválida: use uma pasta local com caminho completo (como C:\\Fontes\\Grupo\\Faturamento), de até 260 caracteres.";
 
-    // A mesma regra do -Caminho do abrir.ps1: unidade local, sem curingas, controle, "/" nem ":" fora da unidade.
+    // Unidade local, sem curingas, controle, "/" nem ":" fora da unidade.
     [GeneratedRegex(@"\A[A-Za-z]:\\[^\x00-\x1f*?:""<>|/]+\z")]
     private static partial Regex PadraoCaminho();
 

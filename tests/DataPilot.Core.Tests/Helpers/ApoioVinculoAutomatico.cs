@@ -17,7 +17,6 @@ internal static class ApoioVinculoAutomatico
     {
         var pasta = new PastaTemporaria();
         var dados = new DadosPainel(Path.Combine(pasta.Caminho, "demandas.json"));
-        dados.SalvarConfiguracoes(Fabrica.Windows);
         foreach (var d in demandas)
         {
             dados.CriarDemanda(d, d, null, Base);
@@ -26,7 +25,7 @@ internal static class ApoioVinculoAutomatico
         return (dados, pasta);
     }
 
-    internal static Sessao Codex(string id, DateTimeOffset? criado, string cwd = @"C:\Fontes\Faturamento", Agente agente = Agente.Codex)
+    internal static Sessao Codex(string id, DateTimeOffset? criado, string cwd = "/workspace/Faturamento", Agente agente = Agente.Codex)
         => new(agente, id, cwd, StatusGravado.Executando, Base, criado);
 
     internal static Demanda Demanda(string id, bool arquivada, params LancamentoPendente[] lancamentos)

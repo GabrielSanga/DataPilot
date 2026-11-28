@@ -6,23 +6,23 @@ Permite associar a uma demanda uma sessão que o painel não abriu, como as do C
 ## Requirements
 
 ### Requirement: Vincular sessão não vinculada
-O painel SHALL permitir vincular uma sessão de "Não vinculadas" a uma demanda não arquivada, em um repositório dessa demanda ou em um repositório novo informado pelo usuário, com um rótulo opcional. Depois de vinculada, a sessão SHALL constar no arquivo de dados, aparecer no card do repositório com seu status e poder ser retomada.
+O painel SHALL permitir vincular uma sessão de "Sessões" a uma demanda não arquivada, em um repositório dessa demanda ou em um repositório novo escolhido pelo usuário, com um rótulo opcional. Uma sessão já registrada em `sem-demanda` SHALL ser movida para a demanda escolhida. Depois de vinculada, a sessão SHALL constar no arquivo de dados, aparecer no card do repositório com seu status e poder ser retomada.
 
 #### Scenario: Sessão do Codex
-- **WHEN** o usuário vincula uma sessão do Codex ao repositório `Faturamento` da demanda `CHG-142`
-- **THEN** a sessão passa a aparecer no card `Faturamento` de `CHG-142`, com o status atual, e oferece "Retomar"
+- **WHEN** o usuário vincula uma sessão do Codex de "Sessões" ao repositório `Faturamento` de um trabalho
+- **THEN** a sessão passa a aparecer no card `Faturamento` desse trabalho, com o status atual, e oferece "Retomar"
 
 #### Scenario: Sessão criada por /clear
 - **WHEN** o usuário vincula a sessão que surgiu depois de um `/clear` numa sessão do Claude
-- **THEN** a sessão nova passa a aparecer na demanda escolhida e pode ser retomada
+- **THEN** a sessão nova passa a aparecer no trabalho escolhido e pode ser retomada
 
 #### Scenario: Retomar sessão vinculada
 - **WHEN** o usuário aciona "Retomar" numa sessão do Codex vinculada
 - **THEN** abre uma aba com a conversa anterior do Codex, no repositório escolhido no vínculo
 
 #### Scenario: Nenhuma demanda disponível
-- **WHEN** o usuário aciona "Vincular" e não existe demanda não arquivada
-- **THEN** o painel orienta a criar uma demanda e não grava nada
+- **WHEN** o usuário aciona "Vincular a um trabalho" e não existe trabalho não arquivado
+- **THEN** o painel orienta a criar um trabalho e não grava nada
 
 ### Requirement: Somente identificador e agente cruzam
 No vínculo, manual ou por lançamento, os únicos valores do arquivo de status gravados no arquivo de dados SHALL ser o identificador da sessão e o agente. A demanda, o repositório e o rótulo SHALL vir da escolha do usuário, feita no diálogo de vínculo ou ao abrir a sessão pelo card. A pasta de trabalho, o status, o evento e as datas do arquivo de status SHALL NOT ser gravados.
@@ -90,13 +90,6 @@ O painel SHALL recusar o vínculo de uma sessão cujo identificador já conste n
 - **WHEN** o usuário tenta vincular uma sessão que já foi registrada por outra janela do painel
 - **THEN** o vínculo é recusado com uma mensagem e o arquivo de dados não é alterado
 
-### Requirement: Desfazer o vínculo
-Remover o registro de uma sessão vinculada SHALL fazê-la voltar a "Não vinculadas", enquanto existir arquivo de status para ela.
-
-#### Scenario: Registro removido
-- **WHEN** o usuário remove o registro de uma sessão vinculada
-- **THEN** a sessão deixa de aparecer na demanda e volta a aparecer em "Não vinculadas", podendo ser vinculada de novo
-
 ### Requirement: Vínculo automático por lançamento pendente
 O painel SHALL registrar, sem outra ação do usuário, uma sessão não registrada que corresponda a um lançamento pendente, na demanda e no repositório desse lançamento e com o rótulo dele. Há correspondência quando o agente é o do lançamento, o identificador é um GUID canônico, o último segmento da pasta de trabalho é o nome do repositório e o arquivo de status foi criado depois do lançamento. Cada lançamento SHALL vincular uma única sessão.
 
@@ -151,11 +144,11 @@ Quando mais de um lançamento pendente corresponder a uma sessão, o painel SHAL
 - **THEN** as duas sessões ficam registradas nesse card, uma por lançamento
 
 ### Requirement: Registro removido não é refeito
-Uma sessão cujo registro foi removido pelo usuário SHALL NOT ser vinculada automaticamente de novo pelo lançamento que a vinculou.
+Uma sessão excluída pelo usuário SHALL NOT ser vinculada automaticamente por nenhum lançamento nem voltar a aparecer no painel.
 
 #### Scenario: Usuário remove uma sessão vinculada por lançamento
-- **WHEN** o usuário remove o registro de uma sessão que havia sido vinculada automaticamente e o arquivo de status dela continua existindo
-- **THEN** a sessão volta a "Não vinculadas" e permanece lá
+- **WHEN** o usuário exclui uma sessão que havia sido vinculada automaticamente e o arquivo de status dela continua existindo
+- **THEN** a sessão não aparece em nenhum trabalho nem em "Sessões", e não é vinculada de novo
 
 ### Requirement: Cancelar lançamento pendente
 O painel SHALL permitir cancelar um lançamento pendente pela linha dele no card, removendo-o do arquivo de dados sem pedir confirmação e sem fechar a aba aberta. Uma sessão que surja depois do cancelamento SHALL NOT ser vinculada por esse lançamento. Cancelar um lançamento que não existe mais SHALL NOT alterar o arquivo de dados.
@@ -175,3 +168,18 @@ O painel SHALL permitir cancelar um lançamento pendente pela linha dele no card
 #### Scenario: Lançamento já usado por outra janela
 - **WHEN** o usuário aciona "Cancelar" num lançamento que outra janela do painel acabou de usar para vincular uma sessão
 - **THEN** o arquivo de dados não é alterado, a sessão vinculada permanece e a linha some na atualização seguinte
+
+### Requirement: Retomar sessão não registrada
+"Retomar" numa sessão de "Sessões" sem registro SHALL pedir o repositório entre as pastas diretas da raiz dos fontes, pré-selecionando a que tem o nome do último segmento da pasta de trabalho, e então SHALL registrar a sessão na demanda `sem-demanda`, nesse repositório, com `vinculadaEm`, e retomá-la. Só identificadores GUID canônicos SHALL ser aceitos.
+
+#### Scenario: Retomar uma sessão do Codex aberta à mão
+- **WHEN** o usuário aciona "Retomar" numa sessão do Codex sem registro, cuja pasta de trabalho termina em `Faturamento`, e confirma o repositório pré-selecionado
+- **THEN** a sessão fica registrada em `Faturamento` em "Sessões" e abre uma aba com a conversa dela
+
+#### Scenario: Repositório escolhido diferente
+- **WHEN** o usuário escolhe `Estoque` para uma sessão cuja pasta de trabalho termina em `Faturamento`
+- **THEN** o painel avisa que a retomada pode não encontrar a conversa e só registra e retoma se o usuário confirmar
+
+#### Scenario: Escolha cancelada
+- **WHEN** o usuário cancela a escolha do repositório
+- **THEN** nada é registrado e nenhuma aba é aberta

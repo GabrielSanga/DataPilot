@@ -1,4 +1,5 @@
 # status-de-sessao Specification
+
 ## Purpose
 
 Registra o status de cada sessão do Claude Code e do Codex em arquivos que o Painel de Demandas lê, para que o usuário veja o que está executando, aguardando ou pedindo atenção sem interpretar a tela do terminal.
@@ -117,23 +118,42 @@ O arquivo de status SHALL NOT conter texto de prompts, entradas ou saídas de fe
 - **THEN** o arquivo de status não contém esse texto
 
 ### Requirement: Permissões da pasta de status
-A instalação SHALL configurar `C:\ProgramData\Painel` de modo que o usuário `ia` possa criar e modificar arquivos de status e o usuário principal possa apenas ler, sem herdar permissões da pasta pai.
+A pasta de status SHALL ser, junto com a raiz dos fontes e `C:\openspec\ERP`, a única pasta do Windows em que o container pode gravar, e o painel SHALL continuar tratando todo arquivo dela como não confiável.
 
 #### Scenario: Usuário principal tenta escrever
-- **WHEN** um processo do usuário principal, sem elevação, tenta criar um arquivo na pasta de status
-- **THEN** a operação é negada
+- **WHEN** um processo do usuário principal grava um arquivo na pasta de status
+- **THEN** o painel trata esse arquivo como qualquer outro da pasta: só exibe e compara os valores, sem confiar neles
 
 #### Scenario: Usuário principal lê o status
-- **WHEN** um processo do usuário principal lê um arquivo de status gravado pelo `ia`
+- **WHEN** um processo do usuário principal lê um arquivo de status gravado pelo container
 - **THEN** a leitura é bem-sucedida
 
-### Requirement: Data de criação do arquivo preservada
-O hook SHALL atualizar o arquivo de status de uma sessão sem alterar a data de criação do arquivo, que SHALL permanecer a da primeira gravação feita para a sessão.
+#### Scenario: Container tenta gravar fora das montagens
+- **WHEN** um processo dentro do container tenta criar um arquivo numa pasta do Windows fora de `/workspace`, `/openspec/ERP` e `/status`
+- **THEN** essa pasta não existe dentro do container e nada é gravado no Windows
 
-#### Scenario: Eventos posteriores ao primeiro
-- **WHEN** o hook grava `SessionStart` e, mais tarde, `UserPromptSubmit` e `Stop` da mesma sessão
-- **THEN** a data de criação do arquivo de status continua sendo a da primeira gravação
+### Requirement: Marcador de criação no container
+A montagem do container não preserva a data de criação de um arquivo substituído. Por isso, o hook do container SHALL criar o marcador vazio `<session_id>.criado` na pasta de status antes de gravar o primeiro status da sessão, e SHALL NOT regravá-lo nos eventos seguintes. Se o marcador não existir e não puder ser criado, o hook SHALL NOT gravar o arquivo de status.
 
-#### Scenario: Primeiro evento da sessão
-- **WHEN** o hook grava o primeiro evento de uma sessão que ainda não tem arquivo
-- **THEN** a data de criação do arquivo é a do momento dessa gravação
+#### Scenario: Primeiro evento no container
+- **WHEN** o hook do container grava o primeiro status de uma sessão
+- **THEN** a pasta passa a ter o arquivo de status e o marcador `<session_id>.criado`
+
+#### Scenario: Eventos seguintes no container
+- **WHEN** o hook do container grava eventos posteriores da mesma sessão
+- **THEN** a data de criação do marcador continua sendo a da primeira gravação
+
+### Requirement: Status das sessões no container
+O hook do container SHALL gravar na pasta de status, que o container vê como `/status`, com o contrato do arquivo de status. O `cwd` SHALL ser o caminho dentro do container, como `/workspace/Faturamento`.
+
+#### Scenario: Sessão no container
+- **WHEN** o hook do container recebe `SessionStart` de uma sessão aberta em `/workspace/Faturamento`
+- **THEN** surge `C:\ProgramData\Painel\sessoes\<session_id>.json` com os seis campos e `cwd` igual a `/workspace/Faturamento`
+
+#### Scenario: Associação ao repositório
+- **WHEN** o painel lê um arquivo de status com `cwd` igual a `/workspace/Faturamento`
+- **THEN** a sessão é associada ao repositório `Faturamento`
+
+#### Scenario: Repositório cadastrado por caminho completo
+- **WHEN** o painel lê um arquivo de status com `cwd` igual a `/openspec/ERP/Faturamento` e há o repositório `C:\openspec\ERP\Faturamento`
+- **THEN** a sessão é associada a esse repositório

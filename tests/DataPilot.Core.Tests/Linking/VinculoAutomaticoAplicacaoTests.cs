@@ -76,7 +76,7 @@ public class VinculoAutomaticoAplicacaoTests
         dados.RegistrarLancamento("CHG-142", "Faturamento", Agente.Codex, L1, null, B);
         var antes = File.ReadAllBytes(dados.Caminho);
         var n = VinculoAutomatico.Aplicar(dados, dados.Carregar(),
-            [ApoioVinculoAutomatico.Codex(S1, B.AddMinutes(-5)), ApoioVinculoAutomatico.Codex("22222222-3333-4444-5555-666666666666", B.AddMinutes(5), @"C:\Fontes\Estoque")],
+            [ApoioVinculoAutomatico.Codex(S1, B.AddMinutes(-5)), ApoioVinculoAutomatico.Codex("22222222-3333-4444-5555-666666666666", B.AddMinutes(5), "/workspace/Estoque")],
             new RelogioFalso(B.AddHours(1)));
         Assert.Equal(0, n);
         Assert.Equal(antes, File.ReadAllBytes(dados.Caminho));

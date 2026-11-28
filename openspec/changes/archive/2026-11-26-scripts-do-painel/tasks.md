@@ -17,8 +17,8 @@ Tarefas marcadas com **[manual]** são executadas pelo usuário, porque exigem a
 
 ## 4. Verificação manual
 
-- [ ] 4.1 **[manual]** Como administrador, dar gravação ao usuário principal em `C:\Painel` (`icacls C:\Painel /grant "<usuário>:(OI)(CI)M"`), alterar uma linha de comentário no `C:\Painel\hook.ps1`, abrir o painel e conferir que o script voltou ao conteúdo do repositório
-- [ ] 4.2 **[manual]** Como `ia`, tentar alterar `C:\Painel\abrir.ps1` e conferir que é negado; abrir uma sessão pelo painel e conferir que o hook continua gravando o status
+- [x] 4.1 **[manual]** Como administrador, dar gravação ao usuário principal em `C:\Painel` (`icacls C:\Painel /grant "<usuário>:(OI)(CI)M"`), alterar uma linha de comentário no `C:\Painel\hook.ps1`, abrir o painel e conferir que o script voltou ao conteúdo do repositório
+- [x] 4.2 **[manual]** Como `ia`, tentar alterar `C:\Painel\abrir.ps1` e conferir que é negado; abrir uma sessão pelo painel e conferir que o hook continua gravando o status
 
 ## Workflow follow-up
 

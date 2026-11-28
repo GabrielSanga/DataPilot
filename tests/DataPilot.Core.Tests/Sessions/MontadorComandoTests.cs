@@ -12,23 +12,22 @@ public class MontadorComandoTests
     private static string[] Prefixo(string titulo) =>
     [
         "-w", "painel", "nt", "--title", titulo, "--suppressApplicationTitle",
-        "ssh", "-t", "ia@localhost",
-        "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", @"C:\Painel\abrir.ps1",
+        "docker", "exec", "--interactive", "--tty", "datapilot-agente", "/opt/painel/abrir.sh",
     ];
 
     [Fact]
     public void Claude_novo()
     {
-        var c = MontadorComando.Novo("CHG-142", "Ajuste NF-e", Repo, Agente.Claude, Id, null, Fabrica.Windows);
+        var c = MontadorComando.Novo("CHG-142", "Ajuste NF-e", Repo, Agente.Claude, Id, null);
         Assert.Equal("wt.exe", c.Executavel);
-        Assert.Equal([.. Prefixo("Ajuste NF-e · Faturamento"), "-Agente", "claude", "-Repo", "Faturamento", "-Sessao", Id, "-Modo", "novo"], c.Argumentos);
+        Assert.Equal([.. Prefixo("Ajuste NF-e · Faturamento"), "--agente", "claude", "--repo", "Faturamento", "--sessao", Id, "--modo", "novo"], c.Argumentos);
     }
 
     [Fact]
     public void Codex_novo_sem_sessao()
     {
-        var c = MontadorComando.Novo("CHG-142", "Ajuste NF-e", Repo, Agente.Codex, null, null, Fabrica.Windows);
-        Assert.Equal([.. Prefixo("Ajuste NF-e · Faturamento"), "-Agente", "codex", "-Repo", "Faturamento", "-Modo", "novo"], c.Argumentos);
+        var c = MontadorComando.Novo("CHG-142", "Ajuste NF-e", Repo, Agente.Codex, null, null);
+        Assert.Equal([.. Prefixo("Ajuste NF-e · Faturamento"), "--agente", "codex", "--repo", "Faturamento", "--modo", "novo"], c.Argumentos);
     }
 
     [Fact]
@@ -36,7 +35,7 @@ public class MontadorComandoTests
     {
         var s = new SessaoRegistrada(Agente.Claude, Id, "Faturamento", null, Fabrica.Agora, "CHG-142", "Ajuste NF-e");
         var c = MontadorComando.Retomar(s);
-        Assert.Equal([.. Prefixo("Ajuste NF-e · Faturamento"), "-Agente", "claude", "-Repo", "Faturamento", "-Sessao", Id, "-Modo", "retomar"], c.Argumentos);
+        Assert.Equal([.. Prefixo("Ajuste NF-e · Faturamento"), "--agente", "claude", "--repo", "Faturamento", "--sessao", Id, "--modo", "retomar"], c.Argumentos);
     }
 
     [Fact]
@@ -44,7 +43,7 @@ public class MontadorComandoTests
     {
         var s = new SessaoRegistrada(Agente.Codex, Id, "Faturamento", null, Fabrica.Agora, "CHG-142", "Ajuste NF-e");
         var c = MontadorComando.Retomar(s);
-        Assert.Equal([.. Prefixo("Ajuste NF-e · Faturamento"), "-Agente", "codex", "-Repo", "Faturamento", "-Sessao", Id, "-Modo", "retomar"], c.Argumentos);
+        Assert.Equal([.. Prefixo("Ajuste NF-e · Faturamento"), "--agente", "codex", "--repo", "Faturamento", "--sessao", Id, "--modo", "retomar"], c.Argumentos);
     }
 
     [Fact]
@@ -59,7 +58,7 @@ public class MontadorComandoTests
     [Fact]
     public void Rotulo_vai_para_o_titulo_como_um_argumento()
     {
-        var c = MontadorComando.Novo("CHG-142", "Ajuste NF-e", Repo, Agente.Claude, Id, "duas palavras", Fabrica.Windows);
+        var c = MontadorComando.Novo("CHG-142", "Ajuste NF-e", Repo, Agente.Claude, Id, "duas palavras");
         Assert.Equal("Ajuste NF-e · Faturamento · duas palavras", c.Argumentos[4]);
     }
 
@@ -71,7 +70,7 @@ public class MontadorComandoTests
     [InlineData("")]
     public void Pasta_invalida_e_recusada(string pasta)
     {
-        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", "Ajuste NF-e", new RepositorioCadastrado(pasta, []), Agente.Claude, Id, null, Fabrica.Windows));
+        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", "Ajuste NF-e", new RepositorioCadastrado(pasta, []), Agente.Claude, Id, null));
         Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Retomar(new SessaoRegistrada(Agente.Claude, Id, pasta, null, Fabrica.Agora, "CHG-142", "Ajuste NF-e")));
     }
 
@@ -81,7 +80,7 @@ public class MontadorComandoTests
     [InlineData("0b6f1c2e-5d1a-4c8e-9f3a-2b7d4e6a8c10; calc")]
     public void Identificador_invalido_e_recusado(string id)
     {
-        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", "Ajuste NF-e", Repo, Agente.Claude, id, null, Fabrica.Windows));
+        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", "Ajuste NF-e", Repo, Agente.Claude, id, null));
         Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Retomar(new SessaoRegistrada(Agente.Claude, id, "App", null, Fabrica.Agora, "CHG-142", "Ajuste NF-e")));
     }
 
@@ -91,19 +90,19 @@ public class MontadorComandoTests
     [InlineData("12345678901234567890123456789012345678901")]
     public void Rotulo_invalido_e_recusado(string rotulo)
     {
-        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", "Ajuste NF-e", Repo, Agente.Claude, Id, rotulo, Fabrica.Windows));
+        Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", "Ajuste NF-e", Repo, Agente.Claude, Id, rotulo));
         Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Retomar(new SessaoRegistrada(Agente.Claude, Id, "App", rotulo, Fabrica.Agora, "CHG-142", "Ajuste NF-e")));
     }
 
     [Fact]
     public void Agente_invalido_e_recusado()
-        => Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", "Ajuste NF-e", Repo, (Agente)7, Id, null, Fabrica.Windows));
+        => Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", "Ajuste NF-e", Repo, (Agente)7, Id, null));
 
     [Fact]
     public void Claude_novo_sem_identificador_e_recusado()
-        => Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", "Ajuste NF-e", Repo, Agente.Claude, null, null, Fabrica.Windows));
+        => Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", "Ajuste NF-e", Repo, Agente.Claude, null, null));
 
     [Fact]
     public void Codex_novo_com_identificador_e_recusado()
-        => Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", "Ajuste NF-e", Repo, Agente.Codex, Id, null, Fabrica.Windows));
+        => Assert.Throws<EntradaInvalidaException>(() => MontadorComando.Novo("CHG-142", "Ajuste NF-e", Repo, Agente.Codex, Id, null));
 }

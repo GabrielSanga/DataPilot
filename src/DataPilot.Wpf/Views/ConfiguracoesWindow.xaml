@@ -9,24 +9,8 @@
         <TextBlock Text="Pasta de status das sessões de IA" Style="{StaticResource TextoCampo}"/>
         <TextBox x:Name="CampoPasta" IsReadOnly="True" Margin="0,0,0,16" AutomationProperties.Name="Pasta de status"/>
 
-        <TextBlock Text="Executar os agentes em" Style="{StaticResource TextoCampo}"/>
-        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-            <RadioButton x:Name="EscolhaContainer" Content="Container Docker" GroupName="Execucao" Margin="0,0,8,0"
-                         Style="{StaticResource EscolhaBotao}" AutomationProperties.Name="Executar no Container Docker"/>
-            <RadioButton x:Name="EscolhaWindows" Content="Windows" GroupName="Execucao"
-                         Style="{StaticResource EscolhaBotao}" AutomationProperties.Name="Executar no Windows"/>
-        </StackPanel>
-
         <TextBlock Text="Nome do container" Style="{StaticResource TextoCampo}"/>
-        <TextBox x:Name="CampoContainer" MaxLength="63" AutomationProperties.Name="Nome do container"
-                 IsEnabled="{Binding IsChecked, ElementName=EscolhaContainer}"/>
-        <TextBlock x:Name="MensagemContainer" Style="{StaticResource TextoErro}"/>
-
-        <CheckBox x:Name="CampoSsh" Content="Abrir pelo SSH" Margin="0,16,0,12" AutomationProperties.Name="Abrir pelo SSH"/>
-
-        <TextBlock Text="Usuário do SSH" Style="{StaticResource TextoCampo}"/>
-        <TextBox x:Name="CampoUsuario" MaxLength="20" AutomationProperties.Name="Usuário do SSH"
-                 IsEnabled="{Binding IsChecked, ElementName=CampoSsh}"/>
+        <TextBox x:Name="CampoContainer" MaxLength="63" AutomationProperties.Name="Nome do container"/>
         <TextBlock x:Name="Mensagem" Style="{StaticResource TextoErro}"/>
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">

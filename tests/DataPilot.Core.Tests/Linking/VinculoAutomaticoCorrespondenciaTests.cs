@@ -12,7 +12,7 @@ public class VinculoAutomaticoCorrespondenciaTests
     private static Demanda D(string id, bool arquivada, params LancamentoPendente[] l) => ApoioVinculoAutomatico.Demanda(id, arquivada, l);
     private static LancamentoPendente L(string id, DateTimeOffset criado, string? rotulo = null, Agente agente = Agente.Codex)
         => ApoioVinculoAutomatico.Lanc(id, criado, rotulo, agente);
-    private static Sessao S(string id, DateTimeOffset? criado, string cwd = @"C:\Fontes\Faturamento", Agente agente = Agente.Codex)
+    private static Sessao S(string id, DateTimeOffset? criado, string cwd = "/workspace/Faturamento", Agente agente = Agente.Codex)
         => ApoioVinculoAutomatico.Codex(id, criado, cwd, agente);
 
     private const string L1 = ApoioVinculoAutomatico.L1;
@@ -49,15 +49,15 @@ public class VinculoAutomaticoCorrespondenciaTests
         => Assert.Empty(VinculoAutomatico.Calcular([D("A", false, L(L1, B))], [S(S1, B.AddMinutes(1), agente: Agente.Claude)], Agora));
 
     [Theory]
-    [InlineData(@"C:\Fontes\Estoque")]
+    [InlineData("/workspace/Estoque")]
     [InlineData("")]
-    [InlineData(@"C:\Fontes\Faturamento2")]
+    [InlineData("/workspace/Faturamento2")]
     public void Pasta_diferente_do_repositorio_nao_corresponde(string cwd)
         => Assert.Empty(VinculoAutomatico.Calcular([D("A", false, L(L1, B))], [S(S1, B.AddMinutes(1), cwd)], Agora));
 
     [Theory]
-    [InlineData(@"c:\fontes\FATURAMENTO")]
-    [InlineData(@"C:\Fontes\Faturamento\")]
+    [InlineData("/Workspace/FATURAMENTO")]
+    [InlineData("/workspace/Faturamento/")]
     public void Pasta_igual_ao_repositorio_corresponde_sem_diferenciar_maiusculas(string cwd)
         => Assert.Single(VinculoAutomatico.Calcular([D("A", false, L(L1, B))], [S(S1, B.AddMinutes(1), cwd)], Agora));
 

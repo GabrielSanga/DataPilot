@@ -22,7 +22,7 @@ public class VinculoPorLancamentoTests
     }
 
     private static PedidoVinculo Pedido(string id, Agente agente = Agente.Codex)
-        => PedidoVinculo.Criar(new Sessao(agente, id, @"C:\Fontes\Outra", StatusGravado.Ativa, B))!;
+        => PedidoVinculo.Criar(new Sessao(agente, id, "/workspace/Outra", StatusGravado.Ativa, B))!;
 
     private static RepositorioCadastrado Repo(DadosPainel d, string demanda = "CHG-142")
         => d.Carregar().Demandas.Single(x => x.Id == demanda).Repositorios.Single();
@@ -157,7 +157,7 @@ public class VinculoPorLancamentoTests
     {
         var json = $$"""
             {"demandas":[{"id":"A","titulo":"A","repositorios":[{"pasta":"Faturamento","z":1,"sessoes":[],
-              "lancamentos":[{"id":"{{L1}}","agente":"codex","criadoEm":"2026-11-14T10:00:00Z"}]}]}]}
+              "lancamentos":[{"id":"{{L1}}","agente":"codex","execucao":"container","criadoEm":"2026-11-14T10:00:00Z"}]}]}]}
             """;
         var (dados, pasta, caminho) = DadosPainelTests.Novo(json);
         using var _p = pasta;

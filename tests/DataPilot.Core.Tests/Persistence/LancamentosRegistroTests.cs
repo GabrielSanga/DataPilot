@@ -115,12 +115,12 @@ public class LancamentosRegistroTests
     {
         var json = $$"""
             {"demandas":[{"id":"A","titulo":"A","repositorios":[{"pasta":"Faturamento","sessoes":[],"lancamentos":[
-              {"id":"valido-nao","agente":"codex","criadoEm":"2026-11-14T10:00:00Z"},
-              {"id":"{{ApoioVinculoAutomatico.L1}}","agente":"outro","criadoEm":"2026-11-14T10:00:00Z"},
-              {"id":"{{ApoioVinculoAutomatico.L1}}","agente":"codex","criadoEm":"nao e data"},
-              {"id":"{{ApoioVinculoAutomatico.L1}}","agente":"codex","criadoEm":"2026-11-14T10:00:00Z","rotulo":"a;b"},
-              {"id":"{{ApoioVinculoAutomatico.L2}}","agente":"codex","criadoEm":"2026-11-14T10:00:00Z","rotulo":"ok"},
-              {"id":"{{ApoioVinculoAutomatico.L2}}","agente":"codex","criadoEm":"2026-11-14T11:00:00Z"},
+              {"id":"valido-nao","agente":"codex","execucao":"container","criadoEm":"2026-11-14T10:00:00Z"},
+              {"id":"{{ApoioVinculoAutomatico.L1}}","agente":"outro","execucao":"container","criadoEm":"2026-11-14T10:00:00Z"},
+              {"id":"{{ApoioVinculoAutomatico.L1}}","agente":"codex","execucao":"container","criadoEm":"nao e data"},
+              {"id":"{{ApoioVinculoAutomatico.L1}}","agente":"codex","execucao":"container","criadoEm":"2026-11-14T10:00:00Z","rotulo":"a;b"},
+              {"id":"{{ApoioVinculoAutomatico.L2}}","agente":"codex","execucao":"container","criadoEm":"2026-11-14T10:00:00Z","rotulo":"ok"},
+              {"id":"{{ApoioVinculoAutomatico.L2}}","agente":"codex","execucao":"container","criadoEm":"2026-11-14T11:00:00Z"},
               "texto", 7]}]}]}
             """;
         var (dados, pasta, _) = DadosPainelTests.Novo(json);
@@ -146,7 +146,7 @@ public class LancamentosRegistroTests
     {
         var json = """
             {"extra":1,"demandas":[{"id":"A","titulo":"A","x":"y","repositorios":[{"pasta":"Faturamento","z":true,"sessoes":[],
-              "lancamentos":[{"id":"aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa","agente":"codex","criadoEm":"2026-11-14T10:00:00Z","desconhecido":"d"}]}]}]}
+              "lancamentos":[{"id":"aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa","agente":"codex","execucao":"container","criadoEm":"2026-11-14T10:00:00Z","desconhecido":"d"}]}]}]}
             """;
         var (dados, pasta, caminho) = DadosPainelTests.Novo(json);
         using var _p = pasta;

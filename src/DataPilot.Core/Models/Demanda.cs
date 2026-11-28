@@ -12,8 +12,7 @@ public sealed record SessaoRegistrada(
     string? Rotulo,
     DateTimeOffset CriadaEm,
     string DemandaId,
-    string? DemandaTitulo = null,
-    Execucao Execucao = Execucao.Windows);
+    string? DemandaTitulo = null);
 
 /// <summary>
 /// Sessão que o usuário excluiu do painel. Guarda só o agente, o identificador (regra do hook) e a data.
@@ -24,8 +23,7 @@ public sealed record SessaoExcluida(Agente Agente, string SessionId, DateTimeOff
 /// Sessão nova do Codex aberta pelo painel, cujo identificador ainda não existe. Fica no repositório do card em que
 /// o usuário clicou até uma sessão surgir na pasta de status e ser vinculada a ela. Nenhum campo vem de arquivo de status.
 /// </summary>
-public sealed record LancamentoPendente(string Id, Agente Agente, DateTimeOffset CriadoEm, string? Rotulo,
-    Execucao Execucao = Execucao.Windows);
+public sealed record LancamentoPendente(string Id, Agente Agente, DateTimeOffset CriadoEm, string? Rotulo);
 
 /// <summary>
 /// Repositório vinculado a uma demanda, com as sessões registradas e os lançamentos pendentes nele.
