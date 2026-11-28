@@ -15,7 +15,6 @@ public class NovaSessaoEmSessoesTests
     {
         var pasta = new PastaTemporaria();
         var dados = new DadosPainel(Path.Combine(pasta.Caminho, "demandas.json"));
-        dados.SalvarConfiguracoes(Fabrica.Windows);
         var disparador = new DisparadorFalso();
         var abertura = new AberturaSessao(dados, disparador, new RelogioFalso(Fabrica.Agora), () => Guid.Parse(IdFixo));
         return (abertura, dados, disparador, pasta);
@@ -62,14 +61,14 @@ public class NovaSessaoEmSessoesTests
     {
         var (abertura, dados, disparador, pasta) = Novo();
         using var _ = pasta;
-        var pedido = PedidoVinculo.Criar(new Sessao(Agente.Codex, IdOutro, @"C:\Fontes\Faturamento", StatusGravado.Ativa, Fabrica.Agora))!;
+        var pedido = PedidoVinculo.Criar(new Sessao(Agente.Codex, IdOutro, "/workspace/Faturamento", StatusGravado.Ativa, Fabrica.Agora))!;
         Assert.True(abertura.RetomarNaoRegistrada(pedido, "Faturamento").Ok);
 
         var s = dados.Carregar().Demandas.Single().Repositorios.Single().Sessoes.Single();
         Assert.Equal(IdOutro, s.SessionId);
         var args = Assert.Single(disparador.Comandos).Argumentos;
         Assert.Equal("Codex · Faturamento", args[4]);
-        Assert.Equal(["-Repo", "Faturamento", "-Sessao", IdOutro, "-Modo", "retomar"], args.TakeLast(6));
+        Assert.Equal(["--repo", "Faturamento", "--sessao", IdOutro, "--modo", "retomar"], args.TakeLast(6));
     }
 
     [Fact]
@@ -78,7 +77,7 @@ public class NovaSessaoEmSessoesTests
         var (_, dados, _, pasta) = Novo();
         using var _p = pasta;
         var abertura = new AberturaSessao(dados, new DisparadorFalso { Falhar = true }, new RelogioFalso(Fabrica.Agora));
-        var pedido = PedidoVinculo.Criar(new Sessao(Agente.Claude, IdOutro, @"C:\Fontes\F", StatusGravado.Ativa, Fabrica.Agora))!;
+        var pedido = PedidoVinculo.Criar(new Sessao(Agente.Claude, IdOutro, "/workspace/F", StatusGravado.Ativa, Fabrica.Agora))!;
         Assert.False(abertura.RetomarNaoRegistrada(pedido, "F").Ok);
         Assert.Empty(dados.Carregar().Demandas.SelectMany(d => d.Repositorios).SelectMany(r => r.Sessoes));
     }

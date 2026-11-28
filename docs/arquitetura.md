@@ -10,15 +10,15 @@ O código, o arquivo `demandas.json` e as specs dizem **Demanda**; a tela diz **
 
 | Pasta | O que tem |
 |---|---|
-| `Models` | Tipos do domínio sem dependência de outra pasta: `Sessao`, `Demanda` e os registros do arquivo de dados, `Constantes`, `Configuracoes` (ambiente de execução), `LocaisContainer` (pastas do Windows vistas pelo container), `Agentes` (nome do agente), `ChaveSessao` e `RegrasDemanda` (restrições e validade do lançamento). |
-| `Arquivos` | `LeituraSegura`: único lugar que lê arquivos e pastas do usuário `ia` (sem atalhos, com limite, UTF-8 estrito). |
+| `Models` | Tipos do domínio sem dependência de outra pasta: `Sessao`, `Demanda` e os registros do arquivo de dados, `Constantes`, `Configuracoes` (nome do container), `LocaisContainer` (pastas do Windows vistas pelo container), `Agentes` (nome do agente), `ChaveSessao` e `RegrasDemanda` (restrições e validade do lançamento). |
+| `Arquivos` | `LeituraSegura`: único lugar que lê arquivos e pastas em que o agente grava (sem atalhos, com limite, UTF-8 estrito). |
 | `Validation` | `ValidadorEntrada`: regras e mensagens de pasta, rótulo, título, change e identificadores. |
 | `Monitoring` | `MonitorPasta` e `LeitorPasta` leem a pasta de status; `ValidadorStatus` valida cada arquivo. |
-| `Persistence` | `DadosPainel` (partial por assunto): lê e grava o `demandas.json` como árvore JSON, preservando campos desconhecidos. |
+| `Persistence` | `DadosPainel` (partial por assunto): lê e grava o `demandas.json` como árvore JSON, preservando campos desconhecidos. Só carrega sessões e lançamentos com `execucao` igual a `container`; os demais continuam no arquivo. |
 | `Linking` | `VinculoAutomatico` liga sessões a lançamentos pendentes; `PedidoVinculo` e `RegrasVinculo` cuidam do vínculo manual. |
 | `Display` | `VisaoAgrupada` monta a visão; `RegrasExibicao`, `ResumoCabecalho`, `FiltroDemandas` e `TextoExibicao` são regras de tela. |
 | `OpenSpec` | Progresso das changes (`LocalizadorTasks`, `LeitorTasks`, `ContadorTarefas`) e escolha de pasta e de change. |
-| `Sessions` | `AberturaSessao` abre e retoma sessões; `MontadorComando` monta o comando (container ou Windows); `DisparadorContainer` confere e inicia o container antes de o `DisparadorProcesso` (`Disparo.cs`) abrir o terminal. |
+| `Sessions` | `AberturaSessao` abre e retoma sessões; `MontadorComando` monta o comando do `docker exec`; `DisparadorContainer` confere e inicia o container antes de o `DisparadorProcesso` (`Disparo.cs`) abrir o terminal. |
 
 ## WPF (`src/DataPilot.Wpf`): só liga tela e Core
 
@@ -29,17 +29,13 @@ O código, o arquivo `demandas.json` e as specs dizem **Demanda**; a tela diz **
 | `Services` | `IInteracao` e `InteracaoJanelas`: perguntas e diálogos atrás de uma interface. |
 | `Helpers`, `Converters`, `Themes` | Sincronização de coleções, conversores e tema. |
 
-## Ambiente de execução por sessão
-
-Cada sessão registrada e cada lançamento pendente guardam `execucao` (`container` ou `windows`; ausente vale `windows`). Sessão nova usa o das configurações; retomada e nova abertura de lançamento usam o do registro; o vínculo por lançamento copia o do lançamento.
-
 ## Container (`docker/`)
 
 | Caminho | O que é |
 |---|---|
 | `Dockerfile`, `compose.yml`, `entrypoint.sh` | Imagem do agente (CLIs fixados por versão) e os serviços `agente` e `proxy`, com a rede interna e as montagens. |
 | `proxy/squid.conf` | Destinos liberados. |
-| `painel/abrir.sh`, `painel/hook.mjs` | Os equivalentes do `abrir.ps1` e do `hook.ps1`. O hook também cria o marcador `<id>.criado`, porque a montagem não preserva a data de criação do arquivo substituído. |
+| `painel/abrir.sh`, `painel/hook.mjs` | Abertura e retomada das sessões e hook de status. O hook também cria o marcador `<id>.criado`, a única fonte da data de início da sessão, porque a montagem não preserva a data de criação do arquivo substituído. |
 | `painel/claude-managed-settings.json`, `painel/codex-hooks.json` | Configuração dos hooks. |
 | `testes/verificar.sh` | Verificação dos scripts, dentro do container. |
 

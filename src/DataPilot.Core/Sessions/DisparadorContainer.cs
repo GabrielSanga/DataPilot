@@ -38,7 +38,7 @@ public sealed class ExecutorProcesso : IExecutorProcesso
 }
 
 /// <summary>
-/// Antes de abrir uma sessão do container, confere se o Docker responde e se o container existe, e o inicia se
+/// Antes de abrir uma sessão, confere se o Docker responde e se o container existe, e o inicia se
 /// estiver parado. Sem isso a aba abriria só para mostrar o erro, e o registro ficaria para trás.
 /// </summary>
 public sealed class DisparadorContainer(IDisparador interno, IExecutorProcesso executor) : IDisparador
@@ -47,11 +47,11 @@ public sealed class DisparadorContainer(IDisparador interno, IExecutorProcesso e
     public static readonly TimeSpan LimiteInicio = TimeSpan.FromSeconds(20);
 
     private const string SemResposta = "O Docker não respondeu. Abra o Docker Desktop, espere ele iniciar e tente de novo.";
-    private const string Alternativa = "Suba o ambiente com \"docker compose up -d\" na pasta docker ou escolha \"Windows\" nas configurações.";
+    private const string Alternativa = "Suba o ambiente com \"docker compose up -d\" na pasta docker.";
 
     public void Iniciar(ComandoTerminal comando)
     {
-        if (comando.Container is { } container) Preparar(container);
+        Preparar(comando.Container);
         interno.Iniciar(comando);
     }
 
@@ -87,7 +87,7 @@ public sealed class DisparadorContainer(IDisparador interno, IExecutorProcesso e
         catch (Exception e) when (e is Win32Exception or InvalidOperationException or IOException)
         {
             throw new FalhaDisparoException(
-                $"Não foi possível executar o docker. O Docker Desktop está instalado? Instale-o ou escolha \"Windows\" nas configurações. ({e.Message})", e);
+                $"Não foi possível executar o docker. O Docker Desktop está instalado? Instale-o e tente de novo. ({e.Message})", e);
         }
     }
 }

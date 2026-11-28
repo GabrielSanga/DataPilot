@@ -14,7 +14,6 @@ public class AberturaSessaoDemandaTests
     {
         var pasta = new PastaTemporaria();
         var dados = new DadosPainel(Path.Combine(pasta.Caminho, "demandas.json"));
-        dados.SalvarConfiguracoes(Fabrica.Windows);
         dados.CriarDemanda("A", "A", null, Fabrica.Agora);
         dados.CriarDemanda("B", "B", null, Fabrica.Agora);
         dados.VincularRepositorio("A", "Faturamento");
@@ -75,13 +74,13 @@ public class AberturaSessaoDemandaTests
         using var _ = pasta;
         Assert.True(abertura.NovaEmSessoes("Faturamento", Agente.Claude, null).Ok);
         dados.CriarDemanda("C", "Meu trabalho", null, Fabrica.Agora);
-        var pedido = PedidoVinculo.Criar(new Sessao(Agente.Claude, IdFixo, @"C:\Fontes\Faturamento", StatusGravado.Ativa, Fabrica.Agora))!;
+        var pedido = PedidoVinculo.Criar(new Sessao(Agente.Claude, IdFixo, "/workspace/Faturamento", StatusGravado.Ativa, Fabrica.Agora))!;
         Assert.True(dados.VincularSessao(pedido, "C", "Faturamento", null, Fabrica.Agora).Ok);
 
         var sessao = dados.Carregar().Demandas.Single(d => d.Id == "C").Repositorios.Single().Sessoes.Single();
         Assert.True(abertura.Retomar(sessao).Ok);
         var args = disparador.Comandos.Last().Argumentos;
         Assert.Equal("Meu trabalho · Faturamento", args[4]);
-        Assert.Equal(["-Repo", "Faturamento", "-Sessao", IdFixo, "-Modo", "retomar"], args.TakeLast(6));
+        Assert.Equal(["--repo", "Faturamento", "--sessao", IdFixo, "--modo", "retomar"], args.TakeLast(6));
     }
 }

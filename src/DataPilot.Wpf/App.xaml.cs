@@ -28,10 +28,6 @@ public partial class App : Application
         var caminhoSessoes = LerParametro(e.Args, "--pasta-status");
         var caminhoTrabalhos = LerParametro(e.Args, "--dados");
         var caminhoFontes = LerParametro(e.Args, "--raiz-fontes");
-        var caminhoScripts = LerParametro(e.Args, "--pasta-scripts");
-
-        // Instala/atualiza o abrir.ps1 e o hook.ps1; falha vira aviso e o painel segue funcionando.
-        var avisoScripts = ScriptsDoPainel.Instalar(caminhoScripts ?? Constantes.PastaScripts);
 
         // Montando os objetos
         var pasta = caminhoSessoes ?? Constantes.PastaStatusPadrao;
@@ -43,8 +39,6 @@ public partial class App : Application
 
         // Cria a ViewModel principal
         _ViewModel = new MainViewModel(pasta, TimeProvider.System, Dispatcher, dados, abertura, new InteracaoJanelas(), leitorTasks);
-
-        if (avisoScripts != null) _ViewModel.AvisarScripts(avisoScripts);
 
         // Cria o WPF principal com a ViewModel
         var janela = new MainWindow { DataContext = _ViewModel };

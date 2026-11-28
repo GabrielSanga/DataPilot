@@ -24,11 +24,11 @@ public class DadosPainelTests
         return (new DadosPainel(caminho), pasta, caminho);
     }
 
-    /// <summary>Arquivo no formato gravado pela Etapa 3: só a demanda sem-demanda.</summary>
+    /// <summary>Só a demanda sem-demanda, sem <c>criadaEm</c> nem <c>openspecChange</c>, como a gravada pela Etapa 3.</summary>
     internal static string ArquivoDaEtapa3() => $$"""
         {"demandas":[{"id":"sem-demanda","titulo":"Sem demanda","arquivada":false,"repositorios":[
           {"nome":"Faturamento","pasta":"Faturamento","sessoes":[
-            {"agente":"claude","sessionId":"{{Id1}}","rotulo":"implementação","criadaEm":"2026-11-13T10:05:00-03:00"}]},
+            {"agente":"claude","execucao":"container","sessionId":"{{Id1}}","rotulo":"implementação","criadaEm":"2026-11-13T10:05:00-03:00"}]},
           {"nome":"Estoque","pasta":"Estoque","sessoes":[]}]}]}
         """;
 
@@ -52,7 +52,7 @@ public class DadosPainelTests
     }
 
     [Fact]
-    public void Arquivo_gravado_pela_etapa_3_e_lido_sem_conversao()
+    public void Demanda_implicita_sem_criadaEm_e_lida_sem_conversao()
     {
         var (dados, pasta, _) = Novo(ArquivoDaEtapa3());
         using var _p = pasta;
@@ -113,10 +113,10 @@ public class DadosPainelTests
     {
         var json = $$"""
         {"demandas":[{"id":"D","titulo":"D","repositorios":[{"pasta":"App","sessoes":[
-          {"agente":"claude","sessionId":"nao-e-guid"},
-          {"agente":"outro","sessionId":"{{Id1}}"},
-          {"agente":"claude","sessionId":"{{Id1}}\n"},
-          {"agente":"codex","sessionId":"{{Id2}}"}]}]}]}
+          {"agente":"claude","execucao":"container","sessionId":"nao-e-guid"},
+          {"agente":"outro","execucao":"container","sessionId":"{{Id1}}"},
+          {"agente":"claude","execucao":"container","sessionId":"{{Id1}}\n"},
+          {"agente":"codex","execucao":"container","sessionId":"{{Id2}}"}]}]}]}
         """;
         var (dados, pasta, _) = Novo(json);
         using var _p = pasta;
@@ -127,7 +127,7 @@ public class DadosPainelTests
     [Fact]
     public void Rotulo_invalido_no_arquivo_e_descartado()
     {
-        var json = $$"""{"demandas":[{"id":"D","titulo":"D","repositorios":[{"pasta":"App","sessoes":[{"agente":"claude","sessionId":"{{Id1}}","rotulo":"a;b"}]}]}]}""";
+        var json = $$"""{"demandas":[{"id":"D","titulo":"D","repositorios":[{"pasta":"App","sessoes":[{"agente":"claude","execucao":"container","sessionId":"{{Id1}}","rotulo":"a;b"}]}]}]}""";
         var (dados, pasta, _) = Novo(json);
         using var _p = pasta;
         Assert.Null(dados.Carregar().Demandas.Single().Repositorios.Single().Sessoes.Single().Rotulo);
@@ -147,8 +147,8 @@ public class DadosPainelTests
     {
         var json = $$"""
         {"demandas":[
-          {"id":"A","titulo":"A","repositorios":[{"pasta":"Faturamento","sessoes":[{"agente":"claude","sessionId":"{{Id1}}"}]}]},
-          {"id":"B","titulo":"B","repositorios":[{"pasta":"Faturamento","sessoes":[{"agente":"claude","sessionId":"{{Id2}}"}]}]}]}
+          {"id":"A","titulo":"A","repositorios":[{"pasta":"Faturamento","sessoes":[{"agente":"claude","execucao":"container","sessionId":"{{Id1}}"}]}]},
+          {"id":"B","titulo":"B","repositorios":[{"pasta":"Faturamento","sessoes":[{"agente":"claude","execucao":"container","sessionId":"{{Id2}}"}]}]}]}
         """;
         var (dados, pasta, _) = Novo(json);
         using var _p = pasta;
@@ -201,8 +201,8 @@ public class DadosPainelTests
     {
         var json = $$"""
         {"demandas":[
-          {"id":"A","titulo":"A","repositorios":[{"pasta":"X","sessoes":[{"agente":"claude","sessionId":"{{Id1}}"}]}]},
-          {"id":"B","titulo":"B","repositorios":[{"pasta":"X","sessoes":[{"agente":"claude","sessionId":"{{Id1}}"},{"agente":"claude","sessionId":"{{Id2}}"}]}]}]}
+          {"id":"A","titulo":"A","repositorios":[{"pasta":"X","sessoes":[{"agente":"claude","execucao":"container","sessionId":"{{Id1}}"}]}]},
+          {"id":"B","titulo":"B","repositorios":[{"pasta":"X","sessoes":[{"agente":"claude","execucao":"container","sessionId":"{{Id1}}"},{"agente":"claude","execucao":"container","sessionId":"{{Id2}}"}]}]}]}
         """;
         var (dados, pasta, _) = Novo(json);
         using var _p = pasta;
@@ -214,7 +214,7 @@ public class DadosPainelTests
     [Fact]
     public void Sessao_repetida_no_mesmo_repositorio_sem_diferenciar_caixa_vale_uma_vez()
     {
-        var json = $$"""{"demandas":[{"id":"A","titulo":"A","repositorios":[{"pasta":"X","sessoes":[{"agente":"claude","sessionId":"{{Id1}}"},{"agente":"codex","sessionId":"{{Id1.ToUpperInvariant()}}"}]}]}]}""";
+        var json = $$"""{"demandas":[{"id":"A","titulo":"A","repositorios":[{"pasta":"X","sessoes":[{"agente":"claude","execucao":"container","sessionId":"{{Id1}}"},{"agente":"codex","execucao":"container","sessionId":"{{Id1.ToUpperInvariant()}}"}]}]}]}""";
         var (dados, pasta, _) = Novo(json);
         using var _p = pasta;
         Assert.Single(dados.Carregar().Demandas.Single().Repositorios.Single().Sessoes);
@@ -225,8 +225,8 @@ public class DadosPainelTests
     {
         var json = $$"""
         {"demandas":[
-          {"id":"a;b","titulo":"A","repositorios":[{"pasta":"X","sessoes":[{"agente":"claude","sessionId":"{{Id1}}"}]}]},
-          {"id":"B","titulo":"B","repositorios":[{"pasta":"X","sessoes":[{"agente":"claude","sessionId":"{{Id1}}"}]}]}]}
+          {"id":"a;b","titulo":"A","repositorios":[{"pasta":"X","sessoes":[{"agente":"claude","execucao":"container","sessionId":"{{Id1}}"}]}]},
+          {"id":"B","titulo":"B","repositorios":[{"pasta":"X","sessoes":[{"agente":"claude","execucao":"container","sessionId":"{{Id1}}"}]}]}]}
         """;
         var (dados, pasta, _) = Novo(json);
         using var _p = pasta;
@@ -599,7 +599,7 @@ public class DadosPainelTests
     }
 
     private static PedidoVinculo Pedido(string id, Agente agente = Agente.Claude)
-        => PedidoVinculo.Criar(new Sessao(agente, id, @"C:\Fontes\Faturamento", StatusGravado.Ativa, Fabrica.Agora))!;
+        => PedidoVinculo.Criar(new Sessao(agente, id, "/workspace/Faturamento", StatusGravado.Ativa, Fabrica.Agora))!;
 
     [Fact]
     public void Vincular_sessao_registrada_em_sessoes_move_para_o_trabalho_e_vincula_o_repositorio()
@@ -645,7 +645,7 @@ public class DadosPainelTests
     {
         var json = $$"""
         {"demandas":[
-          {"id":"sem-demanda","titulo":"Sem demanda","repositorios":[{"pasta":"X","sessoes":[{"agente":"claude","sessionId":"{{Id1}}","nota":"guardar"}]}]},
+          {"id":"sem-demanda","titulo":"Sem demanda","repositorios":[{"pasta":"X","sessoes":[{"agente":"claude","execucao":"container","sessionId":"{{Id1}}","nota":"guardar"}]}]},
           {"id":"B","titulo":"B","repositorios":[]}]}
         """;
         var (dados, pasta, caminho) = Novo(json);
@@ -778,7 +778,7 @@ public class DadosPainelTests
     {
         var json = $$"""
         {"versao":2,"demandas":[{"id":"CHG-1","titulo":"X","extra":{"a":[1,2]},"repositorios":[
-          {"nome":"A","pasta":"A","campoNovo":true,"sessoes":[{"agente":"claude","sessionId":"{{Id1}}","outro":"v"}]}]}]}
+          {"nome":"A","pasta":"A","campoNovo":true,"sessoes":[{"agente":"claude","execucao":"container","sessionId":"{{Id1}}","outro":"v"}]}]}]}
         """;
         var (dados, pasta, caminho) = Novo(json);
         using var _p = pasta;

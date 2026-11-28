@@ -1,4 +1,5 @@
 # dados-do-painel Specification
+
 ## Purpose
 
 Guarda, num arquivo que só o usuário principal escreve, os repositórios e as sessões que o painel conhece. É a única fonte de dados que o painel usa para montar comandos.
@@ -66,10 +67,10 @@ O painel SHALL permitir remover um repositório de uma demanda. Se o repositóri
 - **THEN** o repositório e as sessões da outra demanda permanecem
 
 ### Requirement: Registro das sessões abertas pelo painel
-Ao abrir uma sessão nova do Claude, o painel SHALL registrar no repositório escolhido o agente, o identificador da sessão, o rótulo, a data de criação e o ambiente de execução, antes de iniciar o terminal. Ao abrir uma sessão nova do Codex, cujo identificador ainda não existe, o painel SHALL registrar no repositório um lançamento pendente com o agente, o rótulo, a data e o ambiente de execução, antes de iniciar o terminal. Se o terminal não puder ser iniciado, o registro SHALL ser desfeito.
+Ao abrir uma sessão nova do Claude, o painel SHALL registrar no repositório escolhido o agente, o identificador da sessão, o rótulo, a data de criação e `execucao` igual a `container`, antes de iniciar o terminal. Ao abrir uma sessão nova do Codex, cujo identificador ainda não existe, o painel SHALL registrar no repositório um lançamento pendente com o agente, o rótulo, a data e `execucao` igual a `container`, antes de iniciar o terminal. Se o terminal não puder ser iniciado, o registro SHALL ser desfeito.
 
 #### Scenario: Sessão nova do Claude
-- **WHEN** o usuário abre uma sessão nova do Claude no repositório `Faturamento`, com "Container Docker" escolhido
+- **WHEN** o usuário abre uma sessão nova do Claude no repositório `Faturamento`
 - **THEN** o arquivo de dados passa a ter, nesse repositório, uma sessão com `agente` `claude`, o identificador gerado e `execucao` `container`
 
 #### Scenario: Terminal não inicia
@@ -82,7 +83,7 @@ Ao abrir uma sessão nova do Claude, o painel SHALL registrar no repositório es
 
 #### Scenario: Sessão nova do Codex
 - **WHEN** o usuário abre uma sessão nova do Codex no repositório `Faturamento` da demanda `CHG-142`
-- **THEN** nenhuma sessão é registrada no arquivo de dados, e o repositório `Faturamento` de `CHG-142` passa a ter um lançamento pendente com `agente` `codex`, o rótulo informado, a data e o ambiente de execução em uso
+- **THEN** nenhuma sessão é registrada no arquivo de dados, e o repositório `Faturamento` de `CHG-142` passa a ter um lançamento pendente com `agente` `codex`, o rótulo informado, a data e `execucao` `container`
 
 #### Scenario: Terminal do Codex não inicia
 - **WHEN** o painel registra o lançamento e a abertura do terminal falha
@@ -153,7 +154,7 @@ Cada demanda do arquivo de dados SHALL ter `id`, `titulo`, `arquivada` e `reposi
 
 #### Scenario: Arquivo gravado por versão anterior
 - **WHEN** o arquivo de dados tem a demanda `sem-demanda` sem `criadaEm` nem `openspecChange`
-- **THEN** a demanda é carregada normalmente, com seus repositórios e sessões
+- **THEN** a demanda é carregada normalmente, com seus repositórios e as sessões com `execucao` igual a `container`
 
 ### Requirement: Sessão única no arquivo
 Um mesmo identificador de sessão SHALL constar no máximo uma vez entre as sessões registradas do arquivo de dados. Na carga, se um identificador aparecer mais de uma vez, apenas a primeira ocorrência SHALL ser considerada.
@@ -227,11 +228,15 @@ O arquivo de dados SHALL guardar na lista `excluidas` as sessões excluídas pel
 - **THEN** ele é carregado normalmente
 
 ### Requirement: Ambiente de execução nos registros
-Cada sessão registrada e cada lançamento pendente SHALL guardar o ambiente em que foi aberto, no campo `execucao`, com `container` ou `windows`. Na carga, um registro sem `execucao` SHALL valer como `windows`, e um registro com valor desconhecido SHALL ser desconsiderado. O vínculo de uma sessão por lançamento pendente SHALL passar à sessão o `execucao` do lançamento.
+Cada sessão registrada e cada lançamento pendente SHALL ser gravado com `execucao` igual a `container`. Na carga, um registro sem `execucao` ou com qualquer outro valor, inclusive `windows`, SHALL ser desconsiderado: não aparece no painel, não vincula sessão e nada dele é usado em comandos. A gravação SHALL preservar no arquivo os registros desconsiderados. O vínculo de uma sessão por lançamento pendente SHALL registrar a sessão com `execucao` igual a `container`.
 
 #### Scenario: Sessão registrada por uma versão anterior
 - **WHEN** o arquivo de dados tem uma sessão sem `execucao`
-- **THEN** ela é carregada com o ambiente `windows`
+- **THEN** ela é desconsiderada na carga e não aparece no card do repositório
+
+#### Scenario: Sessão aberta no Windows
+- **WHEN** o arquivo de dados tem uma sessão com `execucao` igual a `windows`
+- **THEN** ela é desconsiderada na carga e nada dela é usado em comandos
 
 #### Scenario: Ambiente desconhecido editado à mão
 - **WHEN** o arquivo de dados tem uma sessão com `execucao` igual a `wsl`
@@ -239,8 +244,12 @@ Cada sessão registrada e cada lançamento pendente SHALL guardar o ambiente em 
 
 #### Scenario: Lançamento de uma versão anterior
 - **WHEN** o arquivo de dados tem um lançamento sem `execucao`
-- **THEN** ele é carregado com o ambiente `windows`
+- **THEN** ele é desconsiderado na carga e não vincula nenhuma sessão
+
+#### Scenario: Registro desconsiderado preservado
+- **WHEN** o arquivo de dados tem uma sessão com `execucao` igual a `windows` e o painel grava outra alteração no mesmo repositório
+- **THEN** a sessão do Windows continua no arquivo, sem alteração
 
 #### Scenario: Vínculo por lançamento do container
-- **WHEN** o painel vincula uma sessão por um lançamento pendente com `execucao` `container`
+- **WHEN** o painel vincula uma sessão por um lançamento pendente
 - **THEN** a sessão registrada fica com `execucao` `container`

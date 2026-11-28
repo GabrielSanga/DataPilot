@@ -33,8 +33,8 @@ public sealed class AberturaSessao(DadosPainel dados, IDisparador disparador, Ti
         return Executar(
             () => MontadorComando.Novo(demanda.Id, demanda.Titulo, repo, agente, claude ? id : null, rotulo, estado.Configuracoes),
             () => claude
-                ? dados.RegistrarSessao(demanda.Id, repo.Pasta, agente, id, rotulo, relogio.GetUtcNow(), estado.Configuracoes.Execucao)
-                : dados.RegistrarLancamento(demanda.Id, repo.Pasta, agente, id, rotulo, relogio.GetUtcNow(), estado.Configuracoes.Execucao),
+                ? dados.RegistrarSessao(demanda.Id, repo.Pasta, agente, id, rotulo, relogio.GetUtcNow())
+                : dados.RegistrarLancamento(demanda.Id, repo.Pasta, agente, id, rotulo, relogio.GetUtcNow()),
             () => { _ = claude ? dados.DesfazerRegistro(id) : dados.DesfazerLancamento(id); });
     }
 
@@ -83,7 +83,7 @@ public sealed class AberturaSessao(DadosPainel dados, IDisparador disparador, Ti
 
         return Executar(
             () => MontadorComando.Novo(demanda.Id, demanda.Titulo, repo, lancamento.Agente, null, lancamento.Rotulo,
-                estado.Configuracoes with { Execucao = lancamento.Execucao }),
+                estado.Configuracoes),
             () => dados.RenovarLancamento(lancamento.Id, agora),
             () => dados.RenovarLancamento(lancamento.Id, lancamento.CriadoEm));
     }
@@ -99,8 +99,7 @@ public sealed class AberturaSessao(DadosPainel dados, IDisparador disparador, Ti
         if (!estado.Disponivel) return ResultadoOperacao.Falha($"Dados do painel indisponíveis: {dados.Caminho}");
 
         // Recusa antes de vincular o repositório, para nada ficar gravado.
-        if (estado.Configuracoes.Execucao == Execucao.Container && !ValidadorEntrada.PastaValida(pasta)
-            && LocaisContainer.Traduzir(pasta) is null)
+        if (!ValidadorEntrada.PastaValida(pasta) && LocaisContainer.Traduzir(pasta) is null)
             return ResultadoOperacao.Falha(LocaisContainer.MensagemFora);
 
         var implicita = estado.Demandas.FirstOrDefault(d => RegrasDemanda.EhImplicita(d.Id));
@@ -123,11 +122,11 @@ public sealed class AberturaSessao(DadosPainel dados, IDisparador disparador, Ti
         var agora = relogio.GetUtcNow();
         var opcoes = dados.Carregar().Configuracoes;
         var sessao = new SessaoRegistrada(pedido.Agente, pedido.SessionId, pasta, null, agora,
-            RegrasDemanda.IdDemandaImplicita, RegrasDemanda.TituloDemandaImplicita, opcoes.Execucao);
+            RegrasDemanda.IdDemandaImplicita, RegrasDemanda.TituloDemandaImplicita);
 
         return Executar(
             () => MontadorComando.Retomar(sessao, opcoes),
-            () => dados.RegistrarRetomada(pedido, pasta, agora, opcoes.Execucao),
+            () => dados.RegistrarRetomada(pedido, pasta, agora),
             () => dados.DesfazerRegistro(pedido.SessionId));
     }
 

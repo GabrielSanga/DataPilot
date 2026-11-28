@@ -18,8 +18,8 @@ public class MontadorComandoContainerTests
         => MontadorComando.Novo("CHG-142", "Ajuste", new RepositorioCadastrado(pasta, []), agente,
             agente == Agente.Claude ? Id : null, null, opcoes);
 
-    private static SessaoRegistrada Registrada(Execucao execucao)
-        => new(Agente.Claude, Id, "Faturamento", null, Fabrica.Agora, "CHG-142", "Ajuste", execucao);
+    private static SessaoRegistrada Registrada()
+        => new(Agente.Claude, Id, "Faturamento", null, Fabrica.Agora, "CHG-142", "Ajuste");
 
     private static string Caminho(ComandoTerminal c)
         => Encoding.UTF8.GetString(Convert.FromBase64String(c.Argumentos[c.Argumentos.ToList().IndexOf("--caminho") + 1]));
@@ -45,16 +45,9 @@ public class MontadorComandoContainerTests
     }
 
     [Fact]
-    public void Retomada_usa_o_ambiente_do_registro()
-    {
-        var noContainer = MontadorComando.Retomar(Registrada(Execucao.Container), Fabrica.Windows);
-        Assert.Equal("docker", noContainer.Argumentos[6]);
-        Assert.Equal(["--modo", "retomar"], noContainer.Argumentos.TakeLast(2));
-
-        var noWindows = MontadorComando.Retomar(Registrada(Execucao.Windows), Configuracoes.Padrao);
-        Assert.Equal(["ssh", "-t", "ia@localhost", "powershell"], noWindows.Argumentos.Skip(6).Take(4));
-        Assert.Null(noWindows.Container);
-    }
+    public void Retomada_do_claude_no_container()
+        => Assert.Equal(["--agente", "claude", "--repo", "Faturamento", "--sessao", Id, "--modo", "retomar"],
+            MontadorComando.Retomar(Registrada()).Argumentos.TakeLast(8));
 
     [Theory]
     [InlineData(@"C:\Fontes", "/workspace")]
@@ -79,7 +72,7 @@ public class MontadorComandoContainerTests
     {
         var e = Assert.Throws<EntradaInvalidaException>(() => Novo(pasta));
         Assert.Equal(LocaisContainer.MensagemFora, e.Message);
-        Assert.NotNull(Novo(pasta, opcoes: Fabrica.Windows));
+        Assert.DoesNotContain("Windows", e.Message);
     }
 
     [Theory]
@@ -115,7 +108,7 @@ public class MontadorComandoContainerTests
         => Assert.Equal(coincide, RegrasVinculo.PastaCoincide(cwd, repositorio));
 }
 
-/// <summary>Cenários de "Ambiente de execução da sessão" e de registro das sessões.</summary>
+/// <summary>Cenários de abertura e de registro das sessões no container.</summary>
 public class AberturaContainerTests
 {
     private const string Id = "0b6f1c2e-5d1a-4c8e-9f3a-2b7d4e6a8c10";
@@ -123,7 +116,6 @@ public class AberturaContainerTests
     private static (AberturaSessao Abertura, DadosPainel Dados, DisparadorFalso Disparador, PastaTemporaria Pasta) Novo()
     {
         var (dados, pasta) = ApoioVinculoAutomatico.NovoDados("CHG-142");
-        dados.SalvarConfiguracoes(Configuracoes.Padrao);
         var disparador = new DisparadorFalso();
         return (new AberturaSessao(dados, disparador, new RelogioFalso(Fabrica.Agora), () => Guid.Parse(Id)), dados, disparador, pasta);
     }
@@ -137,30 +129,30 @@ public class AberturaContainerTests
         var (abertura, dados, disparador, pasta) = Novo();
         using var _ = pasta;
         Assert.True(abertura.Nova("CHG-142", "Faturamento", Agente.Claude, null).Ok);
-        Assert.Equal(Execucao.Container, Repo(dados).Sessoes.Single().Execucao);
+        Assert.Single(Repo(dados).Sessoes);
         Assert.Equal("datapilot-agente", Assert.Single(disparador.Comandos).Container);
     }
 
     [Fact]
-    public void Codex_novo_registra_o_lancamento_no_container_e_reabre_nele_com_windows_escolhido()
+    public void Codex_novo_registra_o_lancamento_e_reabre_com_o_nome_em_uso()
     {
         var (abertura, dados, disparador, pasta) = Novo();
         using var _ = pasta;
         Assert.True(abertura.Nova("CHG-142", "Faturamento", Agente.Codex, null).Ok);
-        Assert.Equal(Execucao.Container, Repo(dados).Lancamentos.Single().Execucao);
+        Assert.Single(Repo(dados).Lancamentos);
 
-        dados.SalvarConfiguracoes(Fabrica.Windows);
+        dados.SalvarConfiguracoes(new Configuracoes("agente_1"));
         Assert.True(abertura.ReabrirLancamento(Id).Ok);
-        Assert.Equal("datapilot-agente", disparador.Comandos[1].Container);
+        Assert.Equal("agente_1", disparador.Comandos[1].Container);
     }
 
     [Fact]
-    public void Retomada_usa_o_container_do_registro_com_o_nome_em_uso()
+    public void Retomada_usa_o_nome_do_container_em_uso()
     {
         var (abertura, dados, disparador, pasta) = Novo();
         using var _ = pasta;
         Assert.True(abertura.Nova("CHG-142", "Faturamento", Agente.Claude, null).Ok);
-        dados.SalvarConfiguracoes(Fabrica.Windows with { Container = "outro" });
+        dados.SalvarConfiguracoes(new Configuracoes("outro"));
 
         Assert.True(abertura.Retomar(Repo(dados).Sessoes.Single()).Ok);
 
@@ -168,7 +160,7 @@ public class AberturaContainerTests
     }
 
     [Fact]
-    public void Retomada_de_sessao_nao_registrada_usa_o_ambiente_em_uso()
+    public void Retomada_de_sessao_nao_registrada_registra_e_abre_no_container()
     {
         var (abertura, dados, disparador, pasta) = Novo();
         using var _ = pasta;
@@ -176,8 +168,8 @@ public class AberturaContainerTests
 
         Assert.True(abertura.RetomarNaoRegistrada(pedido, "Faturamento").Ok);
 
-        Assert.Equal(Execucao.Container, Repo(dados, "sem-demanda").Sessoes.Single().Execucao);
-        Assert.NotNull(Assert.Single(disparador.Comandos).Container);
+        Assert.Single(Repo(dados, "sem-demanda").Sessoes);
+        Assert.Equal("datapilot-agente", Assert.Single(disparador.Comandos).Container);
     }
 
     [Fact]
@@ -230,15 +222,6 @@ public class DisparadorContainerTests
     }
 
     [Fact]
-    public void Comando_do_windows_nao_consulta_o_docker()
-    {
-        var (interno, executor) = (new DisparadorFalso(), new ExecutorFalso());
-        new DisparadorContainer(interno, executor).Iniciar(new("wt.exe", ["nt"]));
-        Assert.Single(interno.Comandos);
-        Assert.Empty(executor.Chamadas);
-    }
-
-    [Fact]
     public void Container_em_execucao_abre_direto()
     {
         var (interno, executor) = (new DisparadorFalso(), new ExecutorFalso(() => Ok("true\n")));
@@ -268,7 +251,7 @@ public class DisparadorContainerTests
     {
         var mensagem = Falha(new(() => Erro(erro)));
         Assert.Contains("docker compose up -d", mensagem);
-        Assert.Contains("Windows", mensagem);
+        Assert.DoesNotContain("Windows", mensagem);
     }
 
     [Fact]
@@ -284,7 +267,11 @@ public class DisparadorContainerTests
 
     [Fact]
     public void Docker_ausente()
-        => Assert.Contains("Não foi possível executar o docker", Falha(new(() => throw new Win32Exception(2))));
+    {
+        var mensagem = Falha(new(() => throw new Win32Exception(2)));
+        Assert.Contains("Não foi possível executar o docker", mensagem);
+        Assert.DoesNotContain("Windows", mensagem);
+    }
 
     [Theory]
     [InlineData(Agente.Claude)]
@@ -293,7 +280,6 @@ public class DisparadorContainerTests
     {
         var (dados, pasta) = ApoioVinculoAutomatico.NovoDados("CHG-142");
         using var _ = pasta;
-        dados.SalvarConfiguracoes(Configuracoes.Padrao);
         var disparador = new DisparadorContainer(new DisparadorFalso(), new ExecutorFalso(() => Erro("No such container")));
 
         var r = new AberturaSessao(dados, disparador, new RelogioFalso(Fabrica.Agora)).Nova("CHG-142", "Faturamento", agente, null);

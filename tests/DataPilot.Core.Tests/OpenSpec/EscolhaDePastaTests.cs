@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using DataPilot.Core.Arquivos;
+using DataPilot.Core.Models;
 using DataPilot.Core.OpenSpec;
 using DataPilot.Core.Tests.Helpers;
 
@@ -20,62 +22,60 @@ public class EscolhaDePastaTests
         Assert.Equal(nome, r.Pasta);
     }
 
-    [Fact]
-    public void Aceita_pasta_fora_da_raiz_e_devolve_o_caminho_completo()
+    private static ResultadoPasta ComoPasta(string caminho, LeituraSegura.TipoEntrada tipo = LeituraSegura.TipoEntrada.Normal)
+        => EscolhaDePasta.Validar(Raiz, caminho, _ => tipo);
+
+    [Theory]
+    [InlineData(@"C:\Fontes\Grupo\Faturamento")]
+    [InlineData(@"C:\Fontes\com espaço")]
+    [InlineData(@"C:\openspec\ERP\Faturamento")]
+    [InlineData(@"C:\openspec\ERP")]
+    [InlineData(@"C:\Fontes")]
+    public void Aceita_pasta_dos_locais_do_container_com_o_caminho_completo(string caminho)
     {
-        using var pasta = new PastaTemporaria();
-        var repo = Directory.CreateDirectory(Path.Combine(pasta.Caminho, "meu repo & cia")).FullName;
-
-        var r = EscolhaDePasta.Validar(Raiz, repo + @"\");
-
-        Assert.True(r.Ok);
-        Assert.Equal(repo, r.Pasta);
-    }
-
-    [Fact]
-    public void Pasta_da_raiz_com_nome_fora_da_regra_vira_caminho_completo()
-    {
-        using var raiz = new PastaTemporaria();
-        var repo = Directory.CreateDirectory(Path.Combine(raiz.Caminho, "com espaço")).FullName;
-
-        var r = EscolhaDePasta.Validar(raiz.Caminho, repo);
-
-        Assert.True(r.Ok);
-        Assert.Equal(repo, r.Pasta);
+        var r = ComoPasta(caminho + @"\");
+        Assert.True(r.Ok, r.Erro);
+        Assert.Equal(caminho, r.Pasta);
     }
 
     [Theory]
+    [InlineData(@"C:\Projetos\Faturamento")]
+    [InlineData(@"D:\Faturamento")]
+    [InlineData(@"C:\FontesAntigas\X")]
+    [InlineData(@"C:\openspec")]
+    [InlineData(@"C:\Fontes\..\Projetos")]
     [InlineData(@"C:\")]
+    [InlineData(@"D:\")]
+    public void Recusa_pasta_fora_dos_locais_do_container(string caminho)
+    {
+        var r = ComoPasta(caminho);
+        Assert.False(r.Ok);
+        Assert.Null(r.Pasta);
+        Assert.Equal(LocaisContainer.MensagemFora, r.Erro);
+    }
+
+    [Theory]
     [InlineData("")]
     [InlineData(null)]
-    public void Recusa_caminho_invalido(string? caminho)
+    public void Recusa_caminho_vazio(string? caminho)
     {
         var r = EscolhaDePasta.Validar(Raiz, caminho);
         Assert.False(r.Ok);
-        Assert.Null(r.Pasta);
         Assert.Equal(DataPilot.Core.Validation.ValidadorEntrada.MensagemRepositorio, r.Erro);
     }
 
     [Fact]
     public void Recusa_pasta_que_nao_existe()
     {
-        var r = EscolhaDePasta.Validar(Raiz, Path.Combine(Path.GetTempPath(), "datapilot-" + Guid.NewGuid().ToString("N")));
+        var r = EscolhaDePasta.Validar(Raiz, @"C:\Fontes\Grupo\datapilot-" + Guid.NewGuid().ToString("N"));
         Assert.False(r.Ok);
         Assert.Equal(EscolhaDePasta.MensagemInexistente, r.Erro);
     }
 
     [Fact]
-    public void Recusa_juncao_fora_da_raiz()
+    public void Recusa_atalho_ou_juncao_nos_locais()
     {
-        using var pasta = new PastaTemporaria();
-        var alvo = Directory.CreateDirectory(Path.Combine(pasta.Caminho, "alvo")).FullName;
-        var link = Path.Combine(pasta.Caminho, "juncao");
-        var p = Process.Start(new ProcessStartInfo("cmd.exe", $"/c mklink /J \"{link}\" \"{alvo}\"")
-            { CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true })!;
-        p.WaitForExit();
-        Assert.Equal(0, p.ExitCode);
-
-        var r = EscolhaDePasta.Validar(Raiz, link);
+        var r = ComoPasta(@"C:\Fontes\Grupo\juncao", LeituraSegura.TipoEntrada.Atalho);
         Assert.False(r.Ok);
         Assert.Equal(EscolhaDePasta.MensagemAtalho, r.Erro);
     }

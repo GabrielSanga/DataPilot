@@ -10,17 +10,15 @@ namespace DataPilot.Core.Persistence;
 
 public sealed partial class DadosPainel
 {
-    public ResultadoOperacao RegistrarSessao(string demandaId, string pasta, Agente agente, string sessionId, string? rotulo, DateTimeOffset criadaEm,
-        Execucao execucao = Execucao.Windows)
-        => Registrar(demandaId, pasta, agente, sessionId, rotulo, criadaEm, vinculadaEm: null, criarRepositorio: false, execucao);
+    public ResultadoOperacao RegistrarSessao(string demandaId, string pasta, Agente agente, string sessionId, string? rotulo, DateTimeOffset criadaEm)
+        => Registrar(demandaId, pasta, agente, sessionId, rotulo, criadaEm, vinculadaEm: null, criarRepositorio: false);
 
     /// <summary>
     /// Vínculo explícito de uma sessão que o painel não abriu. Recebe só o <see cref="PedidoVinculo"/> (agente e
     /// identificador); demanda, pasta e rótulo vêm da escolha do usuário. Grava <c>vinculadaEm</c> (e usa a mesma
     /// data em <c>criadaEm</c>) e vincula o repositório à demanda quando faltar. Demanda arquivada não recebe vínculo.
     /// Uma sessão já registrada em "Sessões" (<c>sem-demanda</c>) é movida para a demanda escolhida, com o repositório
-    /// e o rótulo escolhidos (sem rótulo escolhido, mantém o que tinha), e mantém o ambiente de execução. Uma sessão
-    /// ainda não registrada fica no ambiente em uso, como na retomada dela.
+    /// e o rótulo escolhidos (sem rótulo escolhido, mantém o que tinha).
     /// </summary>
     public ResultadoOperacao VincularSessao(PedidoVinculo pedido, string demandaId, string pasta, string? rotulo, DateTimeOffset vinculadaEm)
     {
@@ -55,7 +53,7 @@ public sealed partial class DadosPainel
 
             if (no is null)
             {
-                AdicionarSessao(repo, pedido.Agente, pedido.SessionId, rotulo, vinculadaEm, vinculadaEm, ExtrairConfiguracoes(raiz).Execucao);
+                AdicionarSessao(repo, pedido.Agente, pedido.SessionId, rotulo, vinculadaEm, vinculadaEm);
                 return ResultadoOperacao.Sucesso;
             }
             if (rotulo is not null) no["rotulo"] = rotulo;
@@ -69,10 +67,9 @@ public sealed partial class DadosPainel
     /// "Retomar" numa sessão que o painel não registrou: registra-a em "Sessões" (<c>sem-demanda</c>), no repositório
     /// escolhido, com <c>vinculadaEm</c>. Só o <see cref="PedidoVinculo"/> (agente e GUID canônico) vem do arquivo de status.
     /// </summary>
-    public ResultadoOperacao RegistrarRetomada(PedidoVinculo pedido, string pasta, DateTimeOffset vinculadaEm,
-        Execucao execucao = Execucao.Windows)
+    public ResultadoOperacao RegistrarRetomada(PedidoVinculo pedido, string pasta, DateTimeOffset vinculadaEm)
         => Registrar(RegrasDemanda.IdDemandaImplicita, pasta, pedido.Agente, pedido.SessionId, null, vinculadaEm, vinculadaEm,
-            criarRepositorio: true, execucao);
+            criarRepositorio: true);
 
     private static bool ContemSessao(JsonObject demanda, string sessionId)
         => demanda["repositorios"] is JsonArray repos
@@ -95,7 +92,7 @@ public sealed partial class DadosPainel
     }
 
     private ResultadoOperacao Registrar(string demandaId, string pasta, Agente agente, string sessionId, string? rotulo,
-        DateTimeOffset criadaEm, DateTimeOffset? vinculadaEm, bool criarRepositorio, Execucao execucao)
+        DateTimeOffset criadaEm, DateTimeOffset? vinculadaEm, bool criarRepositorio)
     {
         if (!ValidadorEntrada.RepositorioValido(pasta)) return ResultadoOperacao.Falha(ValidadorEntrada.MensagemRepositorio);
         if (!ValidadorEntrada.IdentificadorValido(sessionId)) return ResultadoOperacao.Falha("Identificador de sessão inválido.");
@@ -118,13 +115,13 @@ public sealed partial class DadosPainel
                 Repositorios(demanda).Add(repo);
             }
 
-            AdicionarSessao(repo, agente, sessionId, rotulo, criadaEm, vinculadaEm, execucao);
+            AdicionarSessao(repo, agente, sessionId, rotulo, criadaEm, vinculadaEm);
             return ResultadoOperacao.Sucesso;
         });
     }
 
     private static void AdicionarSessao(JsonObject repo, Agente agente, string sessionId, string? rotulo,
-        DateTimeOffset criadaEm, DateTimeOffset? vinculadaEm, Execucao execucao)
+        DateTimeOffset criadaEm, DateTimeOffset? vinculadaEm)
     {
         var sessoes = repo["sessoes"] as JsonArray;
         if (sessoes is null) repo["sessoes"] = sessoes = new JsonArray();
@@ -133,7 +130,7 @@ public sealed partial class DadosPainel
         {
             ["agente"] = Agentes.NoArquivo(agente),
             ["sessionId"] = sessionId,
-            ["execucao"] = Execucoes.NoArquivo(execucao),
+            ["execucao"] = ExecucaoContainer,
         };
         if (rotulo is not null) sessao["rotulo"] = rotulo;
         sessao["criadaEm"] = criadaEm.ToString("o", CultureInfo.InvariantCulture);

@@ -10,7 +10,7 @@ public static class LocaisContainer
     ];
 
     public const string MensagemFora = "O container só enxerga " + Constantes.RaizFontesPadrao + " e " + Constantes.PastaOpenspec
-        + ". Use um repositório num desses locais ou escolha \"Windows\" nas configurações.";
+        + ". Use um repositório num desses locais.";
 
     /// <summary>
     /// Caminho no container de uma pasta do Windows já validada (completa e normalizada), ou null se ela está fora

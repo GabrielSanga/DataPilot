@@ -7,7 +7,7 @@
 # --repo e uma pasta direta da raiz dos fontes. Para as demais pastas dos locais montados, use
 # --caminho com o caminho no container codificado em Base64 (UTF-8).
 #
-# Mesmas regras do scripts/abrir.ps1. Todos os parametros sao validados antes de qualquer acao.
+# Todos os parametros sao validados antes de qualquer acao.
 #
 # Codigos de saida proprios: 2 = parametro invalido; 3 = repositorio nao encontrado;
 # 4 = comando do agente nao encontrado. Nos demais casos, o codigo e o do proprio agente.

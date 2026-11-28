@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using DataPilot.Core.Models;
 using DataPilot.Core.Tests.Helpers;
 
@@ -17,29 +18,21 @@ public class ConfiguracoesTests
     {
         var (dados, pasta, _) = DadosPainelTests.Novo();
         using var _ = pasta;
-        Assert.Equal(new Configuracoes(Execucao.Container, "datapilot-agente", true, "ia"), dados.Carregar().Configuracoes);
+        Assert.Equal(new Configuracoes("datapilot-agente"), dados.Carregar().Configuracoes);
     }
 
-    [Fact]
-    public void Versao_anterior_so_com_ssh_usa_o_container_e_mantem_o_ssh()
-        => Assert.Equal(new Configuracoes(Execucao.Container, "datapilot-agente", false, "agente-ia"),
-            Ler("""{"usarSsh":false,"usuarioSsh":"agente-ia"}"""));
+    [Theory]
+    [InlineData("""{"execucao":"windows","usarSsh":false,"usuarioSsh":"agente-ia","container":"agente_1"}""")]
+    [InlineData("""{"execucao":"wsl","usuarioSsh":"-oProxyCommand=calc","container":"agente_1"}""")]
+    public void Campos_de_versoes_anteriores_sao_desconsiderados(string secao)
+        => Assert.Equal(new Configuracoes("agente_1"), Ler(secao));
 
-    [Fact]
-    public void Usuario_invalido_no_arquivo_vale_o_padrao_e_o_resto_e_lido()
-        => Assert.Equal(Configuracoes.Padrao with { UsarSsh = false }, Ler("""{"usarSsh":false,"usuarioSsh":"-oProxyCommand=calc"}"""));
-
-    [Fact]
-    public void Container_invalido_no_arquivo_vale_o_padrao()
-        => Assert.Equal(Fabrica.Windows, Ler("""{"execucao":"windows","container":"--privileged"}"""));
-
-    [Fact]
-    public void Ambiente_desconhecido_no_arquivo_vale_o_container()
-        => Assert.Equal(Execucao.Container, Ler("""{"execucao":"wsl"}""").Execucao);
-
-    [Fact]
-    public void Campos_de_tipo_errado_valem_o_padrao()
-        => Assert.Equal(Configuracoes.Padrao, Ler("""{"execucao":1,"container":2,"usarSsh":"nao","usuarioSsh":7}"""));
+    [Theory]
+    [InlineData("""{"container":"--privileged"}""")]
+    [InlineData("""{"container":2}""")]
+    [InlineData("""{"usarSsh":false}""")]
+    public void Container_ausente_ou_invalido_vale_o_padrao(string secao)
+        => Assert.Equal(Configuracoes.Padrao, Ler(secao));
 
     [Fact]
     public void Arquivo_ilegivel_usa_o_padrao_e_nao_grava()
@@ -47,33 +40,34 @@ public class ConfiguracoesTests
         var (dados, pasta, caminho) = DadosPainelTests.Novo("{ não é json");
         using var _ = pasta;
         Assert.Equal(Configuracoes.Padrao, dados.Carregar().Configuracoes);
-        Assert.False(dados.SalvarConfiguracoes(Fabrica.Windows).Ok);
+        Assert.False(dados.SalvarConfiguracoes(Configuracoes.Padrao).Ok);
         Assert.Equal("{ não é json", File.ReadAllText(caminho));
     }
 
     [Fact]
-    public void Grava_e_preserva_os_demais_campos()
+    public void Salvar_deixa_so_o_container_na_secao_e_preserva_o_resto()
     {
-        var (dados, pasta, caminho) = DadosPainelTests.Novo("""{"demandas":[],"campoDesconhecido":42}""");
+        var (dados, pasta, caminho) = DadosPainelTests.Novo(
+            """{"demandas":[],"campoDesconhecido":42,"configuracoes":{"execucao":"windows","usarSsh":false,"usuarioSsh":"ia"}}""");
         using var _ = pasta;
-        var novas = new Configuracoes(Execucao.Windows, "agente_1", false, "agente-ia");
+        var novas = new Configuracoes("agente_1");
+
         Assert.True(dados.SalvarConfiguracoes(novas).Ok);
+
         Assert.Equal(novas, dados.Carregar().Configuracoes);
-        var texto = File.ReadAllText(caminho);
-        Assert.Contains("campoDesconhecido", texto);
-        Assert.Contains("\"execucao\": \"windows\"", texto);
-        Assert.Contains("\"container\": \"agente_1\"", texto);
+        var raiz = JsonNode.Parse(File.ReadAllText(caminho))!.AsObject();
+        Assert.Equal(["container"], raiz["configuracoes"]!.AsObject().Select(p => p.Key));
+        Assert.Equal(42, (int)raiz["campoDesconhecido"]!);
     }
 
     [Theory]
-    [InlineData("--privileged", "ia")]
-    [InlineData("", "ia")]
-    [InlineData("datapilot-agente", "-oProxyCommand=calc")]
-    public void Valor_invalido_e_recusado_sem_gravar(string container, string usuario)
+    [InlineData("--privileged")]
+    [InlineData("")]
+    public void Container_invalido_e_recusado_sem_gravar(string container)
     {
         var (dados, pasta, caminho) = DadosPainelTests.Novo();
         using var _ = pasta;
-        Assert.False(dados.SalvarConfiguracoes(new Configuracoes(Execucao.Container, container, true, usuario)).Ok);
+        Assert.False(dados.SalvarConfiguracoes(new Configuracoes(container)).Ok);
         Assert.False(File.Exists(caminho));
     }
 }

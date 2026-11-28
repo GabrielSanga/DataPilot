@@ -13,7 +13,6 @@ public class AberturaSessaoTests
     {
         var pasta = new PastaTemporaria();
         var dados = new DadosPainel(Path.Combine(pasta.Caminho, "demandas.json"));
-        dados.SalvarConfiguracoes(Fabrica.Windows);
         dados.CriarDemanda("CHG-142", "Ajuste NF-e", null, Fabrica.Agora);
         if (cadastrar) dados.VincularRepositorio("CHG-142", "Faturamento");
         var disparador = new DisparadorFalso();
@@ -35,7 +34,7 @@ public class AberturaSessaoTests
         Assert.Equal(Fabrica.Agora, s.CriadaEm);
 
         var args = Assert.Single(disparador.Comandos).Argumentos;
-        Assert.Equal(["-Sessao", IdFixo, "-Modo", "novo"], args.TakeLast(4));
+        Assert.Equal(["--sessao", IdFixo, "--modo", "novo"], args.TakeLast(4));
     }
 
     [Fact]
@@ -48,7 +47,7 @@ public class AberturaSessaoTests
         var repo = dados.Carregar().Demandas.Single().Repositorios.Single();
         Assert.Empty(repo.Sessoes);
         Assert.Equal(new LancamentoPendente(IdFixo, Agente.Codex, Fabrica.Agora, "ajuste"), Assert.Single(repo.Lancamentos));
-        Assert.DoesNotContain("-Sessao", Assert.Single(disparador.Comandos).Argumentos);
+        Assert.DoesNotContain("--sessao", Assert.Single(disparador.Comandos).Argumentos);
     }
 
     [Fact]
@@ -109,7 +108,7 @@ public class AberturaSessaoTests
         using var _ = pasta;
         var s = new SessaoRegistrada(Agente.Claude, IdFixo, "Faturamento", null, Fabrica.Agora, "CHG-142", "Ajuste NF-e");
         Assert.True(abertura.Retomar(s).Ok);
-        Assert.Equal(["-Repo", "Faturamento", "-Sessao", IdFixo, "-Modo", "retomar"], Assert.Single(disparador.Comandos).Argumentos.TakeLast(6));
+        Assert.Equal(["--repo", "Faturamento", "--sessao", IdFixo, "--modo", "retomar"], Assert.Single(disparador.Comandos).Argumentos.TakeLast(6));
     }
 
     [Fact]

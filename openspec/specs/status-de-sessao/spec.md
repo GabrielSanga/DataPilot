@@ -1,4 +1,5 @@
 # status-de-sessao Specification
+
 ## Purpose
 
 Registra o status de cada sessão do Claude Code e do Codex em arquivos que o Painel de Demandas lê, para que o usuário veja o que está executando, aguardando ou pedindo atenção sem interpretar a tela do terminal.
@@ -117,30 +118,19 @@ O arquivo de status SHALL NOT conter texto de prompts, entradas ou saídas de fe
 - **THEN** o arquivo de status não contém esse texto
 
 ### Requirement: Permissões da pasta de status
-Para as sessões no Windows, a instalação SHALL configurar `C:\ProgramData\Painel` de modo que o usuário `ia` possa criar e modificar arquivos de status e o usuário principal possa apenas ler, sem herdar permissões da pasta pai. Para as sessões no container, a pasta de status SHALL ser, junto com a raiz dos fontes e `C:\openspec\ERP`, a única pasta do Windows em que o container pode gravar, e o painel SHALL continuar tratando todo arquivo dela como não confiável.
+A pasta de status SHALL ser, junto com a raiz dos fontes e `C:\openspec\ERP`, a única pasta do Windows em que o container pode gravar, e o painel SHALL continuar tratando todo arquivo dela como não confiável.
 
 #### Scenario: Usuário principal tenta escrever
-- **WHEN** a instalação do Windows está aplicada e um processo do usuário principal, sem elevação, tenta criar um arquivo na pasta de status
-- **THEN** a operação é negada
+- **WHEN** um processo do usuário principal grava um arquivo na pasta de status
+- **THEN** o painel trata esse arquivo como qualquer outro da pasta: só exibe e compara os valores, sem confiar neles
 
 #### Scenario: Usuário principal lê o status
-- **WHEN** um processo do usuário principal lê um arquivo de status gravado pelo `ia` ou pelo container
+- **WHEN** um processo do usuário principal lê um arquivo de status gravado pelo container
 - **THEN** a leitura é bem-sucedida
 
 #### Scenario: Container tenta gravar fora das montagens
 - **WHEN** um processo dentro do container tenta criar um arquivo numa pasta do Windows fora de `/workspace`, `/openspec/ERP` e `/status`
 - **THEN** essa pasta não existe dentro do container e nada é gravado no Windows
-
-### Requirement: Data de criação do arquivo preservada
-No Windows, o hook SHALL atualizar o arquivo de status de uma sessão sem alterar a data de criação do arquivo, que SHALL permanecer a da primeira gravação feita para a sessão. No container, a data da primeira gravação SHALL ser guardada pelo marcador de criação.
-
-#### Scenario: Eventos posteriores ao primeiro
-- **WHEN** o hook do Windows grava `SessionStart` e, mais tarde, `UserPromptSubmit` e `Stop` da mesma sessão
-- **THEN** a data de criação do arquivo de status continua sendo a da primeira gravação
-
-#### Scenario: Primeiro evento da sessão
-- **WHEN** o hook grava o primeiro evento de uma sessão que ainda não tem arquivo
-- **THEN** a data de criação do arquivo é a do momento dessa gravação
 
 ### Requirement: Marcador de criação no container
 A montagem do container não preserva a data de criação de um arquivo substituído. Por isso, o hook do container SHALL criar o marcador vazio `<session_id>.criado` na pasta de status antes de gravar o primeiro status da sessão, e SHALL NOT regravá-lo nos eventos seguintes. Se o marcador não existir e não puder ser criado, o hook SHALL NOT gravar o arquivo de status.
@@ -154,7 +144,7 @@ A montagem do container não preserva a data de criação de um arquivo substitu
 - **THEN** a data de criação do marcador continua sendo a da primeira gravação
 
 ### Requirement: Status das sessões no container
-O hook do container SHALL gravar na mesma pasta de status das sessões do Windows, que o container vê como `/status`, com o mesmo contrato do arquivo de status. O `cwd` SHALL ser o caminho dentro do container, como `/workspace/Faturamento`.
+O hook do container SHALL gravar na pasta de status, que o container vê como `/status`, com o contrato do arquivo de status. O `cwd` SHALL ser o caminho dentro do container, como `/workspace/Faturamento`.
 
 #### Scenario: Sessão no container
 - **WHEN** o hook do container recebe `SessionStart` de uma sessão aberta em `/workspace/Faturamento`
@@ -162,7 +152,7 @@ O hook do container SHALL gravar na mesma pasta de status das sessões do Window
 
 #### Scenario: Associação ao repositório
 - **WHEN** o painel lê um arquivo de status com `cwd` igual a `/workspace/Faturamento`
-- **THEN** a sessão é associada ao repositório `Faturamento`, como uma sessão do Windows com `cwd` `C:\Fontes\Faturamento`
+- **THEN** a sessão é associada ao repositório `Faturamento`
 
 #### Scenario: Repositório cadastrado por caminho completo
 - **WHEN** o painel lê um arquivo de status com `cwd` igual a `/openspec/ERP/Faturamento` e há o repositório `C:\openspec\ERP\Faturamento`

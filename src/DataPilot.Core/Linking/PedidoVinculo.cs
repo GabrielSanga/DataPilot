@@ -39,17 +39,15 @@ public static class RegrasVinculo
         "O identificador desta sessão não é um GUID; o painel não conseguiria retomá-la.";
 
     /// <summary>
-    /// Repositório da raiz: o último segmento da pasta de trabalho é o nome dele. Repositório fora da raiz: a pasta de
-    /// trabalho é o próprio caminho, no Windows ou no container. Sem diferenciar maiúsculas. Só decide pré-seleção, aviso e vínculo automático;
-    /// nunca é gravada.
+    /// Repositório da raiz: o último segmento da pasta de trabalho é o nome dele. Repositório com caminho completo: a
+    /// pasta de trabalho é o caminho dele no container. Sem diferenciar maiúsculas. Só decide pré-seleção, aviso e vínculo
+    /// automático; nunca é gravada.
     /// </summary>
     public static bool PastaCoincide(string pastaDeTrabalho, string repositorio)
     {
         if (!ValidadorEntrada.CaminhoValido(repositorio))
             return string.Equals(TextoExibicao.NomePasta(pastaDeTrabalho), repositorio, StringComparison.OrdinalIgnoreCase);
-        var aparada = pastaDeTrabalho.TrimEnd('\\', '/');
-        return string.Equals(aparada, repositorio, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(aparada, LocaisContainer.Traduzir(repositorio), StringComparison.OrdinalIgnoreCase);
+        return string.Equals(pastaDeTrabalho.TrimEnd('/'), LocaisContainer.Traduzir(repositorio), StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>Avisar antes de vincular quando a pasta informada pela sessão não coincide com o repositório escolhido.</summary>

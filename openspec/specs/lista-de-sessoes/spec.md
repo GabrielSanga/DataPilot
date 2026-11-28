@@ -1,4 +1,5 @@
 # lista-de-sessoes Specification
+
 ## Purpose
 
 Mostra numa única janela todas as sessões do Claude Code e do Codex e o estado de cada uma, para que o usuário veja de relance o que precisa dele sem percorrer as abas do terminal.
@@ -9,7 +10,7 @@ Mostra numa única janela todas as sessões do Claude Code e do Codex e o estado
 A janela SHALL mostrar cada sessão conhecida com o agente, o nome da pasta (último segmento da pasta de trabalho), o status exibido e o tempo decorrido desde a última atualização. Sessões registradas SHALL aparecer no card do seu repositório, dentro da sua demanda; as demais SHALL aparecer em "Não vinculadas". A pasta de trabalho completa e o identificador da sessão SHALL estar disponíveis para consulta na própria linha.
 
 #### Scenario: Sessão do Claude em andamento
-- **WHEN** existe uma sessão do Claude com pasta de trabalho `C:\Fontes\Faturamento` e status `executando` atualizado há 2 minutos
+- **WHEN** existe uma sessão do Claude com pasta de trabalho `/workspace/Faturamento` e status `executando` atualizado há 2 minutos
 - **THEN** a linha dela mostra agente Claude, pasta `Faturamento`, status "executando" e a indicação de 2 minutos
 
 #### Scenario: Sessões dos dois agentes

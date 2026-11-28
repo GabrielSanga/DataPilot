@@ -16,7 +16,7 @@ public class VinculoSessaoTests
 
     private static readonly RelogioFalso Relogio = new(Fabrica.Agora);
 
-    private static Sessao Lida(string id, Agente agente = Agente.Codex, string cwd = @"C:\Fontes\Faturamento",
+    private static Sessao Lida(string id, Agente agente = Agente.Codex, string cwd = "/workspace/Faturamento",
         StatusGravado status = StatusGravado.Ativa, TimeSpan? idade = null)
         => new(agente, id, cwd, status, Fabrica.Agora - (idade ?? TimeSpan.FromMinutes(1)));
 
@@ -215,7 +215,7 @@ public class VinculoSessaoTests
     {
         var (dados, pasta, caminho) = ComDemanda();
         using var _p = pasta;
-        var lida = new Sessao(Agente.Codex, IdCodex, @"C:\Fontes\" + TextoReconhecivel, StatusGravado.Atencao,
+        var lida = new Sessao(Agente.Codex, IdCodex, "/workspace/" + TextoReconhecivel, StatusGravado.Atencao,
             new DateTimeOffset(2001, 2, 3, 4, 5, 6, TimeSpan.Zero));
 
         var r = dados.VincularSessao(PedidoVinculo.Criar(lida)!, "CHG-142", "Faturamento", null, Fabrica.Agora);
@@ -287,7 +287,7 @@ public class VinculoSessaoTests
     public void Sessao_nao_vinculada_de_mesma_pasta_nao_aparece_em_nenhum_card()
     {
         var v = Montar([Dem("CHG-142", false, "Faturamento", "Estoque"), Dem("CHG-150", false, "Faturamento")],
-            [Lida(IdCodex, cwd: @"C:\Fontes\Faturamento")]);
+            [Lida(IdCodex, cwd: "/workspace/Faturamento")]);
 
         Assert.All(v.Demandas.SelectMany(d => d.Cards), c => Assert.Empty(c.Sessoes));
         Assert.Equal(IdCodex, Assert.Single(v.Sessoes.NaoRegistradas).Sessao.SessionId);
@@ -308,36 +308,36 @@ public class VinculoSessaoTests
     // ---------- Coincidência de pasta (pré-seleção do diálogo e aviso) ----------
 
     [Theory]
-    [InlineData(@"C:\Fontes\faturamento")]
-    [InlineData(@"C:\Fontes\FATURAMENTO\")]
-    [InlineData("/home/ia/Faturamento")]
-    public void Coincidencia_ignora_maiusculas_barra_final_e_separador(string cwd)
+    [InlineData("/workspace/faturamento")]
+    [InlineData("/workspace/FATURAMENTO/")]
+    [InlineData("/openspec/ERP/Faturamento")]
+    public void Coincidencia_ignora_maiusculas_e_barra_final(string cwd)
         => Assert.True(RegrasVinculo.PastaCoincide(cwd, "Faturamento"));
 
     [Theory]
-    [InlineData(@"C:\Fontes\Faturamento2")]
-    [InlineData(@"C:\Faturamento\Outra")]
-    [InlineData(@"C:\Fontes\Fatura")]
+    [InlineData("/workspace/Faturamento2")]
+    [InlineData("/workspace/Faturamento/Outra")]
+    [InlineData("/workspace/Fatura")]
     public void Pasta_de_nome_diferente_nao_coincide(string cwd)
         => Assert.False(RegrasVinculo.PastaCoincide(cwd, "Faturamento"));
 
     [Theory]
-    [InlineData(@"D:\Projetos\Faturamento", true)]
-    [InlineData(@"d:\projetos\FATURAMENTO\", true)]
-    [InlineData(@"C:\Fontes\Faturamento", false)]
-    [InlineData(@"D:\Projetos\Faturamento\src", false)]
-    public void Repositorio_fora_da_raiz_coincide_pelo_caminho_completo(string cwd, bool coincide)
-        => Assert.Equal(coincide, RegrasVinculo.PastaCoincide(cwd, @"D:\Projetos\Faturamento"));
+    [InlineData("/openspec/ERP/Faturamento", true)]
+    [InlineData("/openspec/erp/FATURAMENTO/", true)]
+    [InlineData("/workspace/Faturamento", false)]
+    [InlineData("/openspec/ERP/Faturamento/src", false)]
+    public void Repositorio_por_caminho_completo_coincide_pelo_caminho_no_container(string cwd, bool coincide)
+        => Assert.Equal(coincide, RegrasVinculo.PastaCoincide(cwd, @"C:\openspec\ERP\Faturamento"));
 
     // ---------- Aviso de pasta divergente ----------
 
     [Fact]
     public void Repositorio_diferente_da_pasta_informada_avisa()
-        => Assert.True(RegrasVinculo.AvisarPastaDivergente(@"C:\Fontes\Faturamento", "Estoque"));
+        => Assert.True(RegrasVinculo.AvisarPastaDivergente("/workspace/Faturamento", "Estoque"));
 
     [Theory]
-    [InlineData(@"C:\Fontes\Faturamento")]
-    [InlineData(@"C:\Fontes\faturamento\")]
+    [InlineData("/workspace/Faturamento")]
+    [InlineData("/workspace/faturamento/")]
     public void Repositorio_igual_a_pasta_informada_nao_avisa(string cwd)
         => Assert.False(RegrasVinculo.AvisarPastaDivergente(cwd, "Faturamento"));
 }

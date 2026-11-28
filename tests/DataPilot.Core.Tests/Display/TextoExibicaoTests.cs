@@ -39,8 +39,8 @@ public class TextoExibicaoTests
     }
 
     [Theory]
-    [InlineData(@"C:\Fontes\Faturamento", "Faturamento")]
-    [InlineData(@"C:\Fontes\Faturamento\", "Faturamento")]
+    [InlineData("/workspace/Faturamento", "Faturamento")]
+    [InlineData(@"C:\Fontes\Grupo\Faturamento\", "Faturamento")]
     [InlineData("/home/x/proj/", "proj")]
     [InlineData("proj", "proj")]
     [InlineData("", "")]

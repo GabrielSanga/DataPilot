@@ -37,7 +37,7 @@ O DataPilot é um painel para Windows que organiza as sessões do **Claude Code*
 
 Um trabalho é uma entrega: uma correção, uma funcionalidade, um relatório. Ele pode envolver mais de um repositório, e cada repositório tem as próprias sessões. A lista à esquerda fica ordenada pelo que é mais urgente, com uma faixa colorida nos trabalhos que precisam de você.
 
-Criar um trabalho pede só um título. Para vincular um repositório, basta escolher a pasta no Windows.
+Criar um trabalho pede só um título. Para vincular um repositório, basta escolher a pasta, dentro de `C:\Fontes` ou `C:\openspec\ERP`.
 
 | Cor | Significado |
 |---|---|
@@ -93,9 +93,8 @@ Os diálogos são diretos: pedem só o que é necessário e mostram o erro junto
 
 - Windows 10 ou 11, com o Windows Terminal
 - Docker Desktop com WSL2: o ambiente já traz o Claude Code e o Codex
-- Sem Docker, no modo "Windows": Claude Code, Codex ou os dois, e o usuário isolado `ia` com SSH local
 
-A preparação do ambiente está em [docs/instalacao-container.md](docs/instalacao-container.md) (ou, no modo Windows, em [docs/instalacao-etapa-1.md](docs/instalacao-etapa-1.md)). A compilação, os dados de exemplo e os roteiros de verificação estão em [docs/desenvolvimento.md](docs/desenvolvimento.md). O mapa do código está em [docs/arquitetura.md](docs/arquitetura.md).
+A preparação do ambiente está em [docs/instalacao-container.md](docs/instalacao-container.md). A compilação, os dados de exemplo e os roteiros de verificação estão em [docs/desenvolvimento.md](docs/desenvolvimento.md). O mapa do código está em [docs/arquitetura.md](docs/arquitetura.md).
 
 ## Licença
 

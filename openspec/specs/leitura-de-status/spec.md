@@ -1,7 +1,8 @@
 # leitura-de-status Specification
+
 ## Purpose
 
-Lê, com segurança e sem atraso perceptível, os arquivos de status que o usuário isolado `ia` grava para cada sessão de agente, entregando ao restante do painel apenas dados válidos e que servem somente para exibição.
+Lê, com segurança e sem atraso perceptível, os arquivos de status que o container grava para cada sessão de agente, entregando ao restante do painel apenas dados válidos e que servem somente para exibição.
 
 ## Requirements
 
@@ -21,7 +22,7 @@ O painel SHALL obter as sessões dos arquivos `<session_id>.json` da pasta de st
 - **THEN** esse arquivo não gera sessão
 
 ### Requirement: Validação do conteúdo
-O painel SHALL aceitar um arquivo apenas se ele for um objeto JSON com `agente` igual a `claude` ou `codex`, `session_id` casando com `^[A-Za-z0-9_-]{1,100}$` e igual ao nome do arquivo, `status` entre `ativa`, `executando`, `aguardando`, `atencao` e `encerrada`, e `atualizado` como data e hora ISO 8601 com fuso. Qualquer outro arquivo SHALL ser ignorado. Campos adicionais SHALL ser desconsiderados.
+O painel SHALL aceitar um arquivo apenas se ele for um objeto JSON com `agente` igual a `claude` ou `codex`, `session_id` casando com `^[A-Za-z0-9_-]{1,100}$` e igual ao nome do arquivo, `cwd` como texto que começa com `/` (caminho dentro do container), `status` entre `ativa`, `executando`, `aguardando`, `atencao` e `encerrada`, e `atualizado` como data e hora ISO 8601 com fuso. Qualquer outro arquivo SHALL ser ignorado. Campos adicionais SHALL ser desconsiderados.
 
 #### Scenario: Conteúdo que não é JSON
 - **WHEN** um arquivo `.json` da pasta contém texto que não é JSON válido
@@ -36,8 +37,12 @@ O painel SHALL aceitar um arquivo apenas se ele for um objeto JSON com `agente` 
 - **THEN** ele não gera sessão
 
 #### Scenario: Campo obrigatório ausente
-- **WHEN** falta `agente`, `session_id`, `status` ou `atualizado` no arquivo
+- **WHEN** falta `agente`, `session_id`, `cwd`, `status` ou `atualizado` no arquivo
 - **THEN** ele não gera sessão
+
+#### Scenario: Pasta de trabalho do Windows
+- **WHEN** um arquivo traz em `cwd` o caminho `C:\Fontes\Faturamento`, gravado pelo antigo hook do Windows
+- **THEN** ele não gera sessão, nem em "Sessões" nem em "Mostrar antigas"
 
 #### Scenario: Campo adicional
 - **WHEN** um arquivo válido traz também um campo que o painel não conhece
@@ -110,19 +115,27 @@ O painel SHALL NOT usar nenhum valor lido de um arquivo de status para montar co
 - **THEN** ele compara o texto do último segmento de `cwd` com o nome do repositório, sem acessar o caminho indicado
 
 ### Requirement: Data de criação do arquivo de status
-O painel SHALL conhecer, para cada sessão lida, a data em que ela surgiu na pasta de status, obtida do sistema de arquivos, sem alterar nada: a data de criação do marcador `<session_id>.criado`, quando ele existir na pasta, e a do próprio arquivo de status, quando não existir. O painel SHALL NOT ler o conteúdo do marcador, e SHALL desconsiderar um marcador que seja atalho.
+O painel SHALL conhecer, para cada sessão lida, a data em que ela surgiu na pasta de status pela data de criação do marcador `<session_id>.criado`, obtida do sistema de arquivos, sem alterar nada. Sem o marcador, o painel SHALL NOT conhecer essa data, e a sessão SHALL NOT ser vinculada automaticamente a um lançamento pendente. O painel SHALL NOT ler o conteúdo do marcador, e SHALL desconsiderar um marcador que seja atalho.
 
 #### Scenario: Sessão com vários eventos
-- **WHEN** o hook atualizou o arquivo de status de uma sessão várias vezes depois de criá-lo
-- **THEN** a data de criação conhecida pelo painel é a da primeira gravação, e não a do último evento
+- **WHEN** o hook atualizou o arquivo de status de uma sessão várias vezes depois de criar o marcador
+- **THEN** a data de criação conhecida pelo painel é a do marcador, e não a do último evento
 
 #### Scenario: Sessão recém-criada
-- **WHEN** surge o arquivo de status de uma sessão nova
-- **THEN** a data de criação conhecida pelo painel é a do momento em que o arquivo surgiu
+- **WHEN** surgem o marcador e o arquivo de status de uma sessão nova
+- **THEN** a data de criação conhecida pelo painel é a do momento em que o marcador surgiu
 
 #### Scenario: Sessão do container com marcador
 - **WHEN** a pasta tem o arquivo de status de uma sessão e o marcador `<session_id>.criado`, criado antes da última gravação do arquivo
 - **THEN** a data de criação conhecida pelo painel é a do marcador
+
+#### Scenario: Arquivo de status sem marcador
+- **WHEN** a pasta tem o arquivo de status válido de uma sessão e não tem o marcador `<session_id>.criado`
+- **THEN** a sessão é listada, mas não é vinculada automaticamente a nenhum lançamento pendente
+
+#### Scenario: Marcador que é atalho
+- **WHEN** o marcador `<session_id>.criado` é um atalho
+- **THEN** o painel age como se o marcador não existisse
 
 #### Scenario: Marcador sem arquivo de status
 - **WHEN** a pasta tem um marcador `.criado` sem o arquivo de status correspondente

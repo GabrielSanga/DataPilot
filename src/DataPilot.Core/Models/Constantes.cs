@@ -6,10 +6,6 @@ public static class Constantes
     public const string RaizFontesPadrao = @"C:\Fontes";
     public const string ExecutavelTerminal = "wt.exe";
     public const string JanelaTerminal = "painel";
-    public const string UsuarioSshPadrao = "ia";
-    public const string HostSsh = "localhost";
-    public const string PastaScripts = @"C:\Painel";
-    public const string ScriptAbrir = PastaScripts + @"\abrir.ps1";
     public const string PastaOpenspec = @"C:\openspec\ERP";
     public const string ContainerPadrao = "datapilot-agente";
     public const string ExecutavelDocker = "docker";

@@ -1,7 +1,6 @@
 using System.Text;
 using DataPilot.Core.Models;
 using DataPilot.Core.Sessions;
-using DataPilot.Core.Tests.Helpers;
 
 namespace DataPilot.Core.Tests.Sessions;
 
@@ -10,30 +9,27 @@ public class MontadorComandoCaminhoTests
     private const string Id = "0b6f1c2e-5d1a-4c8e-9f3a-2b7d4e6a8c10";
 
     private static IReadOnlyList<string> Args(string pasta, string? titulo = "Ajuste")
-        => MontadorComando.Novo("CHG-142", titulo, new RepositorioCadastrado(pasta, []), Agente.Claude, Id, null, Fabrica.Windows).Argumentos;
+        => MontadorComando.Novo("CHG-142", titulo, new RepositorioCadastrado(pasta, []), Agente.Claude, Id, null).Argumentos;
 
     [Fact]
-    public void Repositorio_da_raiz_continua_com_Repo()
+    public void Repositorio_da_raiz_continua_com_repo()
     {
         var args = Args("Faturamento");
-        var i = args.ToList().IndexOf("-Repo");
+        var i = args.ToList().IndexOf("--repo");
         Assert.Equal("Faturamento", args[i + 1]);
-        Assert.DoesNotContain("-Caminho", args);
+        Assert.DoesNotContain("--caminho", args);
     }
 
     [Fact]
-    public void Caminho_fora_da_raiz_vai_em_Base64_sem_texto_livre_na_linha()
+    public void Caminho_completo_vai_em_Base64_sem_texto_livre_na_linha()
     {
-        const string pasta = @"C:\Users\Gabriel Sanga\código & cia;v2";
-        var args = Args(pasta);
+        var args = Args(@"C:\Fontes\código & cia;v2");
 
-        var i = args.ToList().IndexOf("-Caminho");
+        var i = args.ToList().IndexOf("--caminho");
         Assert.True(i > 0);
-        Assert.Equal(pasta, Encoding.UTF8.GetString(Convert.FromBase64String(args[i + 1])));
-        Assert.DoesNotContain("-Repo", args);
-        // Do powershell em diante é o que o ssh repassa como linha de comando, reinterpretada pelo Windows.
-        var linhaDoSsh = args.SkipWhile(a => a != "powershell");
-        Assert.DoesNotContain(linhaDoSsh, a => a.IndexOfAny([' ', '&', ';', '"', '%', '^', '|']) >= 0);
+        Assert.Equal("/workspace/código & cia;v2", Encoding.UTF8.GetString(Convert.FromBase64String(args[i + 1])));
+        Assert.DoesNotContain("--repo", args);
+        Assert.DoesNotContain(args.SkipWhile(a => a != "docker"), a => a.IndexOfAny([' ', '&', ';', '"', '%', '^', '|']) >= 0);
     }
 
     [Fact]

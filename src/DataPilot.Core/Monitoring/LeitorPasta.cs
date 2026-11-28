@@ -16,7 +16,7 @@ public sealed record RetratoPasta(bool Disponivel, IReadOnlyList<Sessao> Sessoes
 public sealed class LeitorPasta
 {
     private readonly string _pasta;
-    private readonly Dictionary<string, (DateTime Modificado, DateTime Criado, long Tamanho, Sessao? Sessao)> _cache =
+    private readonly Dictionary<string, (DateTime Modificado, DateTime? Criado, long Tamanho, Sessao? Sessao)> _cache =
         new(StringComparer.OrdinalIgnoreCase);
 
     public LeitorPasta(string pasta) => _pasta = pasta;
@@ -95,7 +95,8 @@ public sealed class LeitorPasta
 
             var sessao = LerEValidar(arq);
             // A data de criação vem do sistema de arquivos; o conteúdo do arquivo não a define.
-            if (sessao is not null) sessao = sessao with { ArquivoCriadoEm = new DateTimeOffset(criado, TimeSpan.Zero) };
+            if (sessao is not null && criado is { } inicio)
+                sessao = sessao with { ArquivoCriadoEm = new DateTimeOffset(inicio, TimeSpan.Zero) };
             _cache[arq.Name] = (modificado, criado, tamanho, sessao);
             return sessao;
         }
@@ -107,15 +108,15 @@ public sealed class LeitorPasta
     }
 
     /// <summary>
-    /// A montagem do container não preserva a data de criação na troca do arquivo; o hook de lá guarda o início da
-    /// sessão no marcador <c>&lt;id&gt;.criado</c>. Só a data dele é consultada, nunca o conteúdo.
+    /// A montagem do container não preserva a data de criação na troca do arquivo; o hook guarda o início da sessão no
+    /// marcador <c>&lt;id&gt;.criado</c>. Só a data dele é consultada, nunca o conteúdo. Sem marcador, não há data.
     /// </summary>
-    private static DateTime DataDeInicio(FileInfo arq)
+    private static DateTime? DataDeInicio(FileInfo arq)
     {
         var marcador = new FileInfo(Path.ChangeExtension(arq.FullName, ".criado"));
         return marcador.Exists && (marcador.Attributes & FileAttributes.ReparsePoint) == 0
             ? marcador.CreationTimeUtc
-            : arq.CreationTimeUtc;
+            : null;
     }
 
     private static Sessao? LerEValidar(FileInfo arq)

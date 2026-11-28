@@ -7,11 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="..\..\scripts\abrir.ps1" LogicalName="abrir.ps1" />
-    <EmbeddedResource Include="..\..\scripts\hook.ps1" LogicalName="hook.ps1" />
-  </ItemGroup>
-
-  <ItemGroup>
     <InternalsVisibleTo Include="DataPilot.Core.Tests" />
   </ItemGroup>
 
